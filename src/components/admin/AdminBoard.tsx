@@ -44,6 +44,9 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
   const summary = useMemo(() => {
     const selling = products.filter((p) => p.today_available);
     return {
+      // 전체와 판매중이 다르다. 전체가 안 보이면 관리자 권한이 붙었는지 알 수 없다
+      total: products.length,
+      hidden: products.length - selling.length,
       selling: selling.length,
       soldOut: selling.filter((p) => stockStatus(p.today_stock).level === "out")
         .length,
@@ -96,8 +99,11 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
           <p className="text-[14px] text-ink-soft">오늘의 반찬</p>
           <h1 className="pt-1.5 text-[26px] leading-tight">오늘 재고 관리</h1>
           <p className="pt-3 text-[13px] text-ink-soft">
-            판매중 {summary.selling}가지 · 마감임박 {summary.low} · 품절{" "}
-            {summary.soldOut}
+            전체 {summary.total}가지 · 판매중 {summary.selling} · 숨김{" "}
+            {summary.hidden}
+          </p>
+          <p className="pt-1 text-[13px] text-ink-soft">
+            마감임박 {summary.low} · 품절 {summary.soldOut}
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
