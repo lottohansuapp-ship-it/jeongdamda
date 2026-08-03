@@ -83,25 +83,20 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
           />
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Labeled label="영업 시작">
-              <input
-                type="time"
-                name="open_time"
-                required
-                defaultValue={settings.open_time.slice(0, 5)}
-                className={FIELD}
-              />
-            </Labeled>
-            <Labeled label="영업 마감">
-              <input
-                type="time"
-                name="close_time"
-                required
-                defaultValue={settings.close_time.slice(0, 5)}
-                className={FIELD}
-              />
-            </Labeled>
+            <TimeSelect
+              name="open_time"
+              label="영업 시작"
+              value={settings.open_time}
+            />
+            <TimeSelect
+              name="close_time"
+              label="영업 마감"
+              value={settings.close_time}
+            />
           </div>
+          <p className="text-[12px] leading-relaxed text-ink-faint">
+            24시간 표기예요. 시작과 마감을 같게 두면 24시간 영업으로 처리됩니다.
+          </p>
 
           <fieldset>
             <legend className="pb-1.5 text-[12px] text-ink-faint">
@@ -149,6 +144,26 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
                 className={FIELD}
               />
             </Labeled>
+            <Labeled label="배달비 (원)">
+              <input
+                type="number"
+                name="delivery_fee"
+                min={0}
+                step={500}
+                defaultValue={settings.delivery_fee}
+                className={FIELD}
+              />
+            </Labeled>
+          </div>
+
+          <Switch
+            name="restrict_delivery_area"
+            defaultChecked={settings.restrict_delivery_area}
+            label="배달 지역 제한"
+            hint="끄면 어느 주소든 배달합니다. 켜면 아래 등록한 지역만 가능해요"
+          />
+
+          <div className="grid grid-cols-2 gap-2.5">
             <Labeled label="준비 시간 (분)">
               <input
                 type="number"
@@ -360,6 +375,61 @@ function AreaForm({
         </button>
       </div>
     </form>
+  );
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+const MINUTES = ["00", "10", "20", "30", "40", "50", "59"];
+
+/**
+ * <input type="time"> 은 브라우저가 OS 언어를 따라 12시간제로 뜬다.
+ * 사장님이 정오(오후 12:00)와 자정(오전 12:00)을 헷갈리면 하루 종일 가게가 닫힌다.
+ * 선택 목록으로 두면 오전·오후가 아예 없다.
+ */
+function TimeSelect({
+  name,
+  label,
+  value,
+}: {
+  name: string;
+  label: string;
+  value: string;
+}) {
+  const [hour, setHour] = useState(value.slice(0, 2));
+  const [minute, setMinute] = useState(value.slice(3, 5));
+
+  return (
+    <div>
+      <span className="block pb-1 text-[12px] text-ink-faint">{label}</span>
+      <input type="hidden" name={name} value={`${hour}:${minute}`} />
+      <div className="flex items-center gap-1.5">
+        <select
+          aria-label={`${label} 시`}
+          value={hour}
+          onChange={(event) => setHour(event.target.value)}
+          className={`${FIELD} px-2 text-center tabular-nums`}
+        >
+          {HOURS.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
+        </select>
+        <span className="text-[15px] text-ink-faint">:</span>
+        <select
+          aria-label={`${label} 분`}
+          value={minute}
+          onChange={(event) => setMinute(event.target.value)}
+          className={`${FIELD} px-2 text-center tabular-nums`}
+        >
+          {MINUTES.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 }
 

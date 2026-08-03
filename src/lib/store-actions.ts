@@ -67,6 +67,8 @@ export async function updateStoreSettings(
       pickup_enabled: pickup,
       delivery_enabled: delivery,
       min_order_amount: readInt(formData, "min_order_amount"),
+      delivery_fee: readInt(formData, "delivery_fee"),
+      restrict_delivery_area: formData.get("restrict_delivery_area") === "on",
       pickup_lead_minutes: readInt(formData, "pickup_lead_minutes"),
       notice: notice || null,
     })

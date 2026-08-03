@@ -67,6 +67,10 @@ export interface StoreSettings {
   pickup_enabled: boolean;
   delivery_enabled: boolean;
   min_order_amount: number;
+  /** 지역 제한이 꺼져 있을 때 쓰는 기본 배달비 */
+  delivery_fee: number;
+  /** 켜면 delivery_areas 로만 배달. 끄면 어느 주소든 배달 (0010) */
+  restrict_delivery_area: boolean;
   pickup_lead_minutes: number;
   notice: string | null;
   updated_at: string;
