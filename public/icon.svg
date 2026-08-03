@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="오늘의 반찬">
+  <rect width="512" height="512" rx="112" fill="#6B8E23"/>
+  <path d="M128 236h256a12 12 0 0 1 12 12v12c0 66-53 120-119 120h-42c-66 0-119-54-119-120v-12a12 12 0 0 1 12-12Z" fill="#FFF8F0"/>
+  <path d="M188 196c0-22 14-30 14-48s-10-26-10-26M256 196c0-22 14-30 14-48s-10-26-10-26M324 196c0-22 14-30 14-48s-10-26-10-26" stroke="#FFF8F0" stroke-width="17" stroke-linecap="round" fill="none" opacity=".72"/>
+  <rect x="112" y="392" width="288" height="26" rx="13" fill="#C76B29"/>
+</svg>

@@ -1,0 +1,328 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { deleteProduct, updateProduct, uploadPhoto } from "@/lib/actions";
+import { formatPrice } from "@/lib/format";
+import { stockStatus } from "@/lib/stock";
+import type { Category, ProductWithCategory } from "@/types/database";
+import { ProductPhoto } from "@/components/shop/ProductPhoto";
+
+const COMMIT_DELAY_MS = 500;
+
+const TONE = {
+  out: "text-danger",
+  low: "text-[#a96f14]",
+  plenty: "text-[#2f8449]",
+} as const;
+
+interface AdminRowProps {
+  product: ProductWithCategory;
+  categories: Category[];
+  onError: (message: string) => void;
+  onNotice: (message: string) => void;
+  onMove: (direction: -1 | 1) => void;
+  isFirst: boolean;
+  isLast: boolean;
+}
+
+export function AdminRow({
+  product,
+  categories,
+  onError,
+  onNotice,
+  onMove,
+  isFirst,
+  isLast,
+}: AdminRowProps) {
+  const [stock, setStock] = useState(product.today_stock);
+  const settled = useRef(product.today_stock);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 편집 중이 아닐 때만 서버 값을 반영한다. 입력 중에 덮어쓰면 손가락이 튕긴다.
+  useEffect(() => {
+    if (timer.current) return;
+    settled.current = product.today_stock;
+    setStock(product.today_stock);
+  }, [product.today_stock]);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  function bump(delta: number) {
+    const next = Math.max(0, stock + delta);
+    setStock(next);
+
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      timer.current = null;
+      const result = await updateProduct(product.id, { today_stock: next });
+      if (result.ok) {
+        settled.current = next;
+      } else {
+        setStock(settled.current);
+        onError(result.error);
+      }
+    }, COMMIT_DELAY_MS);
+  }
+
+  async function patch(
+    field: Parameters<typeof updateProduct>[1],
+    label: string,
+  ) {
+    const result = await updateProduct(product.id, field);
+    if (result.ok) onNotice(`${product.name} · ${label} 저장됨`);
+    else onError(result.error);
+  }
+
+  async function onPhotoPicked(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const form = new FormData();
+    form.set("photo", file);
+    const result = await uploadPhoto(product.id, form);
+    event.target.value = "";
+
+    if (result.ok) onNotice(`${product.name} · 사진 변경됨`);
+    else onError(result.error);
+  }
+
+  async function onDelete() {
+    if (!confirm(`'${product.name}' 을(를) 삭제할까요? 되돌릴 수 없습니다.`)) return;
+    const result = await deleteProduct(product.id);
+    if (!result.ok) onError(result.error);
+  }
+
+  const status = stockStatus(stock);
+
+  return (
+    <li className="rounded-card bg-white p-4 shadow-soft">
+      <div className="flex gap-3.5">
+        <div className="relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[12px]">
+          <ProductPhoto
+            name={product.name}
+            photoPath={product.photo_path}
+            sizes="76px"
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-[15px]">{product.name}</p>
+              <p className="pt-0.5 text-[12.5px] text-ink-faint">
+                {product.category.name} · {formatPrice(product.price)}
+              </p>
+            </div>
+
+            <label className="flex shrink-0 cursor-pointer items-center gap-2">
+              <span className="text-[12px] text-ink-faint">판매</span>
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                checked={product.today_available}
+                onChange={(event) =>
+                  patch({ today_available: event.target.checked }, "판매 여부")
+                }
+              />
+              <span className="relative block h-7 w-12 rounded-pill bg-line transition-colors duration-200 after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform after:duration-200 peer-checked:bg-olive peer-checked:after:translate-x-5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-olive" />
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3 pt-3">
+            <Step
+              label="재고 1개 줄이기"
+              onClick={() => bump(-1)}
+              disabled={stock <= 0}
+            >
+              −
+            </Step>
+            <span className="min-w-[3.5rem] text-center">
+              <span className="text-[20px] tabular-nums tracking-tight">
+                {stock}
+              </span>
+              <span className="pl-1 text-[12px] text-ink-faint">개</span>
+            </span>
+            <Step label="재고 1개 늘리기" onClick={() => bump(1)}>
+              +
+            </Step>
+            <span className={`text-[12.5px] ${TONE[status.level]}`}>
+              {status.dot} {status.label}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-3.5 sm:grid-cols-4">
+        <Field label="가격">
+          <input
+            type="number"
+            min={0}
+            step={100}
+            defaultValue={product.price}
+            onBlur={(event) => {
+              const value = Number(event.target.value);
+              if (Number.isFinite(value) && value !== product.price) {
+                patch({ price: Math.max(0, Math.round(value)) }, "가격");
+              }
+            }}
+            className="h-11 w-full rounded-[12px] border border-line bg-canvas px-3 text-[14px] tabular-nums focus:border-olive focus:outline-none"
+          />
+        </Field>
+
+        <Field label="카테고리">
+          <select
+            value={product.category_id}
+            onChange={(event) =>
+              patch({ category_id: event.target.value }, "카테고리")
+            }
+            className="h-11 w-full rounded-[12px] border border-line bg-canvas px-2.5 text-[14px] focus:border-olive focus:outline-none"
+          >
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="사진">
+          <span className="tap-target flex h-11 w-full cursor-pointer items-center justify-center rounded-[12px] border border-dashed border-line bg-canvas text-[13px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep">
+            변경
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              className="sr-only"
+              onChange={onPhotoPicked}
+            />
+          </span>
+        </Field>
+
+        <Field label="순서">
+          <div className="flex h-11 gap-2">
+            <Move label="위로" onClick={() => onMove(-1)} disabled={isFirst}>
+              ↑
+            </Move>
+            <Move label="아래로" onClick={() => onMove(1)} disabled={isLast}>
+              ↓
+            </Move>
+          </div>
+        </Field>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Flag
+          active={product.made_today}
+          onClick={() => patch({ made_today: !product.made_today }, "TODAY")}
+        >
+          오늘 만듦
+        </Flag>
+        <Flag
+          active={product.recommended}
+          onClick={() => patch({ recommended: !product.recommended }, "추천")}
+        >
+          사장님 추천
+        </Flag>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="ml-auto h-9 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
+        >
+          삭제
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function Step({
+  label,
+  onClick,
+  disabled = false,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="tap-target grid place-items-center rounded-full border border-line bg-canvas text-[20px] leading-none text-ink transition-[background-color,transform] duration-150 hover:bg-olive-soft active:scale-95 disabled:opacity-35"
+    >
+      {children}
+    </button>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="block pb-1 text-[11.5px] text-ink-faint">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Move({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="flex-1 rounded-[12px] border border-line bg-canvas text-[15px] transition-colors duration-200 hover:bg-olive-soft disabled:opacity-30"
+    >
+      {children}
+    </button>
+  );
+}
+
+function Flag({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`h-9 rounded-pill px-3 text-[13px] transition-colors duration-200 ${
+        active
+          ? "bg-olive-soft text-olive-deep"
+          : "border border-line text-ink-faint hover:text-ink-soft"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
