@@ -77,7 +77,7 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
       price: Number(formData.get("price") ?? 0),
       category_id: String(formData.get("category_id") ?? ""),
       today_stock: Number(formData.get("today_stock") ?? 0),
-      made_today: true,
+      badges: ["today"],
       sort_order: order.length + 1,
     });
 

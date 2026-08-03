@@ -18,8 +18,8 @@ export interface Product {
   photo_path: string | null;
   today_stock: number;
   today_available: boolean;
-  made_today: boolean;
-  recommended: boolean;
+  /** src/lib/badges.ts 의 key 목록. 모르는 key 는 화면에서 무시된다. */
+  badges: string[];
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -30,7 +30,7 @@ export interface ProductWithCategory extends Product {
 }
 
 export const PRODUCT_COLUMNS =
-  "id, category_id, name, description, price, origin, allergy, storage, pairing, photo_path, today_stock, today_available, made_today, recommended, sort_order, created_at, updated_at";
+  "id, category_id, name, description, price, origin, allergy, storage, pairing, photo_path, today_stock, today_available, badges, sort_order, created_at, updated_at";
 
 export interface Profile {
   id: string;

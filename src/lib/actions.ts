@@ -19,8 +19,7 @@ type ProductPatch = Partial<
     | "photo_path"
     | "today_stock"
     | "today_available"
-    | "made_today"
-    | "recommended"
+    | "badges"
     | "sort_order"
   >
 >;

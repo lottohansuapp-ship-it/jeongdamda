@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AddToCart } from "@/components/cart/AddToCart";
+import { BADGE_STYLE } from "@/components/shop/ProductCard";
+import { resolveBadges } from "@/lib/badges";
 import { ProductPhoto } from "@/components/shop/ProductPhoto";
 import { StockBadge } from "@/components/shop/StockBadge";
 import { formatPrice } from "@/lib/format";
@@ -102,16 +104,14 @@ async function ProductBody({ params }: PageProps) {
           <span className="rounded-pill bg-white px-2.5 py-1 text-[12px] text-ink-soft shadow-soft">
             {product.category.name}
           </span>
-          {product.made_today && (
-            <span className="rounded-pill bg-olive px-2.5 py-1 text-[12px] leading-none text-white">
-              오늘 만든 반찬
+          {resolveBadges(product.badges).map((badge) => (
+            <span
+              key={badge.key}
+              className={`rounded-pill px-2.5 py-1 text-[12px] leading-none ${BADGE_STYLE[badge.tone]}`}
+            >
+              {badge.label}
             </span>
-          )}
-          {product.recommended && (
-            <span className="rounded-pill bg-clay-soft px-2.5 py-1 text-[12px] leading-none text-clay">
-              사장님 추천
-            </span>
-          )}
+          ))}
         </div>
 
         <h1 className="pt-3 text-[26px] leading-tight">{product.name}</h1>

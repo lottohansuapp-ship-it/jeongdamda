@@ -1,9 +1,17 @@
 import Link from "next/link";
+import { resolveBadges, type BadgeTone } from "@/lib/badges";
 import { formatPrice } from "@/lib/format";
 import { stockStatus } from "@/lib/stock";
 import type { ProductWithCategory } from "@/types/database";
 import { ProductPhoto } from "./ProductPhoto";
 import { StockBadge } from "./StockBadge";
+
+/** 뱃지 색은 카드·상세·관리자가 같은 표를 쓴다 */
+export const BADGE_STYLE: Record<BadgeTone, string> = {
+  olive: "bg-olive text-white",
+  clay: "bg-white/95 text-clay",
+  danger: "bg-danger text-white",
+};
 
 interface ProductCardProps {
   product: ProductWithCategory;
@@ -49,16 +57,14 @@ export function ProductCard({
         )}
 
         <div className="absolute left-2.5 top-2.5 flex gap-1.5">
-          {product.made_today && (
-            <span className="rounded-pill bg-olive px-2 py-1 text-[11px] leading-none tracking-wide text-white">
-              TODAY
+          {resolveBadges(product.badges).map((badge) => (
+            <span
+              key={badge.key}
+              className={`rounded-pill px-2 py-1 text-[11px] leading-none ${BADGE_STYLE[badge.tone]}`}
+            >
+              {badge.label}
             </span>
-          )}
-          {product.recommended && (
-            <span className="rounded-pill bg-white/95 px-2 py-1 text-[11px] leading-none text-clay">
-              추천
-            </span>
-          )}
+          ))}
         </div>
       </div>
 

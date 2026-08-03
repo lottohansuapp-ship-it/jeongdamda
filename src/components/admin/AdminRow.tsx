@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { deleteProduct, updateProduct, uploadPhoto } from "@/lib/actions";
+import { BADGES, canAddBadge, toggleBadge } from "@/lib/badges";
 import { formatPrice } from "@/lib/format";
 import { stockStatus } from "@/lib/stock";
 import type { Category, ProductWithCategory } from "@/types/database";
@@ -35,8 +36,22 @@ export function AdminRow({
   isLast,
 }: AdminRowProps) {
   const [stock, setStock] = useState(product.today_stock);
+  const [badges, setBadges] = useState<string[]>(product.badges ?? []);
+  const [available, setAvailable] = useState(product.today_available);
   const settled = useRef(product.today_stock);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 서버가 새 값을 내려주면 맞춘다. 렌더 중에 해야 한 프레임 어긋나지 않는다.
+  const [syncedBadges, setSyncedBadges] = useState(product.badges);
+  if (syncedBadges !== product.badges) {
+    setSyncedBadges(product.badges);
+    setBadges(product.badges ?? []);
+  }
+  const [syncedAvailable, setSyncedAvailable] = useState(product.today_available);
+  if (syncedAvailable !== product.today_available) {
+    setSyncedAvailable(product.today_available);
+    setAvailable(product.today_available);
+  }
 
   // 편집 중이 아닐 때만 서버 값을 반영한다. 입력 중에 덮어쓰면 손가락이 튕긴다.
   useEffect(() => {
@@ -76,6 +91,28 @@ export function AdminRow({
     const result = await updateProduct(product.id, field);
     if (result.ok) onNotice(`${product.name} · ${label} 저장됨`);
     else onError(result.error);
+  }
+
+  /**
+   * 뱃지·판매 토글은 화면을 먼저 바꾸고 저장은 뒤에서 한다.
+   * 서버 응답을 기다렸다가 바꾸면 58행 재조회가 끝날 때까지 버튼이 안 움직인다.
+   */
+  async function commitBadges(next: string[]) {
+    setBadges(next);
+    const result = await updateProduct(product.id, { badges: next });
+    if (!result.ok) {
+      setBadges(product.badges ?? []);
+      onError(result.error);
+    }
+  }
+
+  async function commitAvailable(next: boolean) {
+    setAvailable(next);
+    const result = await updateProduct(product.id, { today_available: next });
+    if (!result.ok) {
+      setAvailable(product.today_available);
+      onError(result.error);
+    }
   }
 
   async function onPhotoPicked(event: React.ChangeEvent<HTMLInputElement>) {
@@ -124,10 +161,8 @@ export function AdminRow({
               <input
                 type="checkbox"
                 className="peer sr-only"
-                checked={product.today_available}
-                onChange={(event) =>
-                  patch({ today_available: event.target.checked }, "판매 여부")
-                }
+                checked={available}
+                onChange={(event) => commitAvailable(event.target.checked)}
               />
               <span className="relative block h-7 w-12 rounded-pill bg-line transition-colors duration-200 after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform after:duration-200 peer-checked:bg-olive peer-checked:after:translate-x-5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-olive" />
             </label>
@@ -215,18 +250,19 @@ export function AdminRow({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Flag
-          active={product.made_today}
-          onClick={() => patch({ made_today: !product.made_today }, "TODAY")}
-        >
-          오늘 만듦
-        </Flag>
-        <Flag
-          active={product.recommended}
-          onClick={() => patch({ recommended: !product.recommended }, "추천")}
-        >
-          사장님 추천
-        </Flag>
+        {BADGES.map((badge) => {
+          const on = badges.includes(badge.key);
+          return (
+            <Flag
+              key={badge.key}
+              active={on}
+              disabled={!on && !canAddBadge(badges)}
+              onClick={() => commitBadges(toggleBadge(badges, badge.key))}
+            >
+              {badge.label}
+            </Flag>
+          );
+        })}
         <button
           type="button"
           onClick={onDelete}
@@ -305,18 +341,22 @@ function Move({
 function Flag({
   active,
   onClick,
+  disabled = false,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
-      className={`h-9 rounded-pill px-3 text-[13px] transition-colors duration-200 ${
+      title={disabled ? "뱃지는 2개까지 달 수 있어요" : undefined}
+      className={`h-9 rounded-pill px-3 text-[13px] transition-colors duration-200 disabled:opacity-30 ${
         active
           ? "bg-olive-soft text-olive-deep"
           : "border border-line text-ink-faint hover:text-ink-soft"

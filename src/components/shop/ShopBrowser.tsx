@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { hasBadge, RECOMMEND_KEY } from "@/lib/badges";
 import { EMPTY_FILTERS, filterProducts, type ShopFilters } from "@/lib/filter";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { ProductCard } from "./ProductCard";
@@ -24,7 +25,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
   );
 
   const recommended = useMemo(
-    () => products.filter((p) => p.recommended).slice(0, 3),
+    () => products.filter((p) => hasBadge(p.badges, RECOMMEND_KEY)).slice(0, 3),
     [products],
   );
 

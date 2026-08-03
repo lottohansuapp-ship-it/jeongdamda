@@ -1,4 +1,5 @@
 import { normalize } from "./format.ts";
+import { hasBadge, RECOMMEND_KEY } from "./badges.ts";
 import type { ProductWithCategory } from "@/types/database";
 
 export interface ShopFilters {
@@ -26,7 +27,9 @@ export function filterProducts(
     if (filters.categorySlug && product.category.slug !== filters.categorySlug) {
       return false;
     }
-    if (filters.recommendedOnly && !product.recommended) return false;
+    if (filters.recommendedOnly && !hasBadge(product.badges, RECOMMEND_KEY)) {
+      return false;
+    }
     if (filters.hideSoldOut && product.today_stock <= 0) return false;
     if (!q) return true;
 
