@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createProduct, reorderProducts } from "@/lib/actions";
+import { EMPTY_FILTERS, filterProducts } from "@/lib/filter";
 import { signOut } from "@/lib/auth";
 import { stockStatus } from "@/lib/stock";
 import type { Category, ProductWithCategory } from "@/types/database";
@@ -12,6 +13,31 @@ const TOAST_MS = 2600;
 
 const INPUT =
   "h-12 w-full rounded-card border border-line bg-canvas px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none";
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`h-11 shrink-0 rounded-pill px-4 text-[14px] transition-colors duration-200 ${
+        active
+          ? "bg-ink text-white"
+          : "border border-line bg-white text-ink-soft hover:border-ink-faint"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 interface AdminBoardProps {
   categories: Category[];
@@ -28,6 +54,17 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
   const [synced, setSynced] = useState(products);
   const [toast, setToast] = useState<Toast | null>(null);
   const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState("");
+  const [categorySlug, setCategorySlug] = useState<string | null>(null);
+
+  const filtering = query.trim().length > 0 || categorySlug !== null;
+
+  // 손님 화면과 같은 필터 로직을 쓴다. 두 벌로 두면 결과가 갈린다.
+  const visible = useMemo(
+    () =>
+      filterProducts(order, { ...EMPTY_FILTERS, query, categorySlug }),
+    [order, query, categorySlug],
+  );
 
   // 서버가 새 목록을 내려주면 렌더 중에 맞춘다. effect 로 하면 한 프레임 어긋난다.
   if (synced !== products) {
@@ -186,24 +223,64 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
         </button>
       )}
 
-      {order.length === 0 ? (
+      <div className="sticky top-0 z-20 -mx-5 mb-3 bg-canvas/92 px-5 pb-3 pt-2 backdrop-blur-md">
+        <label className="relative block">
+          <span className="sr-only">반찬 검색</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="반찬 이름으로 찾기"
+            className="h-12 w-full rounded-pill border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none"
+          />
+        </label>
+
+        <div className="no-scrollbar -mx-5 mt-2.5 flex gap-2 overflow-x-auto px-5">
+          <Chip active={categorySlug === null} onClick={() => setCategorySlug(null)}>
+            전체
+          </Chip>
+          {categories.map((category) => (
+            <Chip
+              key={category.id}
+              active={categorySlug === category.slug}
+              onClick={() => setCategorySlug(category.slug)}
+            >
+              {category.name}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      {visible.length !== order.length && (
+        <p className="pb-2 text-[12.5px] text-ink-faint">
+          {visible.length}가지 표시 중 · 순서 변경은 전체 목록에서만 가능해요
+        </p>
+      )}
+
+      {visible.length === 0 ? (
         <p className="rounded-card bg-white px-6 py-16 text-center text-[14px] text-ink-soft shadow-soft">
-          아직 등록된 반찬이 없습니다.
+          {order.length === 0
+            ? "아직 등록된 반찬이 없습니다."
+            : "조건에 맞는 반찬이 없어요."}
         </p>
       ) : (
         <ul className="space-y-3">
-          {order.map((product, index) => (
+          {visible.map((product) => {
+            const index = order.findIndex((p) => p.id === product.id);
+            return (
             <AdminRow
               key={product.id}
               product={product}
               categories={categories}
               onError={onError}
               onNotice={onNotice}
-              onMove={(direction) => move(index, direction)}
-              isFirst={index === 0}
-              isLast={index === order.length - 1}
-            />
-          ))}
+                onMove={(direction) => move(index, direction)}
+                isFirst={index === 0}
+                isLast={index === order.length - 1}
+                canMove={filtering === false}
+              />
+            );
+          })}
         </ul>
       )}
 

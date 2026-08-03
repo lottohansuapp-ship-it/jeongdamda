@@ -24,6 +24,8 @@ interface AdminRowProps {
   onMove: (direction: -1 | 1) => void;
   isFirst: boolean;
   isLast: boolean;
+  /** 검색·카테고리 필터 중에는 순서를 못 바꾼다. 보이는 순서와 실제 순서가 다르다. */
+  canMove: boolean;
 }
 
 export function AdminRow({
@@ -34,7 +36,9 @@ export function AdminRow({
   onMove,
   isFirst,
   isLast,
+  canMove,
 }: AdminRowProps) {
+  const [open, setOpen] = useState(false);
   const [stock, setStock] = useState(product.today_stock);
   const [badges, setBadges] = useState<string[]>(product.badges ?? []);
   const [available, setAvailable] = useState(product.today_available);
@@ -192,7 +196,32 @@ export function AdminRow({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-3.5 sm:grid-cols-4">
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+        {BADGES.map((badge) => {
+          const on = badges.includes(badge.key);
+          return (
+            <Flag
+              key={badge.key}
+              active={on}
+              disabled={!on && !canAddBadge(badges)}
+              onClick={() => commitBadges(toggleBadge(badges, badge.key))}
+            >
+              {badge.label}
+            </Flag>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="ml-auto h-9 rounded-pill border border-line px-3 text-[13px] text-ink-soft transition-colors duration-200 hover:border-ink-faint"
+        >
+          {open ? "접기" : "수정"}
+        </button>
+      </div>
+
+      {!open ? null : (
+      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3.5 sm:grid-cols-4">
         <Field label="가격">
           <input
             type="number"
@@ -239,38 +268,34 @@ export function AdminRow({
 
         <Field label="순서">
           <div className="flex h-11 gap-2">
-            <Move label="위로" onClick={() => onMove(-1)} disabled={isFirst}>
+            <Move
+              label="위로"
+              onClick={() => onMove(-1)}
+              disabled={isFirst || !canMove}
+            >
               ↑
             </Move>
-            <Move label="아래로" onClick={() => onMove(1)} disabled={isLast}>
+            <Move
+              label="아래로"
+              onClick={() => onMove(1)}
+              disabled={isLast || !canMove}
+            >
               ↓
             </Move>
           </div>
         </Field>
-      </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {BADGES.map((badge) => {
-          const on = badges.includes(badge.key);
-          return (
-            <Flag
-              key={badge.key}
-              active={on}
-              disabled={!on && !canAddBadge(badges)}
-              onClick={() => commitBadges(toggleBadge(badges, badge.key))}
-            >
-              {badge.label}
-            </Flag>
-          );
-        })}
-        <button
-          type="button"
-          onClick={onDelete}
-          className="ml-auto h-9 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
-        >
-          삭제
-        </button>
+        <div className="col-span-2 flex justify-end sm:col-span-4">
+          <button
+            type="button"
+            onClick={onDelete}
+            className="h-9 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
+          >
+            삭제
+          </button>
+        </div>
       </div>
+      )}
     </li>
   );
 }
