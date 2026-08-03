@@ -161,6 +161,62 @@ export async function savePhone(
   redirect(next);
 }
 
+/** 재설정 메일 발송. 계정이 없어도 성공처럼 답한다 — 가입 여부를 알려주면 안 된다. */
+export async function requestPasswordReset(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { error: "이메일을 입력해 주세요.", notice: null };
+
+  const db = await serverClient();
+  await db.auth.resetPasswordForEmail(email, {
+    redirectTo: `${await origin()}/auth/callback?type=recovery`,
+  });
+
+  return {
+    error: null,
+    notice: `${email} 으로 재설정 메일을 보냈어요. 메일의 링크를 눌러 주세요.`,
+  };
+}
+
+/** 메일 링크로 들어와 세션이 생긴 상태에서 새 비밀번호를 정한다. */
+export async function updatePassword(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+
+  if (password.length < 8) {
+    return { error: "비밀번호는 8자 이상으로 정해 주세요.", notice: null };
+  }
+  if (password !== confirm) {
+    return { error: "두 비밀번호가 서로 달라요.", notice: null };
+  }
+
+  const db = await serverClient();
+  const {
+    data: { user },
+  } = await db.auth.getUser();
+  if (!user) {
+    return {
+      error: "재설정 링크가 만료됐어요. 메일을 다시 요청해 주세요.",
+      notice: null,
+    };
+  }
+
+  const { error } = await db.auth.updateUser({ password });
+  if (error) {
+    return {
+      error: "비밀번호를 바꾸지 못했어요. 다시 시도해 주세요.",
+      notice: null,
+    };
+  }
+
+  redirect("/account?changed=1");
+}
+
 export async function signOut(): Promise<void> {
   const db = await serverClient();
   await db.auth.signOut();

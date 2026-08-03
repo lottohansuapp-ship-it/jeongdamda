@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { signIn, signInWithKakao, signUp, type AuthState } from "@/lib/auth";
+import {
+  requestPasswordReset,
+  signIn,
+  signInWithKakao,
+  signUp,
+  type AuthState,
+} from "@/lib/auth";
 
 const EMPTY: AuthState = { error: null, notice: null };
 
 const FIELD =
   "h-12 w-full rounded-card border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none";
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "forgot";
 
 interface LoginFormProps {
   next: string;
@@ -24,10 +30,20 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
     signUp,
     EMPTY,
   );
+  const [resetState, resetAction, resetPending] = useActionState(
+    requestPasswordReset,
+    EMPTY,
+  );
 
   const signingUp = mode === "signup";
-  const state = signingUp ? signupState : loginState;
-  const pending = signingUp ? signupPending : loginPending;
+  const forgot = mode === "forgot";
+
+  const state = forgot ? resetState : signingUp ? signupState : loginState;
+  const pending = forgot
+    ? resetPending
+    : signingUp
+      ? signupPending
+      : loginPending;
 
   return (
     <div className="pt-8">
@@ -44,7 +60,7 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
 
       <form
         key={mode}
-        action={signingUp ? signupAction : loginAction}
+        action={forgot ? resetAction : signingUp ? signupAction : loginAction}
         className="space-y-2.5"
       >
         <input type="hidden" name="next" value={next} />
@@ -88,17 +104,19 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
           />
         </label>
 
-        <label className="block">
-          <span className="sr-only">비밀번호</span>
-          <input
-            name="password"
-            required
-            type="password"
-            placeholder={signingUp ? "비밀번호 (8자 이상)" : "비밀번호"}
-            autoComplete={signingUp ? "new-password" : "current-password"}
-            className={FIELD}
-          />
-        </label>
+        {!forgot && (
+          <label className="block">
+            <span className="sr-only">비밀번호</span>
+            <input
+              name="password"
+              required
+              type="password"
+              placeholder={signingUp ? "비밀번호 (8자 이상)" : "비밀번호"}
+              autoComplete={signingUp ? "new-password" : "current-password"}
+              className={FIELD}
+            />
+          </label>
+        )}
 
         {state.error && (
           <p role="alert" className="px-1 pt-1 text-[13px] text-danger">
@@ -119,9 +137,27 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
           disabled={pending}
           className="mt-4 h-12 w-full rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:opacity-50"
         >
-          {pending ? "잠시만요…" : signingUp ? "가입하고 시작하기" : "로그인"}
+          {pending
+            ? "잠시만요…"
+            : forgot
+              ? "재설정 메일 받기"
+              : signingUp
+                ? "가입하고 시작하기"
+                : "로그인"}
         </button>
       </form>
+
+      {!signingUp && (
+        <p className="pt-4 text-center text-[13px] text-ink-soft">
+          <button
+            type="button"
+            onClick={() => setMode(forgot ? "login" : "forgot")}
+            className="underline underline-offset-4"
+          >
+            {forgot ? "로그인으로 돌아가기" : "비밀번호를 잊으셨나요?"}
+          </button>
+        </p>
+      )}
 
       <p className="pt-5 text-center text-[13px] text-ink-soft">
         {signingUp ? "이미 계정이 있으신가요?" : "처음이신가요?"}{" "}

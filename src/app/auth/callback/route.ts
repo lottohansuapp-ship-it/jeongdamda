@@ -31,6 +31,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=no_session`);
   }
 
+  // 비밀번호 재설정 링크. 세션은 생겼지만 아직 새 비밀번호를 안 정했다.
+  // 여기서 홈으로 보내면 정할 화면이 없어 재설정이 끝나지 않는다.
+  if (searchParams.get("type") === "recovery") {
+    return NextResponse.redirect(`${origin}/account/password`);
+  }
+
   const { data: profile } = await db
     .from("profiles")
     .select("name, phone")
