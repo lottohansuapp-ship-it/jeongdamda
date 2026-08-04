@@ -53,7 +53,9 @@ export function OrderBoard({ orders }: { orders: OrderWithItems[] }) {
    * 새 주문이 들어오면 목록에 나타난다. 사장님이 화면을 켜두고 기다리는 자리다.
    * 버튼을 누르는 중에는 멈춘다 — 그 사이 서버 값이 오면 낙관적 표시가 되돌아간다.
    */
-  useLiveRefresh(busyId === null);
+  // 필터를 걸지 않는다 — 사장님은 모든 주문을 봐야 하고, 누가 무엇을 받을지는
+  // RLS(orders_admin_all)가 가른다.
+  useLiveRefresh({ enabled: busyId === null });
 
   const liveCount = rows.filter((order) => isLive(order.status)).length;
   const visible = rows.filter((order) => {

@@ -25,7 +25,11 @@ export function OrderDetail({ order }: { order: OrderWithItems }) {
   const [error, setError] = useState<string | null>(null);
 
   // 사장님이 상태를 바꾸면 손님 화면에도 따라온다. 끝난 주문에서는 돌지 않는다.
-  useLiveRefresh(!isSettled(order.status));
+  // 이 주문 하나만 구독한다 — 남의 주문 변경까지 받을 이유가 없다.
+  useLiveRefresh({
+    enabled: !isSettled(order.status),
+    filter: `id=eq.${order.id}`,
+  });
 
   const meta = statusMeta(order.status);
   const isDelivery = order.fulfillment === "delivery";
