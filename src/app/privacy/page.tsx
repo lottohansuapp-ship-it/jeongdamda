@@ -109,9 +109,9 @@ export default function PrivacyPage() {
           </table>
         </div>
         <p>
-          개인정보가 저장되는 지역: {value(STORE_INFO.dataRegion)}. 국외에
-          보관되는 경우 이용자는 위탁에 동의하지 않을 권리가 있으며, 이 경우
-          회원가입이 제한될 수 있습니다.
+          개인정보는 {value(STORE_INFO.dataRegion)}에 위치한 서버에 보관·처리
+          됩니다. 매장은 서비스 운영을 위한 위탁 외에 개인정보를 국외로 이전하는
+          별도의 처리를 하지 않습니다.
         </p>
       </Article>
 

@@ -39,7 +39,9 @@ export const STORE_INFO: StoreInfo = {
   phone: "02-6953-8086",
   email: "",
   privacyOfficer: "",
-  dataRegion: "",
+  // 확인함(2026-08-04): Supabase 프로젝트도 Vercel 함수(icn1)도 서울이다.
+  // 둘이 같은 지역이라 DB 왕복이 국내에서 끝난다 — 성능에도 이게 최선이다.
+  dataRegion: "대한민국 (서울)",
 };
 
 const LABELS: Record<keyof StoreInfo, string> = {
