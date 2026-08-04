@@ -44,8 +44,9 @@ export function CheckoutBoard({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  // 배달이 기본이다. 동네 반찬가게 손님은 대부분 집에서 시킨다.
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">(
-    settings.pickup_enabled ? "pickup" : "delivery",
+    settings.delivery_enabled ? "delivery" : "pickup",
   );
   const [addressId, setAddressId] = useState(
     () => addresses.find((item) => item.is_default)?.id ?? addresses[0]?.id ?? "",
@@ -114,18 +115,20 @@ export function CheckoutBoard({
       <Section title="수령 방법">
         <div className="grid grid-cols-2 gap-2">
           <Choice
-            on={!isDelivery}
-            disabled={!settings.pickup_enabled}
-            onClick={() => setFulfillment("pickup")}
-            label="픽업"
-            hint={settings.pickup_enabled ? "매장에서 찾아가기" : "지금은 안 돼요"}
-          />
-          <Choice
             on={isDelivery}
             disabled={!settings.delivery_enabled}
             onClick={() => setFulfillment("delivery")}
             label="배달"
             hint={settings.delivery_enabled ? "집 앞까지" : "지금은 안 돼요"}
+          />
+          <Choice
+            on={!isDelivery}
+            disabled={!settings.pickup_enabled}
+            onClick={() => setFulfillment("pickup")}
+            label="픽업"
+            hint={
+              settings.pickup_enabled ? "매장에서 찾아가기" : "지금은 안 돼요"
+            }
           />
         </div>
       </Section>

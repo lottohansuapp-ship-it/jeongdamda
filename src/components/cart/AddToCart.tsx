@@ -36,12 +36,20 @@ export function AddToCart({
     setMessage(null);
   }
 
-  function submit() {
+  /**
+   * next 가 있으면 담은 뒤 그리로 보낸다 ("바로 결제").
+   * 장바구니를 비우지 않는다 — 먼저 담아둔 것까지 함께 주문하는 게 손님이 기대하는 동작이다.
+   */
+  function submit(next?: string) {
     setMessage(null);
     startTransition(async () => {
       const result = await addToCart(productId, quantity);
 
       if (result.ok) {
+        if (next) {
+          router.push(next);
+          return;
+        }
         setDone(true);
         router.refresh();
         return;
@@ -106,15 +114,20 @@ export function AddToCart({
 
           <button
             type="button"
-            onClick={submit}
+            onClick={() => submit()}
             disabled={pending}
-            className="tap-target flex-1 rounded-card bg-olive px-4 text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:opacity-50"
+            className="tap-target flex-1 rounded-card border border-olive px-4 text-[15px] text-olive-deep transition-colors duration-200 hover:bg-olive-soft disabled:opacity-50"
           >
-            {pending
-              ? "담는 중…"
-              : done
-                ? "장바구니에 담겼어요"
-                : `${formatPrice(price * quantity)} 담기`}
+            {pending ? "담는 중…" : done ? "담겼어요" : "담기"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => submit("/checkout")}
+            disabled={pending}
+            className="tap-target flex-[1.4] rounded-card bg-olive px-4 text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:opacity-50"
+          >
+            {formatPrice(price * quantity)} 주문
           </button>
         </div>
 

@@ -1,22 +1,24 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { serverClient } from "./supabase/server";
+import { currentUserId, serverClient } from "./supabase/server";
 import { MAX_PER_ITEM } from "./cart";
 import type { ActionResult } from "@/types/database";
 
 async function authed() {
-  const db = await serverClient();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  return user ? { db, user } : null;
+  const userId = await currentUserId();
+  if (!userId) return null;
+  return { db: await serverClient(), userId };
 }
 
-function refresh() {
-  revalidatePath("/cart");
-  revalidatePath("/", "layout"); // 하단 탭 뱃지
-}
+/**
+ * 장바구니는 캐시하지 않는다 (cookies() 를 읽으므로 매 요청 다시 그려진다).
+ * 그래서 서버에서 무효화할 것이 없다.
+ *
+ * 예전에는 여기서 revalidatePath("/", "layout") 을 불렀다. 하단 탭 뱃지 때문이었는데
+ * 그 뱃지도 어차피 매 요청 다시 그려지므로 필요가 없었고, 대신 앱 전체의 정적 셸을
+ * 통째로 버려서 담기를 누를 때마다 모든 화면이 처음부터 다시 만들어졌다.
+ * 화면 갱신은 각 컴포넌트의 router.refresh() 가 맡는다.
+ */
 
 /**
  * 담기. 이미 있으면 수량을 더한다.
@@ -38,7 +40,7 @@ export async function addToCart(
   const { data: existing, error: readError } = await session.db
     .from("cart_items")
     .select("quantity")
-    .eq("user_id", session.user.id)
+    .eq("user_id", session.userId)
     .eq("product_id", productId)
     .maybeSingle();
 
@@ -48,7 +50,7 @@ export async function addToCart(
 
   const { error } = await session.db.from("cart_items").upsert(
     {
-      user_id: session.user.id,
+      user_id: session.userId,
       product_id: productId,
       quantity: next,
     },
@@ -57,7 +59,6 @@ export async function addToCart(
 
   if (error) return { ok: false, error: error.message };
 
-  refresh();
   return { ok: true, data: { quantity: next } };
 }
 
@@ -68,12 +69,11 @@ export async function removeFromCart(productId: string): Promise<ActionResult> {
   const { error } = await session.db
     .from("cart_items")
     .delete()
-    .eq("user_id", session.user.id)
+    .eq("user_id", session.userId)
     .eq("product_id", productId);
 
   if (error) return { ok: false, error: error.message };
 
-  refresh();
   return { ok: true, data: undefined };
 }
 
@@ -93,12 +93,11 @@ export async function setCartQuantity(
   const { error } = await session.db
     .from("cart_items")
     .update({ quantity: Math.min(MAX_PER_ITEM, amount) })
-    .eq("user_id", session.user.id)
+    .eq("user_id", session.userId)
     .eq("product_id", productId);
 
   if (error) return { ok: false, error: error.message };
 
-  refresh();
   return { ok: true, data: undefined };
 }
 
@@ -109,10 +108,9 @@ export async function clearCart(): Promise<ActionResult> {
   const { error } = await session.db
     .from("cart_items")
     .delete()
-    .eq("user_id", session.user.id);
+    .eq("user_id", session.userId);
 
   if (error) return { ok: false, error: error.message };
 
-  refresh();
   return { ok: true, data: undefined };
 }

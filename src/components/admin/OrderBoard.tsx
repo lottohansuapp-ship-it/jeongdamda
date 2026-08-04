@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { StatusPill } from "@/components/orders/StatusPill";
 import { advanceOrder, cancelOrder } from "@/lib/order-actions";
 import {
@@ -25,11 +24,23 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export function OrderBoard({ orders }: { orders: OrderWithItems[] }) {
-  const router = useRouter();
   const [tab, setTab] = useState<Tab>("live");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+
+  /**
+   * 서버 값을 그대로 그리지 않고 복사해서 쓴다.
+   *
+   * 예전에는 버튼을 누를 때마다 router.refresh() 로 주문 100건과 그 품목을 전부
+   * 다시 받아 다시 그렸다. 사장님은 상태 하나를 바꿨을 뿐인데 왕복이 여러 번 붙는다.
+   * 지금은 화면을 먼저 바꾸고 서버에 보낸다. 실패하면 되돌리고 이유를 띄운다.
+   */
+  const [rows, setRows] = useState(orders);
+  const [seen, setSeen] = useState(orders);
+  if (seen !== orders) {
+    setSeen(orders);
+    setRows(orders);
+  }
 
   useEffect(() => {
     if (!error) return;
@@ -37,24 +48,34 @@ export function OrderBoard({ orders }: { orders: OrderWithItems[] }) {
     return () => clearTimeout(id);
   }, [error]);
 
-  const liveCount = orders.filter((order) => isLive(order.status)).length;
-  const visible = orders.filter((order) => {
+  const liveCount = rows.filter((order) => isLive(order.status)).length;
+  const visible = rows.filter((order) => {
     if (tab === "all") return true;
     return tab === "live" ? isLive(order.status) : !isLive(order.status);
   });
 
-  function run(
-    id: string,
+  function patch(id: string, status: string) {
+    setRows((list) =>
+      list.map((order) => (order.id === id ? { ...order, status } : order)),
+    );
+  }
+
+  async function run(
+    order: OrderWithItems,
+    status: string,
     action: () => Promise<{ ok: boolean; error?: string }>,
   ) {
-    setBusyId(id);
+    const previous = order.status;
     setError(null);
-    startTransition(async () => {
-      const result = await action();
-      setBusyId(null);
-      if (result.ok) router.refresh();
-      else setError(result.error ?? "처리하지 못했어요.");
-    });
+    setBusyId(order.id);
+    patch(order.id, status);
+
+    const result = await action();
+    setBusyId(null);
+    if (!result.ok) {
+      patch(order.id, previous);
+      setError(result.error ?? "처리하지 못했어요.");
+    }
   }
 
   return (
@@ -114,9 +135,13 @@ export function OrderBoard({ orders }: { orders: OrderWithItems[] }) {
               key={order.id}
               order={order}
               busy={busyId === order.id}
-              onAdvance={(to) => run(order.id, () => advanceOrder(order.id, to))}
+              onAdvance={(to) =>
+                run(order, to, () => advanceOrder(order.id, to))
+              }
               onCancel={() =>
-                run(order.id, () => cancelOrder(order.id, "매장에서 취소"))
+                run(order, "canceled", () =>
+                  cancelOrder(order.id, "매장에서 취소"),
+                )
               }
             />
           ))}

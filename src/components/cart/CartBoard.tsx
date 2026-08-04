@@ -2,10 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { ProductPhoto } from "@/components/shop/ProductPhoto";
 import { clearCart, removeFromCart, setCartQuantity } from "@/lib/cart-actions";
-import { clampQuantity, type CartIssue, type CartSummary } from "@/lib/cart";
+import {
+  clampQuantity,
+  summarizeCart,
+  type CartIssue,
+  type CartLine,
+  type CartSummary,
+} from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 
 const ISSUE_TEXT: Record<CartIssue, string> = {
@@ -18,10 +24,34 @@ interface CartBoardProps {
   cart: CartSummary;
 }
 
+/** summarizeCart 에 넣을 최소 형태. 화면에서 수량만 바꿔가며 다시 계산한다. */
+type CartRow = { product: CartLine["product"]; quantity: number };
+
+function toRows(cart: CartSummary): CartRow[] {
+  return cart.lines.map(({ product, quantity }) => ({ product, quantity }));
+}
+
 export function CartBoard({ cart }: CartBoardProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
+
+  /**
+   * 수량은 화면에서 먼저 바꾸고 서버에 보낸다.
+   *
+   * 예전에는 +/- 한 번에 router.refresh() 로 장바구니 전체를 다시 받아 다시 그렸다.
+   * 숫자 하나 바뀌는 데 왕복이 여러 번 붙어서 연타하면 눈에 띄게 밀렸다.
+   * 금액은 summarizeCart() 로 여기서 다시 계산한다 — 서버가 쓰는 함수와 같은 함수다.
+   * 물론 결제 금액의 근거는 아니다. 그건 place_order 가 다시 계산한다 (D21).
+   */
+  const [rows, setRows] = useState(() => toRows(cart));
+  const [seen, setSeen] = useState(cart);
+  if (seen !== cart) {
+    setSeen(cart);
+    setRows(toRows(cart));
+  }
+
+  const view = summarizeCart(rows, cart.orphanIds);
 
   useEffect(() => {
     if (!error) return;
@@ -29,15 +59,35 @@ export function CartBoard({ cart }: CartBoardProps) {
     return () => clearTimeout(id);
   }, [error]);
 
-  function run(action: () => Promise<{ ok: boolean; error?: string }>) {
-    startTransition(async () => {
-      const result = await action();
-      if (result.ok) router.refresh();
-      else setError(result.error ?? "처리하지 못했어요.");
-    });
+  /** 화면을 먼저 바꾸고 서버에 보낸다. 실패하면 되돌린다. */
+  async function run(
+    next: CartRow[],
+    action: () => Promise<{ ok: boolean; error?: string }>,
+  ) {
+    const previous = rows;
+    setError(null);
+    setPending(true);
+    setRows(next);
+
+    const result = await action();
+    setPending(false);
+
+    if (result.ok) {
+      // 하단 탭 뱃지를 서버 값과 맞춘다. 화면은 이미 바뀌어 있어 기다림이 보이지 않는다.
+      router.refresh();
+    } else {
+      setRows(previous);
+      setError(result.error ?? "처리하지 못했어요.");
+    }
   }
 
-  const empty = cart.lines.length === 0 && cart.orphanIds.length === 0;
+  function withQuantity(productId: string, quantity: number): CartRow[] {
+    return rows.map((row) =>
+      row.product.id === productId ? { ...row, quantity } : row,
+    );
+  }
+
+  const empty = view.lines.length === 0 && view.orphanIds.length === 0;
 
   if (empty) {
     return (
@@ -59,7 +109,7 @@ export function CartBoard({ cart }: CartBoardProps) {
   return (
     <div className="pb-40">
       <ul className="space-y-2.5">
-        {cart.lines.map((line) => {
+        {view.lines.map((line) => {
           const blocked = line.issue !== null;
           const ceiling = clampQuantity(
             Number.MAX_SAFE_INTEGER,
@@ -99,7 +149,14 @@ export function CartBoard({ cart }: CartBoardProps) {
                     <button
                       type="button"
                       disabled={pending}
-                      onClick={() => run(() => removeFromCart(line.product.id))}
+                      onClick={() =>
+                        run(
+                          rows.filter(
+                            (row) => row.product.id !== line.product.id,
+                          ),
+                          () => removeFromCart(line.product.id),
+                        )
+                      }
                       className="shrink-0 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
                     >
                       삭제
@@ -116,12 +173,18 @@ export function CartBoard({ cart }: CartBoardProps) {
 
                   <div className="flex items-center justify-between gap-2 pt-2.5">
                     <div className="flex items-center gap-1 rounded-pill border border-line px-1">
+                      {/* 연타를 막지 않는다 — 숫자는 이미 바뀌어 있고 저장만 뒤따른다 */}
                       <Step
                         label="수량 줄이기"
-                        disabled={pending || line.quantity <= 1}
+                        disabled={line.quantity <= 1}
                         onClick={() =>
-                          run(() =>
-                            setCartQuantity(line.product.id, line.quantity - 1),
+                          run(
+                            withQuantity(line.product.id, line.quantity - 1),
+                            () =>
+                              setCartQuantity(
+                                line.product.id,
+                                line.quantity - 1,
+                              ),
                           )
                         }
                       >
@@ -132,10 +195,15 @@ export function CartBoard({ cart }: CartBoardProps) {
                       </span>
                       <Step
                         label="수량 늘리기"
-                        disabled={pending || line.quantity >= ceiling}
+                        disabled={line.quantity >= ceiling}
                         onClick={() =>
-                          run(() =>
-                            setCartQuantity(line.product.id, line.quantity + 1),
+                          run(
+                            withQuantity(line.product.id, line.quantity + 1),
+                            () =>
+                              setCartQuantity(
+                                line.product.id,
+                                line.quantity + 1,
+                              ),
                           )
                         }
                       >
@@ -153,16 +221,17 @@ export function CartBoard({ cart }: CartBoardProps) {
           );
         })}
 
-        {cart.orphanIds.map((id) => (
+        {view.orphanIds.map((id) => (
           <li
             key={id}
             className="flex items-center justify-between gap-3 rounded-card bg-white p-4 text-[13.5px] text-ink-soft shadow-soft"
           >
             <span>지금은 주문할 수 없는 상품이에요</span>
+            {/* orphan 은 상품 정보가 없어 화면에서 미리 지울 수 없다. 서버 응답을 기다린다. */}
             <button
               type="button"
               disabled={pending}
-              onClick={() => run(() => removeFromCart(id))}
+              onClick={() => run(rows, () => removeFromCart(id))}
               className="shrink-0 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
             >
               빼기
@@ -177,7 +246,7 @@ export function CartBoard({ cart }: CartBoardProps) {
           disabled={pending}
           onClick={() => {
             if (!confirm("장바구니를 비울까요?")) return;
-            run(clearCart);
+            run([], clearCart);
           }}
           className="h-10 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-ink-soft"
         >
@@ -192,21 +261,21 @@ export function CartBoard({ cart }: CartBoardProps) {
               {error}
             </p>
           )}
-          {cart.blockingIssues > 0 && (
+          {view.blockingIssues > 0 && (
             <p className="pb-2 text-[12.5px] text-[#a96f14]">
-              주문할 수 없는 상품 {cart.blockingIssues}개를 먼저 정리해 주세요
+              주문할 수 없는 상품 {view.blockingIssues}개를 먼저 정리해 주세요
             </p>
           )}
 
           <div className="flex items-center justify-between pb-2.5">
             <span className="text-[13.5px] text-ink-soft">주문 금액</span>
             <span className="text-[19px] tracking-tight">
-              {formatPrice(cart.subtotal)}
+              {formatPrice(view.subtotal)}
             </span>
           </div>
 
           {/* 막힌 항목이 있으면 아예 못 넘어가게 한다. 주문서에서 되돌아오면 손님만 헛걸음한다. */}
-          {cart.blockingIssues > 0 || cart.subtotal <= 0 ? (
+          {view.blockingIssues > 0 || view.subtotal <= 0 ? (
             <button
               type="button"
               disabled

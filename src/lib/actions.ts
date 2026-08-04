@@ -1,7 +1,7 @@
 "use server";
 
 import { updateTag } from "next/cache";
-import { serverClient } from "./supabase/server";
+import { currentUserId, serverClient } from "./supabase/server";
 import { PRODUCTS_TAG } from "./queries";
 import type { ActionResult, Product } from "@/types/database";
 
@@ -24,11 +24,9 @@ type ProductPatch = Partial<
   >
 >;
 
+/** 로그인 여부만 본다. 관리자인지는 is_admin() RLS 정책이 판단한다 (앱 코드는 방어선이 아니다). */
 async function authed() {
-  const db = await serverClient();
-  const { data } = await db.auth.getUser();
-  if (!data.user) return null;
-  return db;
+  return (await currentUserId()) ? await serverClient() : null;
 }
 
 export async function updateProduct(

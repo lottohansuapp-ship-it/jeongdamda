@@ -4,6 +4,7 @@ import { formatPrice } from "@/lib/format";
 import { stockStatus } from "@/lib/stock";
 import type { ProductWithCategory } from "@/types/database";
 import { ProductPhoto } from "./ProductPhoto";
+import { QuickAdd } from "./QuickAdd";
 import { StockBadge } from "./StockBadge";
 
 /** 뱃지 색은 카드·상세·관리자가 같은 표를 쓴다 */
@@ -28,11 +29,25 @@ export function ProductCard({
   const soldOut = stockStatus(product.today_stock).level === "out";
 
   return (
-    <Link
-      href={`/product/${product.id}`}
-      className="group block rounded-card bg-white shadow-soft transition-[transform,box-shadow] duration-250 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive active:translate-y-0"
-      style={{ transitionTimingFunction: "var(--ease-out-soft)" }}
-    >
+    // 담기 버튼을 링크 안에 둘 수 없다 (버튼 안의 버튼). 카드를 감싸고 그 위에 겹친다.
+    <article className="group relative">
+      {!soldOut && (
+        <div
+          className={`pointer-events-none absolute inset-x-0 top-0 z-10 ${
+            featured ? "aspect-[4/3]" : "aspect-square"
+          }`}
+        >
+          <div className="pointer-events-auto absolute bottom-2.5 right-2.5">
+            <QuickAdd productId={product.id} productName={product.name} />
+          </div>
+        </div>
+      )}
+
+      <Link
+        href={`/product/${product.id}`}
+        className="block rounded-card bg-white shadow-soft transition-[transform,box-shadow] duration-250 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive active:translate-y-0"
+        style={{ transitionTimingFunction: "var(--ease-out-soft)" }}
+      >
       <div
         className={`relative overflow-hidden rounded-t-card ${featured ? "aspect-[4/3]" : "aspect-square"}`}
       >
@@ -84,7 +99,8 @@ export function ProductCard({
           </span>
           <StockBadge stock={product.today_stock} />
         </div>
-      </div>
-    </Link>
+        </div>
+      </Link>
+    </article>
   );
 }

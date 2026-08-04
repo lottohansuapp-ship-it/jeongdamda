@@ -1,17 +1,14 @@
 "use server";
 
 import { updateTag } from "next/cache";
-import { serverClient } from "./supabase/server";
+import { currentUserId, serverClient } from "./supabase/server";
 import { STORE_TAG } from "./queries";
 import { parseClockTime } from "./store";
 import type { ActionResult } from "@/types/database";
 
+/** 로그인 여부만 본다. 관리자인지는 is_admin() RLS 정책이 판단한다. */
 async function authed() {
-  const db = await serverClient();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  return user ? db : null;
+  return (await currentUserId()) ? await serverClient() : null;
 }
 
 function readInt(formData: FormData, key: string): number {

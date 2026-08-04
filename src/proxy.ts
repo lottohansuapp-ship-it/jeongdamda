@@ -25,11 +25,13 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getUser() 가 아니라 getClaims() 다. 이 가드는 서버 액션 POST 와 그 뒤의
+  // router.refresh() GET 에도 매번 걸린다. 여기서 Auth 서버까지 왕복하면
+  // 버튼 한 번에 왕복이 두세 번 더 붙는다. getClaims 는 ES256 서명을 로컬에서 검증하고,
+  // 만료된 세션의 갱신은 안쪽 getSession() 이 그대로 처리한다.
+  const { data, error } = await supabase.auth.getClaims();
 
-  if (!user) {
+  if (error || !data?.claims?.sub) {
     const { pathname, search } = request.nextUrl;
     const login = new URL(LOGIN_PATH, request.url);
     login.searchParams.set("next", `${pathname}${search}`);

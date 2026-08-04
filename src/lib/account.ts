@@ -1,16 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { serverClient } from "./supabase/server";
+import { currentUserId, serverClient } from "./supabase/server";
 import { normalizePhone } from "./format";
 import type { ActionResult } from "@/types/database";
 
 async function authed() {
-  const db = await serverClient();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  return user ? { db, user } : null;
+  const userId = await currentUserId();
+  if (!userId) return null;
+  return { db: await serverClient(), userId };
 }
 
 export async function updateProfile(formData: FormData): Promise<ActionResult> {
@@ -30,7 +28,7 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   const { error } = await session.db
     .from("profiles")
     .update({ name, phone })
-    .eq("id", session.user.id);
+    .eq("id", session.userId);
 
   if (error) return { ok: false, error: error.message };
 
@@ -58,13 +56,13 @@ export async function saveAddress(formData: FormData): Promise<ActionResult> {
     const { error } = await session.db
       .from("addresses")
       .update({ is_default: false })
-      .eq("user_id", session.user.id)
+      .eq("user_id", session.userId)
       .eq("is_default", true);
     if (error) return { ok: false, error: error.message };
   }
 
   const row = {
-    user_id: session.user.id,
+    user_id: session.userId,
     label: label || null,
     postcode: postcode || null,
     address1,
@@ -77,7 +75,7 @@ export async function saveAddress(formData: FormData): Promise<ActionResult> {
         .from("addresses")
         .update(row)
         .eq("id", id)
-        .eq("user_id", session.user.id)
+        .eq("user_id", session.userId)
     : await session.db.from("addresses").insert(row);
 
   if (error) return { ok: false, error: error.message };
@@ -93,7 +91,7 @@ export async function setDefaultAddress(id: string): Promise<ActionResult> {
   const cleared = await session.db
     .from("addresses")
     .update({ is_default: false })
-    .eq("user_id", session.user.id)
+    .eq("user_id", session.userId)
     .eq("is_default", true);
   if (cleared.error) return { ok: false, error: cleared.error.message };
 
@@ -101,7 +99,7 @@ export async function setDefaultAddress(id: string): Promise<ActionResult> {
     .from("addresses")
     .update({ is_default: true })
     .eq("id", id)
-    .eq("user_id", session.user.id);
+    .eq("user_id", session.userId);
 
   if (error) return { ok: false, error: error.message };
 
@@ -117,7 +115,7 @@ export async function deleteAddress(id: string): Promise<ActionResult> {
     .from("addresses")
     .delete()
     .eq("id", id)
-    .eq("user_id", session.user.id);
+    .eq("user_id", session.userId);
 
   if (error) return { ok: false, error: error.message };
 

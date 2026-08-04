@@ -1,7 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { envError, publicClient } from "./supabase/public";
-import { serverClient } from "./supabase/server";
+import { currentUserId, serverClient } from "./supabase/server";
 import { EMPTY_CART, summarizeCart, type CartSummary } from "./cart";
 import {
   ORDER_COLUMNS,
@@ -151,16 +151,14 @@ export async function getAdminData(): Promise<ShopResult> {
 export async function getProfile(): Promise<Profile | null> {
   if (envError()) return null;
 
-  const db = await serverClient();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  if (!user) return null;
+  const userId = await currentUserId();
+  if (!userId) return null;
 
+  const db = await serverClient();
   const { data } = await db
     .from("profiles")
     .select("id, name, phone, created_at, updated_at")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
 
   return (data as Profile) ?? null;
@@ -169,18 +167,16 @@ export async function getProfile(): Promise<Profile | null> {
 export async function getAddresses(): Promise<Address[]> {
   if (envError()) return [];
 
-  const db = await serverClient();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  if (!user) return [];
+  const userId = await currentUserId();
+  if (!userId) return [];
 
+  const db = await serverClient();
   const { data } = await db
     .from("addresses")
     .select(
       "id, user_id, label, postcode, address1, address2, is_default, created_at",
     )
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -197,16 +193,14 @@ export async function getAddresses(): Promise<Address[]> {
 export async function getCart(): Promise<CartSummary> {
   if (envError()) return EMPTY_CART;
 
-  const db = await serverClient();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  if (!user) return EMPTY_CART;
+  const userId = await currentUserId();
+  if (!userId) return EMPTY_CART;
 
+  const db = await serverClient();
   const { data, error } = await db
     .from("cart_items")
     .select(`product_id, quantity, product:products(${SELECT})`)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("updated_at", { ascending: false });
 
   if (error || !data) return EMPTY_CART;
@@ -280,16 +274,14 @@ const ORDER_SELECT = `${ORDER_COLUMNS}, items:order_items(${ORDER_ITEM_COLUMNS})
 export async function getOrders(): Promise<OrderWithItems[]> {
   if (envError()) return [];
 
-  const db = await serverClient();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  if (!user) return [];
+  const userId = await currentUserId();
+  if (!userId) return [];
 
+  const db = await serverClient();
   const { data } = await db
     .from("orders")
     .select(ORDER_SELECT)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(50);
 

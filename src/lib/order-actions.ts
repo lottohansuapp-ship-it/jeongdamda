@@ -1,7 +1,7 @@
 "use server";
 
 import { updateTag } from "next/cache";
-import { serverClient } from "./supabase/server";
+import { currentUserId, serverClient } from "./supabase/server";
 import { PRODUCTS_TAG } from "./queries";
 import { canTransition } from "./orders";
 import { pickupSlots, pickupTimestamp, toSeoulClock } from "./store";
@@ -14,11 +14,9 @@ export interface PlacedOrder {
 }
 
 async function authed() {
-  const db = await serverClient();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  return user ? { db, user } : null;
+  const userId = await currentUserId();
+  if (!userId) return null;
+  return { db: await serverClient(), userId };
 }
 
 /**
