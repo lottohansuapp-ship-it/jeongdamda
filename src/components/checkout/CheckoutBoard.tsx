@@ -228,7 +228,20 @@ export function CheckoutBoard({
         />
       </Section>
 
-      <Section title={`주문 상품 ${cart.lines.length}개`}>
+      <section className="mb-2.5 rounded-card bg-white p-4 shadow-soft">
+        <div className="flex items-baseline justify-between gap-3 pb-3">
+          <h2 className="text-[13px] text-ink-faint">
+            주문 상품 {cart.lines.length}개
+          </h2>
+          {/* 주문서에서 메뉴를 더 담고 싶을 때. 여기서 나가도 담아둔 것은 그대로 남는다. */}
+          <Link
+            href="/"
+            className="shrink-0 text-[13px] text-clay underline underline-offset-4"
+          >
+            추가 주문
+          </Link>
+        </div>
+
         <ul className="space-y-2">
           {cart.lines.map((line) => (
             <li
@@ -245,7 +258,14 @@ export function CheckoutBoard({
             </li>
           ))}
         </ul>
-      </Section>
+
+        <Link
+          href="/cart"
+          className="mt-3 inline-flex text-[13px] text-ink-faint underline underline-offset-4"
+        >
+          수량 변경하기
+        </Link>
+      </section>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur-md">
         <div className="mx-auto max-w-[560px]">

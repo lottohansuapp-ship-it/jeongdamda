@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CartBoard } from "@/components/cart/CartBoard";
 import { BottomNav } from "@/components/ui/BottomNav";
-import { getCart } from "@/lib/queries";
+import { getCart, getStore } from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "장바구니",
@@ -27,8 +27,9 @@ export default function CartPage() {
 }
 
 async function CartBody() {
-  const cart = await getCart();
-  return <CartBoard cart={cart} />;
+  // 매장 설정은 캐시된 조회다 (STORE_TAG). 최소주문까지 얼마 남았는지 보여주려고 함께 읽는다.
+  const [cart, store] = await Promise.all([getCart(), getStore()]);
+  return <CartBoard cart={cart} settings={store.settings} />;
 }
 
 function Skeleton() {
