@@ -6,8 +6,7 @@ import { EMPTY_FILTERS, filterProducts, type ShopFilters } from "@/lib/filter";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { Carousel } from "./Carousel";
 import { ProductCard } from "./ProductCard";
-
-const HOT_SLUGS = ["soup", "stew"];
+import { ProductRow } from "./ProductRow";
 
 interface ShopBrowserProps {
   categories: Category[];
@@ -27,11 +26,6 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
 
   const recommended = useMemo(
     () => products.filter((p) => hasBadge(p.badges, RECOMMEND_KEY)).slice(0, 3),
-    [products],
-  );
-
-  const hotPot = useMemo(
-    () => products.filter((p) => HOT_SLUGS.includes(p.category.slug)).slice(0, 6),
     [products],
   );
 
@@ -55,7 +49,6 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
               <ProductCard
                 key={product.id}
                 product={product}
-                featured
                 priority={index === 0}
               />
             ))}
@@ -63,23 +56,10 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
         </section>
       )}
 
-      {!browsing && hotPot.length > 0 && (
-        <section className="pt-9" aria-labelledby="hotpot-heading">
-          <SectionHead
-            id="hotpot-heading"
-            title="오늘의 국·찌개"
-            note="따뜻하게 데워 바로 드세요"
-          />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {hotPot.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="pt-9" aria-labelledby="all-heading">
-        <div className="sticky top-0 z-10 -mx-5 bg-canvas/92 px-5 pb-3 pt-3 backdrop-blur-md">
+      <section className="pt-8" aria-labelledby="all-heading">
+        {/* z-20 이어야 한다. 카드의 담기 버튼이 z-10 이라, 같은 층이면 스크롤할 때
+            버튼이 이 바 위로 올라와 겹친다. */}
+        <div className="sticky top-0 z-20 -mx-5 bg-canvas/92 px-5 pb-2.5 pt-3 backdrop-blur-md">
           <label className="relative block">
             <span className="sr-only">반찬 검색</span>
             <SearchIcon />
@@ -92,25 +72,33 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
             />
           </label>
 
-          <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
-            <Chip
+          {/* 메인 카테고리 — 무엇을 보고 있는지 정하는 자리라 가장 진하게.
+              고르지 않은 것은 배경 없이 글자만 남겨 한 줄이 가볍게 보이게 한다. */}
+          <div
+            role="tablist"
+            aria-label="카테고리"
+            className="no-scrollbar -mx-5 mt-2.5 flex gap-1 overflow-x-auto px-5"
+          >
+            <Tab
               active={filters.categorySlug === null}
               onClick={() => patch({ categorySlug: null })}
             >
               전체
-            </Chip>
+            </Tab>
             {categories.map((category) => (
-              <Chip
+              <Tab
                 key={category.id}
                 active={filters.categorySlug === category.slug}
                 onClick={() => patch({ categorySlug: category.slug })}
               >
                 {category.name}
-              </Chip>
+              </Tab>
             ))}
           </div>
 
-          <div className="mt-2.5 flex gap-2">
+          {/* 보조 필터 — 카테고리 위에 덧씌우는 조건이라 한 단계 약하게.
+              모양(테두리)과 크기 둘 다 다르게 해야 역할이 다르다는 게 읽힌다. */}
+          <div className="mt-1.5 flex gap-1.5">
             <Toggle
               active={filters.recommendedOnly}
               onClick={() => patch({ recommendedOnly: !filters.recommendedOnly })}
@@ -142,9 +130,11 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
             다른 이름으로 검색해 보시겠어요?
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          // 세로 카드는 한 화면에 넷이 들어가는데 대부분이 사진이었다.
+          // 가로줄이면 같은 높이에 두 배가 들어가고 이름·가격이 한눈에 정렬된다.
+          <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
             {visible.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductRow key={product.id} product={product} />
             ))}
           </div>
         )}
@@ -172,7 +162,14 @@ function SectionHead({
   );
 }
 
-function Chip({
+/**
+ * 메인 카테고리.
+ *
+ * 누르는 자리는 48px 를 지키되(프로젝트 규칙) 보이는 배경은 34px 로 짧게 둔다.
+ * 여백으로 손가락 자리를 만들면 한 줄이 차지하는 높이는 그대로여도
+ * 눈에는 훨씬 가볍게 보인다. 캐러셀 점에서 쓴 방법과 같다.
+ */
+function Tab({
   active,
   onClick,
   children,
@@ -184,19 +181,25 @@ function Chip({
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
-      aria-pressed={active}
-      className={`h-11 shrink-0 rounded-pill px-4 text-[14px] transition-colors duration-200 ${
-        active
-          ? "bg-ink text-white"
-          : "border border-line bg-white text-ink-soft hover:border-ink-faint"
-      }`}
+      className="group shrink-0 py-[7px]"
     >
-      {children}
+      <span
+        className={`block rounded-[10px] px-3.5 py-2 text-[14px] leading-none transition-colors duration-200 ${
+          active
+            ? "bg-ink text-white"
+            : "text-ink-soft group-hover:bg-white group-hover:text-ink"
+        }`}
+      >
+        {children}
+      </span>
     </button>
   );
 }
 
+/** 보조 필터. 메인보다 작고, 켜지 않았을 때도 테두리가 남아 성격이 다르다는 걸 보인다. */
 function Toggle({
   active,
   onClick,
@@ -211,13 +214,17 @@ function Toggle({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`h-9 rounded-pill px-3 text-[13px] transition-colors duration-200 ${
-        active
-          ? "bg-olive-soft text-olive-deep"
-          : "border border-line bg-white text-ink-faint hover:text-ink-soft"
-      }`}
+      className="group py-[9px]"
     >
-      {children}
+      <span
+        className={`block rounded-pill border px-2.5 py-1.5 text-[12.5px] leading-none transition-colors duration-200 ${
+          active
+            ? "border-olive bg-olive-soft text-olive-deep"
+            : "border-line bg-white text-ink-faint group-hover:text-ink-soft"
+        }`}
+      >
+        {children}
+      </span>
     </button>
   );
 }

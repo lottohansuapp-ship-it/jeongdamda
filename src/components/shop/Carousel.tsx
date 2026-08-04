@@ -65,13 +65,18 @@ export function Carousel({ children, label }: CarouselProps) {
         ref={railRef}
         onScroll={handleScroll}
         aria-label={label}
-        className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2"
+        className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-5 pb-2"
       >
         {items.map((item, index) => (
           <div
             key={index}
-            // 84vw — 다음 카드가 조금만 걸치게. 아예 안 걸치면 밀 수 있는 줄 모른다.
-            className="w-[84vw] max-w-[330px] shrink-0 snap-start"
+            /**
+             * 34vw — 2개 반이 보이는 폭이다. 390px 화면에서
+             * 2.5w + 간격 2×10 = 350(좌우 여백 뺀 폭) → w ≈ 132px.
+             * 320px 에서는 34vw 가 109px 라 너무 좁아 min-w 로 받치고,
+             * 넓은 화면에서는 카드가 커지지 않게 max-w 로 잘라 준다.
+             */
+            className="w-[34vw] min-w-[120px] max-w-[200px] shrink-0 snap-start"
           >
             {item}
           </div>

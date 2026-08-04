@@ -23,6 +23,25 @@ export interface Badge {
   tone: BadgeTone;
 }
 
+/**
+ * 뱃지 색. 캐러셀·목록·상세·관리자가 같은 표를 본다.
+ *
+ * 컴포넌트가 아니라 여기 두는 이유: 화면 형태는 바뀌어도 뱃지의 뜻과 색은 그대로다.
+ * 특정 컴포넌트에 두면 그 컴포넌트를 지울 때 다른 화면이 따라 깨진다.
+ */
+export const BADGE_STYLE: Record<BadgeTone, string> = {
+  olive: "bg-olive text-white",
+  clay: "bg-white/95 text-clay",
+  danger: "bg-danger text-white",
+};
+
+/** 사진 위가 아니라 흰 배경 위에 놓을 때. 대비를 다르게 준다. */
+export const BADGE_STYLE_INLINE: Record<BadgeTone, string> = {
+  olive: "bg-olive-soft text-olive-deep",
+  clay: "bg-clay-soft text-clay",
+  danger: "bg-danger/10 text-danger",
+};
+
 /** 추천 캐러셀이 고르는 기준 */
 export const RECOMMEND_KEY = "recommend";
 
