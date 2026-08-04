@@ -14,10 +14,22 @@ export const BADGE_STYLE: Record<BadgeTone, string> = {
   danger: "bg-danger text-white",
 };
 
+/**
+ * 사진 비율. 사진 칸과 담기 버튼을 얹는 칸이 같은 값을 써야 한다 —
+ * 두 군데 따로 적으면 한쪽만 고쳐져 버튼이 엉뚱한 데 붙는다.
+ *
+ * 추천 카드가 16:9 인 이유: 4:3 이면 카드 높이가 아래 격자 카드의 1.4배가 되어
+ * 화면을 혼자 차지한다. 폭만 넓고 높이는 비슷해야 나란히 놓았을 때 자연스럽다.
+ */
+const ASPECT = {
+  featured: "aspect-[16/9]",
+  grid: "aspect-square",
+} as const;
+
 interface ProductCardProps {
   product: ProductWithCategory;
   priority?: boolean;
-  /** 캐러셀용 가로형 — 사진을 더 크게 */
+  /** 캐러셀용 가로형 — 사진을 더 넓게 */
   featured?: boolean;
 }
 
@@ -27,15 +39,14 @@ export function ProductCard({
   featured = false,
 }: ProductCardProps) {
   const soldOut = stockStatus(product.today_stock).level === "out";
+  const aspect = featured ? ASPECT.featured : ASPECT.grid;
 
   return (
     // 담기 버튼을 링크 안에 둘 수 없다 (버튼 안의 버튼). 카드를 감싸고 그 위에 겹친다.
     <article className="group relative">
       {!soldOut && (
         <div
-          className={`pointer-events-none absolute inset-x-0 top-0 z-10 ${
-            featured ? "aspect-[4/3]" : "aspect-square"
-          }`}
+          className={`pointer-events-none absolute inset-x-0 top-0 z-10 ${aspect}`}
         >
           <div className="pointer-events-auto absolute bottom-2.5 right-2.5">
             <QuickAdd productId={product.id} productName={product.name} />
@@ -48,16 +59,14 @@ export function ProductCard({
         className="block rounded-card bg-white shadow-soft transition-[transform,box-shadow] duration-250 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive active:translate-y-0"
         style={{ transitionTimingFunction: "var(--ease-out-soft)" }}
       >
-      <div
-        className={`relative overflow-hidden rounded-t-card ${featured ? "aspect-[4/3]" : "aspect-square"}`}
-      >
+      <div className={`relative overflow-hidden rounded-t-card ${aspect}`}>
         <ProductPhoto
           name={product.name}
           photoPath={product.photo_path}
           priority={priority}
           sizes={
             featured
-              ? "(max-width: 768px) 78vw, 340px"
+              ? "(max-width: 768px) 84vw, 330px"
               : "(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 240px"
           }
           className="transition-transform duration-300 group-hover:scale-[1.03]"

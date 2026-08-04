@@ -70,7 +70,8 @@ export function Carousel({ children, label }: CarouselProps) {
         {items.map((item, index) => (
           <div
             key={index}
-            className="w-[78vw] max-w-[340px] shrink-0 snap-start"
+            // 84vw — 다음 카드가 조금만 걸치게. 아예 안 걸치면 밀 수 있는 줄 모른다.
+            className="w-[84vw] max-w-[330px] shrink-0 snap-start"
           >
             {item}
           </div>
@@ -133,7 +134,7 @@ function Arrow({
       onClick={onClick}
       disabled={disabled}
       aria-label={side === "left" ? "이전 반찬" : "다음 반찬"}
-      className={`absolute top-[38%] hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-ink shadow-lift transition-opacity duration-200 disabled:pointer-events-none disabled:opacity-0 [@media(hover:hover)and(pointer:fine)]:grid ${
+      className={`absolute top-[31%] hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-ink shadow-lift transition-opacity duration-200 disabled:pointer-events-none disabled:opacity-0 [@media(hover:hover)and(pointer:fine)]:grid ${
         side === "left" ? "-left-1" : "-right-1"
       }`}
     >
