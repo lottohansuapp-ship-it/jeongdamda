@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { StoreNotice } from "@/components/shop/StoreNotice";
 import { placeOrder } from "@/lib/order-actions";
+import { confirmMyPayment } from "@/lib/payment-actions";
+import {
+  isPaymentConfigured,
+  PORTONE_CHANNEL_KEY,
+  PORTONE_STORE_ID,
+} from "@/lib/payments/config";
 import {
   clearDraft,
   saveDraft,
@@ -101,10 +107,41 @@ export function CheckoutBoard({
 
     startTransition(async () => {
       const result = await placeOrder(formData);
-      if (result.ok) {
-        clearDraft(); // 주문이 만들어졌으니 들고 있을 이유가 없다
-        router.replace(`/orders/${result.data.orderId}`);
-      } else setError(result.error);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+
+      const { orderId, paymentId, total: amount } = result.data;
+      clearDraft(); // 주문이 만들어졌으니 들고 있을 이유가 없다
+
+      // 결제를 아직 켜지 않았으면 여기서 끝. 주문은 남고 화면이 안내한다.
+      if (!isPaymentConfigured()) {
+        router.replace(`/orders/${orderId}`);
+        return;
+      }
+
+      const paid = await openPaymentWindow({
+        paymentId,
+        amount,
+        orderName: orderNameOf(cart),
+        customerName: profile.name ?? "",
+        customerPhone: profile.phone ?? "",
+        redirectUrl: `${window.location.origin}/orders/${orderId}`,
+      });
+
+      if (!paid.ok) {
+        // 결제 실패·취소. 주문은 pending_payment 로 남았다가 10분 뒤 재고가 돌아간다.
+        // 손님이 상황을 볼 수 있게 주문 화면으로 보낸다.
+        setError(paid.error);
+        router.replace(`/orders/${orderId}`);
+        return;
+      }
+
+      // 서버가 포트원에 다시 물어 확정한다. 실패해도 웹훅이 결국 처리하므로
+      // 손님을 막지 않는다 — 주문 화면이 몇 초 뒤 스스로 바뀐다.
+      await confirmMyPayment(paymentId);
+      router.replace(`/orders/${orderId}`);
     });
   }
 
@@ -334,8 +371,16 @@ export function CheckoutBoard({
             onClick={submit}
             className="tap-target w-full rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {pending ? "주문 확인 중…" : `${formatPrice(total)} 주문하기`}
+            {pending
+              ? "주문 확인 중…"
+              : `${formatPrice(total)} ${isPaymentConfigured() ? "결제하기" : "주문하기"}`}
           </button>
+
+          {!isPaymentConfigured() && (
+            <p className="pt-2 text-center text-[11.5px] text-ink-faint">
+              결제 연결 전이라 주문만 접수됩니다
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -371,6 +416,58 @@ function resolveBlock({
 
 export function fullAddress(address: Address): string {
   return [address.address1, address.address2].filter(Boolean).join(" ");
+}
+
+/** 결제창과 카드 명세서에 찍히는 주문명. "김치찌개 외 2건" */
+function orderNameOf(cart: CartSummary): string {
+  const first = cart.lines[0]?.product.name ?? "반찬";
+  const rest = cart.lines.length - 1;
+  return rest > 0 ? `${first} 외 ${rest}건` : first;
+}
+
+/**
+ * 포트원 결제창.
+ *
+ * SDK 는 결제가 켜져 있을 때만 불러온다. 꺼져 있으면 번들에 실리지 않는다.
+ *
+ * 모바일에서는 결제 앱으로 넘어갔다가 redirectUrl 로 돌아오기 때문에 이 함수가
+ * 값을 돌려주지 못할 수도 있다. 그 경우는 웹훅이 처리하고, 주문 화면이
+ * 스스로 갱신되면서 결제 완료로 바뀐다.
+ */
+async function openPaymentWindow(input: {
+  paymentId: string;
+  amount: number;
+  orderName: string;
+  customerName: string;
+  customerPhone: string;
+  redirectUrl: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const PortOne = await import("@portone/browser-sdk/v2");
+
+    const response = await PortOne.requestPayment({
+      storeId: PORTONE_STORE_ID,
+      channelKey: PORTONE_CHANNEL_KEY,
+      paymentId: input.paymentId,
+      orderName: input.orderName,
+      totalAmount: input.amount,
+      currency: "CURRENCY_KRW" as never,
+      payMethod: "CARD" as never,
+      customer: {
+        fullName: input.customerName,
+        phoneNumber: input.customerPhone,
+      },
+      redirectUrl: input.redirectUrl,
+    });
+
+    // code 가 있으면 실패다. 손님이 창을 닫은 경우도 여기로 온다.
+    if (response?.code) {
+      return { ok: false, error: response.message ?? "결제가 취소되었어요." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "결제창을 열지 못했어요. 잠시 후 다시 시도해 주세요." };
+  }
 }
 
 function Section({

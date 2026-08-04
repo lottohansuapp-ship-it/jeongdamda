@@ -8,6 +8,11 @@ import {
   reconcileDraft,
 } from "./checkout-draft.ts";
 import {
+  MAX_AGE_SECONDS,
+  signBody,
+  verifyWebhookSignature,
+} from "./payments/signature.ts";
+import {
   checkDelivery,
   findDeliveryArea,
   formatClockTime,
@@ -522,6 +527,99 @@ test("pickupTimestamp: 한국 벽시계를 +09:00 으로 붙인다", () => {
   assert.equal(at, "2026-08-03T18:30:00+09:00");
   // 실제로 그 순간을 가리키는지 — 한국 18:30 = UTC 09:30
   assert.equal(new Date(at).toISOString(), "2026-08-03T09:30:00.000Z");
+});
+
+// ---- 결제 웹훅 서명 ----
+//
+// 서명이 유일한 방어선은 아니다 (통과해도 포트원에 금액을 다시 물어본다).
+// 그래도 여기가 뚫리면 위조된 요청이 DB 까지 들어온다.
+// 아래 시크릿은 테스트 전용 문자열이고 실제 포트원 값이 아니다.
+
+const HOOK_SECRET = "whsec_dGVzdC1zZWNyZXQtZm9yLXVuaXQtdGVzdHMtb25seQ==";
+const HOOK_BODY = '{"data":{"paymentId":"20260804-0001-abc12345"}}';
+const HOOK_ID = "msg_test_1";
+const NOW = 1_785_000_000_000; // 고정 시각 — 테스트가 시간에 흔들리면 안 된다
+const HOOK_TS = String(Math.floor(NOW / 1000));
+
+function signed(body = HOOK_BODY, ts = HOOK_TS, secret = HOOK_SECRET) {
+  return `v1,${signBody(body, HOOK_ID, ts, secret)}`;
+}
+
+test("웹훅 서명: 제대로 서명된 요청은 통과", () => {
+  const ok = verifyWebhookSignature(
+    HOOK_BODY,
+    { id: HOOK_ID, timestamp: HOOK_TS, signature: signed() },
+    HOOK_SECRET,
+    NOW,
+  );
+  assert.equal(ok, true);
+});
+
+test("웹훅 서명: 본문이 한 글자라도 바뀌면 거부", () => {
+  const tampered = HOOK_BODY.replace("abc12345", "abc12346");
+  const ok = verifyWebhookSignature(
+    tampered,
+    { id: HOOK_ID, timestamp: HOOK_TS, signature: signed() },
+    HOOK_SECRET,
+    NOW,
+  );
+  assert.equal(ok, false);
+});
+
+test("웹훅 서명: 다른 시크릿으로 만든 서명은 거부", () => {
+  const ok = verifyWebhookSignature(
+    HOOK_BODY,
+    {
+      id: HOOK_ID,
+      timestamp: HOOK_TS,
+      signature: signed(HOOK_BODY, HOOK_TS, "whsec_b3RoZXItc2VjcmV0LXZhbHVl"),
+    },
+    HOOK_SECRET,
+    NOW,
+  );
+  assert.equal(ok, false);
+});
+
+// 가로챈 요청을 나중에 다시 보내는 걸 막는다
+test("웹훅 서명: 5분 넘은 요청은 거부", () => {
+  const old = String(Math.floor(NOW / 1000) - MAX_AGE_SECONDS - 1);
+  const ok = verifyWebhookSignature(
+    HOOK_BODY,
+    { id: HOOK_ID, timestamp: old, signature: signed(HOOK_BODY, old) },
+    HOOK_SECRET,
+    NOW,
+  );
+  assert.equal(ok, false);
+});
+
+test("웹훅 서명: 헤더나 시크릿이 없으면 거부", () => {
+  const headers = { id: HOOK_ID, timestamp: HOOK_TS, signature: signed() };
+  assert.equal(
+    verifyWebhookSignature(
+      HOOK_BODY,
+      { ...headers, signature: null },
+      HOOK_SECRET,
+      NOW,
+    ),
+    false,
+  );
+  assert.equal(
+    verifyWebhookSignature(HOOK_BODY, { ...headers, id: null }, HOOK_SECRET, NOW),
+    false,
+  );
+  // 시크릿을 아직 안 넣었는데 통과해 버리면 최악이다
+  assert.equal(verifyWebhookSignature(HOOK_BODY, headers, "", NOW), false);
+});
+
+test("웹훅 서명: 키 교체 중 여러 서명 중 하나만 맞아도 통과", () => {
+  const wrong = signBody(HOOK_BODY, HOOK_ID, HOOK_TS, "whsec_b3RoZXItc2VjcmV0");
+  const ok = verifyWebhookSignature(
+    HOOK_BODY,
+    { id: HOOK_ID, timestamp: HOOK_TS, signature: `v1,${wrong} ${signed()}` },
+    HOOK_SECRET,
+    NOW,
+  );
+  assert.equal(ok, true);
 });
 
 // ---- 주문서 임시 저장 ----

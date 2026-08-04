@@ -11,6 +11,8 @@ export interface PlacedOrder {
   orderId: string;
   orderNo: string;
   total: number;
+  /** 포트원에 넘길 결제 식별자. place_order 가 주문과 같은 트랜잭션에서 만든다 (0012). */
+  paymentId: string;
 }
 
 async function authed() {
@@ -82,7 +84,12 @@ export async function placeOrder(
 
   if (error) return { ok: false, error: rpcError(error.message) };
 
-  const result = data as { order_id: string; order_no: string; total: number };
+  const result = data as {
+    order_id: string;
+    order_no: string;
+    total: number;
+    payment_id: string;
+  };
 
   // 재고가 줄었다. 태그를 갱신하지 않으면 목록은 팔린 만큼을 영영 모른다.
   updateTag(PRODUCTS_TAG);
@@ -93,13 +100,27 @@ export async function placeOrder(
       orderId: result.order_id,
       orderNo: result.order_no,
       total: result.total,
+      paymentId: result.payment_id,
     },
   };
 }
 
 /**
- * 취소. 권한과 시점 판단은 cancel_order() 안에서 한다 (0011).
- * 화면이 버튼을 감추는 것은 UX 이지 방어선이 아니다.
+ * 취소 + 환불.
+ *
+ * 순서가 전부다. 셋 중 어디서 끊겨도 손님이 손해를 보지 않아야 한다.
+ *
+ *   1. begin_cancel — DB 가 먼저 "내가 취소한다"를 선점한다.
+ *      환불부터 보내면 두 사람이 동시에 취소를 눌렀을 때 둘 다 환불을 보낸다.
+ *   2. 포트원 취소 — 실패하면 여기서 멈춘다. DB 를 먼저 취소해 버리면
+ *      "주문은 취소됐는데 돈은 안 돌아온" 상태가 되고 아무도 모른다.
+ *      멈추면 cancel_requested_at 이 남아 나중에 이어서 처리할 수 있다.
+ *   3. cancel_order — 재고를 되돌리고 취소로 확정한다.
+ *
+ * 2에서 실패한 주문은 다시 취소를 눌러 이어서 진행할 수 있다.
+ * 이미 환불됐으면 begin_cancel 이 needs_refund=false 를 준다.
+ *
+ * 권한과 시점 판단은 두 함수 안에서 한다. 화면이 버튼을 감추는 건 UX 다.
  */
 export async function cancelOrder(
   orderId: string,
@@ -108,9 +129,38 @@ export async function cancelOrder(
   const session = await authed();
   if (!session) return { ok: false, error: "로그인이 필요합니다." };
 
+  const claim = await session.db.rpc("begin_cancel", { p_order_id: orderId });
+  if (claim.error) return { ok: false, error: rpcError(claim.error.message) };
+
+  const { payment_id, total, needs_refund } = claim.data as {
+    payment_id: string | null;
+    total: number;
+    needs_refund: boolean;
+  };
+
+  let refunded: number | null = null;
+
+  if (needs_refund && payment_id) {
+    // 결제를 켜지 않았으면 이 모듈도 불러올 일이 없다
+    const { cancelPayment } = await import("./payments/portone");
+    const result = await cancelPayment(
+      payment_id,
+      reason?.trim() || "주문 취소",
+    );
+
+    if (!result.ok) {
+      return {
+        ok: false,
+        error: `환불을 처리하지 못했어요. 매장에 연락해 주세요. (${result.error})`,
+      };
+    }
+    refunded = total;
+  }
+
   const { error } = await session.db.rpc("cancel_order", {
     p_order_id: orderId,
     p_reason: reason?.trim() || null,
+    p_refunded: refunded,
   });
 
   if (error) return { ok: false, error: rpcError(error.message) };
