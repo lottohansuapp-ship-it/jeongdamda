@@ -183,6 +183,9 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
               placeholder="예) 오늘은 김치가 일찍 나갔어요"
               className={FIELD}
             />
+            <p className="pt-1.5 text-[12px] leading-relaxed text-ink-faint">
+              손님 화면 맨 위와 주문서에 함께 표시됩니다. 비워 두면 안 보입니다.
+            </p>
           </Labeled>
 
           <button

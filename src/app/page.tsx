@@ -1,11 +1,13 @@
 import { ShopBrowser } from "@/components/shop/ShopBrowser";
+import { StoreNotice } from "@/components/shop/StoreNotice";
 import { BottomNav } from "@/components/ui/BottomNav";
 import { SiteFooter } from "@/components/ui/SiteFooter";
 import { Wordmark } from "@/components/ui/Wordmark";
-import { getShopData } from "@/lib/queries";
+import { getShopData, getStore } from "@/lib/queries";
 
 export default async function HomePage() {
-  const result = await getShopData();
+  // 둘 다 'use cache' 라 홈은 계속 정적으로 프리렌더된다. 왕복이 늘지 않는다.
+  const [result, store] = await Promise.all([getShopData(), getStore()]);
 
   return (
     <>
@@ -26,6 +28,11 @@ export default async function HomePage() {
           )}
         </p>
       </header>
+
+      {/* 사장님 공지는 목록보다 위에. 반찬을 다 고르고 나서 알면 늦다. */}
+      <div className="pb-6">
+        <StoreNotice notice={store.settings?.notice ?? null} />
+      </div>
 
       {result.ok ? (
         <ShopBrowser

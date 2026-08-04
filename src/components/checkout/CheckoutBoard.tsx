@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { StoreNotice } from "@/components/shop/StoreNotice";
 import { placeOrder } from "@/lib/order-actions";
 import {
   clearDraft,
@@ -109,6 +110,14 @@ export function CheckoutBoard({
 
   return (
     <div className="pb-48">
+      {/* 결제 직전이 "오늘 배달이 늦어요" 같은 공지를 볼 마지막 자리다.
+          settings 는 이미 받고 있어서 조회가 늘지 않는다. */}
+      {settings.notice && (
+        <div className="pb-2.5">
+          <StoreNotice notice={settings.notice} />
+        </div>
+      )}
+
       {cart.blockingIssues > 0 && (
         <div className="mb-2.5 rounded-card bg-cream p-4">
           <p className="text-[13.5px] leading-relaxed">
