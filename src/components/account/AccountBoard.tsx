@@ -8,6 +8,7 @@ import {
   updateProfile,
 } from "@/lib/account";
 import { signOut } from "@/lib/auth";
+import { Wordmark } from "@/components/ui/Wordmark";
 import type { Address, Profile } from "@/types/database";
 
 const POSTCODE_SRC =
@@ -99,8 +100,8 @@ export function AccountBoard({ profile, addresses }: AccountBoardProps) {
     <div>
       <header className="flex items-start justify-between gap-3 pb-6 pt-10">
         <div>
-          <p className="text-[14px] text-ink-soft">오늘의 반찬</p>
-          <h1 className="pt-1.5 text-[26px] leading-tight">내 정보</h1>
+          <Wordmark size="sm" />
+          <h1 className="pt-2 text-[26px] leading-tight">내 정보</h1>
         </div>
         <form action={signOut}>
           <button

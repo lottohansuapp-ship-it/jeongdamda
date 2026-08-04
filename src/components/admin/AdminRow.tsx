@@ -189,8 +189,15 @@ export function AdminRow({
             <Step label="재고 1개 늘리기" onClick={() => bump(1)}>
               +
             </Step>
-            <span className={`text-[12.5px] ${TONE[status.level]}`}>
-              {status.dot} {status.label}
+            {/* 손님 화면의 StockBadge 와 같은 표시. 이모지는 기기마다 다르게 그려진다 */}
+            <span
+              className={`inline-flex items-center gap-1.5 text-[12.5px] ${TONE[status.level]}`}
+            >
+              <span
+                aria-hidden
+                className="h-[7px] w-[7px] rounded-full bg-current"
+              />
+              {status.label}
             </span>
           </div>
         </div>

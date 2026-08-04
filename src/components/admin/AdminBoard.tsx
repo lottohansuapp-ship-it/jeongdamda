@@ -6,6 +6,7 @@ import { createProduct, reorderProducts } from "@/lib/actions";
 import { EMPTY_FILTERS, filterProducts } from "@/lib/filter";
 import { signOut } from "@/lib/auth";
 import { stockStatus } from "@/lib/stock";
+import { Wordmark } from "@/components/ui/Wordmark";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { AdminRow } from "./AdminRow";
 
@@ -133,8 +134,8 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
     <div className="pb-24">
       <header className="flex items-start justify-between gap-3 pb-6 pt-10">
         <div>
-          <p className="text-[14px] text-ink-soft">오늘의 반찬</p>
-          <h1 className="pt-1.5 text-[26px] leading-tight">오늘 재고 관리</h1>
+          <Wordmark size="sm" />
+          <h1 className="pt-2 text-[26px] leading-tight">오늘 재고 관리</h1>
           <p className="pt-3 text-[13px] text-ink-soft">
             전체 {summary.total}가지 · 판매중 {summary.selling} · 숨김{" "}
             {summary.hidden}

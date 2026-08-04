@@ -68,13 +68,22 @@ const CATALOG: ProductWithCategory[] = [
 test("stockStatus: 0개는 품절", () => {
   const status = stockStatus(0);
   assert.equal(status.level, "out");
-  assert.equal(status.urgent, false);
+  assert.equal(status.label, "품절");
 });
 
-test("stockStatus: 임계값 이하는 마감 임박", () => {
+// 라벨은 한 단어여야 한다. 카드가 좁아서 긴 문장은 줄바꿈되거나 잘린다.
+test("stockStatus: 임계값 이하는 소량", () => {
   assert.equal(stockStatus(1).level, "low");
   assert.equal(stockStatus(LOW_STOCK_THRESHOLD).level, "low");
-  assert.equal(stockStatus(LOW_STOCK_THRESHOLD).urgent, true);
+  assert.equal(stockStatus(LOW_STOCK_THRESHOLD).label, "소량");
+});
+
+test("stockStatus: 라벨은 전부 한 단어", () => {
+  for (const stock of [0, 3, 50]) {
+    const { label } = stockStatus(stock);
+    assert.ok(label.length <= 3, `"${label}" 이 너무 길다`);
+    assert.ok(!label.includes(" "), `"${label}" 에 공백이 있다`);
+  }
 });
 
 test("stockStatus: 임계값을 넘으면 충분", () => {

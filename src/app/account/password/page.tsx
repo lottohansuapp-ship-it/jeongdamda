@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { Wordmark } from "@/components/ui/Wordmark";
 import { getProfile } from "@/lib/queries";
 import { PasswordForm } from "./PasswordForm";
 
@@ -26,8 +27,8 @@ async function PasswordBody() {
 
   return (
     <>
-      <p className="text-[14px] text-ink-soft">오늘의 반찬</p>
-      <h1 className="pt-1.5 text-[26px] leading-tight">비밀번호 정하기</h1>
+      <Wordmark size="sm" />
+      <h1 className="pt-2 text-[26px] leading-tight">비밀번호 정하기</h1>
       <p className="pt-3 text-[13.5px] leading-relaxed text-ink-soft">
         새 비밀번호를 입력하면 바로 적용됩니다.
       </p>

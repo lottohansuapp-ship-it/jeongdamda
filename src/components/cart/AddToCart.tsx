@@ -91,6 +91,8 @@ export function AddToCart({
           </p>
         )}
 
+        {/* 두 줄로 나눈다. 수량 조절과 버튼 두 개를 한 줄에 넣으면
+            320px(아이폰 SE 1세대)에서 버튼 글자가 잘린다. */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 rounded-pill border border-line px-1">
             <Step
@@ -112,11 +114,17 @@ export function AddToCart({
             </Step>
           </div>
 
+          <span className="ml-auto text-[18px] tabular-nums tracking-tight">
+            {formatPrice(price * quantity)}
+          </span>
+        </div>
+
+        <div className="flex gap-2 pt-2.5">
           <button
             type="button"
             onClick={() => submit()}
             disabled={pending}
-            className="tap-target flex-1 rounded-card border border-olive px-4 text-[15px] text-olive-deep transition-colors duration-200 hover:bg-olive-soft disabled:opacity-50"
+            className="tap-target flex-1 rounded-card border border-olive text-[15px] text-olive-deep transition-colors duration-200 hover:bg-olive-soft disabled:opacity-50"
           >
             {pending ? "담는 중…" : done ? "담겼어요" : "담기"}
           </button>
@@ -125,9 +133,9 @@ export function AddToCart({
             type="button"
             onClick={() => submit("/checkout")}
             disabled={pending}
-            className="tap-target flex-[1.4] rounded-card bg-olive px-4 text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:opacity-50"
+            className="tap-target flex-[1.6] rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:opacity-50"
           >
-            {formatPrice(price * quantity)} 주문
+            바로 주문
           </button>
         </div>
 

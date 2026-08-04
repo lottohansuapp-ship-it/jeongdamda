@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { Wordmark } from "@/components/ui/Wordmark";
 import { serverClient } from "@/lib/supabase/server";
 import { LoginForm } from "./LoginForm";
 
@@ -39,15 +40,25 @@ async function LoginBody({ searchParams }: PageProps) {
 
   return (
     <>
-      <p className="text-[14px] text-ink-soft">오늘의 반찬</p>
-      <h1 className="pt-1.5 text-[26px] leading-tight">
-        {forAdmin ? "사장님 로그인" : "반갑습니다"}
-      </h1>
-      <p className="pt-3 text-[13.5px] leading-relaxed text-ink-soft">
-        {forAdmin
-          ? "재고와 주문을 바로 관리할 수 있습니다."
-          : "오늘 만든 반찬을 담고 주문하려면 로그인이 필요해요."}
-      </p>
+      {/* 로그인은 상호를 가장 크게 보여줄 자리다. "여기가 그 가게구나" 하는 화면 */}
+      <div className="pb-7 text-center">
+        <Wordmark as="h1" size="lg" />
+        <p className="pt-5 text-[14.5px] leading-relaxed text-ink-soft">
+          {forAdmin ? (
+            <>
+              사장님, 재고와 주문을 관리하시려면
+              <br />
+              로그인해 주세요.
+            </>
+          ) : (
+            <>
+              오늘 만든 반찬을 담고 주문하시려면
+              <br />
+              로그인이 필요해요.
+            </>
+          )}
+        </p>
+      </div>
 
       <LoginForm
         next={target}

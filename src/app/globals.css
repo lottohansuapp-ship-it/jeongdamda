@@ -12,6 +12,10 @@
   --color-success: #3ba55d;
   --color-warn: #d99525;
   --color-danger: #e53935;
+  /* 간판의 「반찬가게」 빨강. danger 와 값이 비슷하지만 뜻이 다르다 —
+     danger 는 품절이고 이건 상호다. 섞어 쓰면 나중에 한쪽만 못 바꾼다. */
+  --color-brand: #d8352c;
+
   --color-canvas: #fafaf8;
   --color-ink: #222222;
   --color-ink-soft: #6b6b66;

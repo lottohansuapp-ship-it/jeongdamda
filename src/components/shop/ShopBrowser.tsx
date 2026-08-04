@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { hasBadge, RECOMMEND_KEY } from "@/lib/badges";
 import { EMPTY_FILTERS, filterProducts, type ShopFilters } from "@/lib/filter";
 import type { Category, ProductWithCategory } from "@/types/database";
+import { Carousel } from "./Carousel";
 import { ProductCard } from "./ProductCard";
 
 const HOT_SLUGS = ["soup", "stew"];
@@ -49,16 +50,16 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
             title="오늘의 추천"
             note="사장님이 오늘 제일 자신 있는 반찬"
           />
-          <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
+          <Carousel label="오늘의 추천 반찬">
             {recommended.map((product, index) => (
-              <div
+              <ProductCard
                 key={product.id}
-                className="w-[78vw] max-w-[340px] shrink-0 snap-start"
-              >
-                <ProductCard product={product} featured priority={index === 0} />
-              </div>
+                product={product}
+                featured
+                priority={index === 0}
+              />
             ))}
-          </div>
+          </Carousel>
         </section>
       )}
 

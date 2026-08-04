@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ShopBrowser } from "@/components/shop/ShopBrowser";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { Wordmark } from "@/components/ui/Wordmark";
 import { getShopData } from "@/lib/queries";
 
 export default async function HomePage() {
@@ -9,20 +10,21 @@ export default async function HomePage() {
   return (
     <>
     <main className="mx-auto w-full max-w-[1120px] flex-1 px-5 pb-10">
-      <header className="pb-8 pt-10">
-        <p className="text-[14px] text-ink-soft">안녕하세요 :)</p>
-        <h1 className="pt-1.5 text-[28px] leading-tight sm:text-[34px]">
-          오늘의 반찬입니다.
-        </h1>
-        {result.ok && (
-          <p className="pt-5 text-[15px] text-ink-soft">
-            오늘 준비된 반찬{" "}
-            <span className="text-[22px] tracking-tight text-olive-deep">
-              {result.data.products.length}
-            </span>
-            가지
-          </p>
-        )}
+      <header className="pb-8 pt-9">
+        <Wordmark as="h1" size="lg" />
+        <p className="pt-4 text-[15px] leading-relaxed text-ink-soft">
+          오늘 아침에 만든 반찬입니다.
+          {result.ok && (
+            <>
+              <br />
+              지금 준비된 건{" "}
+              <span className="text-[19px] tracking-tight text-olive-deep">
+                {result.data.products.length}가지
+              </span>
+              예요.
+            </>
+          )}
+        </p>
       </header>
 
       {result.ok ? (
@@ -35,9 +37,20 @@ export default async function HomePage() {
       )}
 
       <footer className="pt-16 text-center text-[12.5px] leading-relaxed text-ink-faint">
-        재고는 사장님이 수정하는 즉시 반영됩니다.
-        <br />
-        <Link href="/admin" className="underline underline-offset-4">
+        <Wordmark size="sm" className="opacity-60" />
+        <p className="pt-3">
+          <a
+            href="tel:02-6953-8086"
+            className="underline underline-offset-4"
+          >
+            02-6953-8086
+          </a>
+        </p>
+        <p className="pt-2">재고는 사장님이 수정하는 즉시 반영됩니다.</p>
+        <Link
+          href="/admin"
+          className="mt-2 inline-block underline underline-offset-4"
+        >
           사장님 로그인
         </Link>
       </footer>

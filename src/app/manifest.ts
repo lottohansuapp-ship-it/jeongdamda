@@ -2,8 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "오늘의 반찬",
-    short_name: "오늘의반찬",
+    name: "정, 담따 반찬가게",
+    // 홈 화면 아이콘 아래 뜨는 이름. 길면 잘리므로 상호만 남긴다.
+    short_name: "정,담따",
     description: "오늘 준비된 반찬과 남은 수량을 실시간으로 확인하세요.",
     start_url: "/",
     scope: "/",
