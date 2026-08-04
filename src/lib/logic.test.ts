@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { filterProducts, EMPTY_FILTERS } from "./filter.ts";
+import { filterProducts, isFiltering, EMPTY_FILTERS } from "./filter.ts";
 import { clampQuantity, lineIssue, summarizeCart } from "./cart.ts";
 import {
   decodeDraft,
@@ -175,15 +175,60 @@ test("filterProducts: 카테고리 필터", () => {
   assert.equal(result.length, 2);
 });
 
-test("filterProducts: 추천만 보기", () => {
+// 손님의 "추천만"과 관리자의 뱃지 필터가 같은 길을 쓴다.
+// 두 벌로 두면 사장님이 관리자에서 본 목록과 손님 화면이 달라진다.
+test("filterProducts: 뱃지로 거르기", () => {
   const result = filterProducts(CATALOG, {
     ...EMPTY_FILTERS,
-    recommendedOnly: true,
+    badgeKey: "recommend",
   });
   assert.deepEqual(
     result.map((p) => p.name),
     ["김치찌개"],
   );
+  // 아무도 안 붙인 뱃지로 거르면 빈 목록
+  assert.equal(
+    filterProducts(CATALOG, { ...EMPTY_FILTERS, badgeKey: "deal" }).length,
+    0,
+  );
+});
+
+// 관리자 전용 — 사장님이 "품절 몇 개지?"를 누르면 그 목록으로 가야 한다
+test("filterProducts: 재고 상태로 거르기", () => {
+  assert.deepEqual(
+    filterProducts(CATALOG, { ...EMPTY_FILTERS, stockLevel: "out" }).map(
+      (p) => p.name,
+    ),
+    ["된장찌개"],
+  );
+  assert.deepEqual(
+    filterProducts(CATALOG, { ...EMPTY_FILTERS, stockLevel: "low" }).map(
+      (p) => p.name,
+    ),
+    ["김치찌개"],
+  );
+});
+
+test("filterProducts: 숨긴 상품만 보기", () => {
+  const withHidden = [
+    ...CATALOG,
+    make({ name: "숨긴반찬", category: stew, today_available: false }),
+  ];
+  assert.deepEqual(
+    filterProducts(withHidden, { ...EMPTY_FILTERS, hiddenOnly: true }).map(
+      (p) => p.name,
+    ),
+    ["숨긴반찬"],
+  );
+});
+
+test("isFiltering: 하나라도 걸려 있으면 true", () => {
+  assert.equal(isFiltering(EMPTY_FILTERS), false);
+  assert.equal(isFiltering({ ...EMPTY_FILTERS, query: "  " }), false);
+  assert.equal(isFiltering({ ...EMPTY_FILTERS, query: "김치" }), true);
+  assert.equal(isFiltering({ ...EMPTY_FILTERS, badgeKey: "today" }), true);
+  assert.equal(isFiltering({ ...EMPTY_FILTERS, stockLevel: "out" }), true);
+  assert.equal(isFiltering({ ...EMPTY_FILTERS, hiddenOnly: true }), true);
 });
 
 test("filterProducts: 품절 제외", () => {
@@ -200,9 +245,9 @@ test("filterProducts: 품절 제외", () => {
 
 test("filterProducts: 조건은 함께 적용된다", () => {
   const result = filterProducts(CATALOG, {
+    ...EMPTY_FILTERS,
     query: "찌개",
     categorySlug: "stew",
-    recommendedOnly: false,
     hideSoldOut: true,
   });
   assert.deepEqual(

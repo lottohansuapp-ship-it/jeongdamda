@@ -3,9 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createProduct, reorderProducts } from "@/lib/actions";
-import { EMPTY_FILTERS, filterProducts } from "@/lib/filter";
+import {
+  EMPTY_FILTERS,
+  filterProducts,
+  isFiltering,
+  type ShopFilters,
+} from "@/lib/filter";
+import { FilterChip, FilterTab } from "@/components/ui/Filters";
 import { signOut } from "@/lib/auth";
-import { hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
+import { BADGES, hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
 import { stockStatus } from "@/lib/stock";
 import { missingStoreInfo } from "@/lib/store-info";
 import { Wordmark } from "@/components/ui/Wordmark";
@@ -16,31 +22,6 @@ const TOAST_MS = 2600;
 
 const INPUT =
   "h-12 w-full rounded-card border border-line bg-canvas px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none";
-
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`h-11 shrink-0 rounded-pill px-4 text-[14px] transition-colors duration-200 ${
-        active
-          ? "bg-ink text-white"
-          : "border border-line bg-white text-ink-soft hover:border-ink-faint"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 interface AdminBoardProps {
   categories: Category[];
@@ -84,16 +65,19 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
   const [synced, setSynced] = useState(products);
   const [toast, setToast] = useState<Toast | null>(null);
   const [adding, setAdding] = useState(false);
-  const [query, setQuery] = useState("");
-  const [categorySlug, setCategorySlug] = useState<string | null>(null);
+  const [filters, setFilters] = useState<ShopFilters>(EMPTY_FILTERS);
 
-  const filtering = query.trim().length > 0 || categorySlug !== null;
+  const patch = (next: Partial<ShopFilters>) =>
+    setFilters((current) => ({ ...current, ...next }));
+
+  // 걸러 보는 중에는 순서를 못 바꾼다. 화면에 안 보이는 상품과 자리를
+  // 맞바꾸게 되어 사장님이 의도한 것과 다른 결과가 나온다.
+  const filtering = isFiltering(filters);
 
   // 손님 화면과 같은 필터 로직을 쓴다. 두 벌로 두면 결과가 갈린다.
   const visible = useMemo(
-    () =>
-      filterProducts(order, { ...EMPTY_FILTERS, query, categorySlug }),
-    [order, query, categorySlug],
+    () => filterProducts(order, filters),
+    [order, filters],
   );
 
   // 서버가 새 목록을 내려주면 렌더 중에 맞춘다. effect 로 하면 한 프레임 어긋난다.
@@ -123,6 +107,13 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
       // 아무 표시 없이 안 나오므로 여기서 알려준다.
       recommended: selling.filter((p) => hasBadge(p.badges, RECOMMEND_KEY))
         .length,
+      // 뱃지별 개수. 숨긴 상품도 센다 — 사장님은 그것도 관리해야 한다.
+      badges: Object.fromEntries(
+        BADGES.map((badge) => [
+          badge.key,
+          products.filter((p) => hasBadge(p.badges, badge.key)).length,
+        ]),
+      ) as Record<string, number>,
     };
   }, [products]);
 
@@ -171,21 +162,14 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
           <h1 className="pt-2 text-[26px] leading-tight">오늘 재고 관리</h1>
           <StoreInfoNotice />
           <p className="pt-3 text-[13px] text-ink-soft">
-            전체 {summary.total}가지 · 판매중 {summary.selling} · 숨김{" "}
-            {summary.hidden}
+            전체 {summary.total}가지 · 판매중 {summary.selling}
           </p>
-          <p className="pt-1 text-[13px] text-ink-soft">
-            마감임박 {summary.low} · 품절 {summary.soldOut}
-          </p>
-          <p className="pt-1 text-[13px] text-ink-soft">
-            오늘의 추천 {summary.recommended}개
-            {summary.recommended > MAX_RECOMMENDED && (
-              <span className="text-danger">
-                {" "}
-                — {MAX_RECOMMENDED}개까지만 손님 화면에 나와요
-              </span>
-            )}
-          </p>
+          {summary.recommended > MAX_RECOMMENDED && (
+            <p className="pt-1 text-[13px] text-danger">
+              추천이 {summary.recommended}개예요 — 손님 화면에는{" "}
+              {MAX_RECOMMENDED}개까지만 나옵니다
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 gap-2">
           <Link
@@ -278,25 +262,88 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
           <span className="sr-only">반찬 검색</span>
           <input
             type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={filters.query}
+            onChange={(event) => patch({ query: event.target.value })}
             placeholder="반찬 이름으로 찾기"
             className="h-12 w-full rounded-pill border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none"
           />
         </label>
 
-        <div className="no-scrollbar -mx-5 mt-2.5 flex gap-2 overflow-x-auto px-5">
-          <Chip active={categorySlug === null} onClick={() => setCategorySlug(null)}>
+        {/* 손님 화면과 같은 칩을 쓴다. 사장님이 두 화면을 오갈 때 다른 앱처럼
+            느껴지면 안 된다. */}
+        <div
+          role="tablist"
+          aria-label="카테고리"
+          className="no-scrollbar -mx-5 mt-2.5 flex gap-1 overflow-x-auto px-5"
+        >
+          <FilterTab
+            active={filters.categorySlug === null}
+            onClick={() => patch({ categorySlug: null })}
+          >
             전체
-          </Chip>
+          </FilterTab>
           {categories.map((category) => (
-            <Chip
+            <FilterTab
               key={category.id}
-              active={categorySlug === category.slug}
-              onClick={() => setCategorySlug(category.slug)}
+              active={filters.categorySlug === category.slug}
+              onClick={() => patch({ categorySlug: category.slug })}
             >
               {category.name}
-            </Chip>
+            </FilterTab>
+          ))}
+        </div>
+
+        {/* 상태와 뱃지. 숫자를 함께 보여준다 — 사장님이 관리자에 들어오는 이유가
+            "품절 몇 개지?" 이고, 그 숫자를 눌러 바로 그 목록으로 갈 수 있어야 한다.
+            해당 상품이 없으면 눌러 봐야 빈 화면이라 아예 막는다. */}
+        <div className="no-scrollbar -mx-5 mt-1 flex gap-1.5 overflow-x-auto px-5">
+          <FilterChip
+            tone="danger"
+            active={filters.stockLevel === "out"}
+            disabled={summary.soldOut === 0}
+            count={summary.soldOut}
+            onClick={() =>
+              patch({ stockLevel: filters.stockLevel === "out" ? null : "out" })
+            }
+          >
+            품절
+          </FilterChip>
+          <FilterChip
+            tone="warn"
+            active={filters.stockLevel === "low"}
+            disabled={summary.low === 0}
+            count={summary.low}
+            onClick={() =>
+              patch({ stockLevel: filters.stockLevel === "low" ? null : "low" })
+            }
+          >
+            마감임박
+          </FilterChip>
+          <FilterChip
+            active={filters.hiddenOnly}
+            disabled={summary.hidden === 0}
+            count={summary.hidden}
+            onClick={() => patch({ hiddenOnly: !filters.hiddenOnly })}
+          >
+            숨김
+          </FilterChip>
+
+          <span aria-hidden className="my-[9px] w-px shrink-0 bg-line" />
+
+          {BADGES.map((badge) => (
+            <FilterChip
+              key={badge.key}
+              active={filters.badgeKey === badge.key}
+              disabled={summary.badges[badge.key] === 0}
+              count={summary.badges[badge.key]}
+              onClick={() =>
+                patch({
+                  badgeKey: filters.badgeKey === badge.key ? null : badge.key,
+                })
+              }
+            >
+              {badge.label}
+            </FilterChip>
           ))}
         </div>
       </div>

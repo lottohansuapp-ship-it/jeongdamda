@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
-import { EMPTY_FILTERS, filterProducts, type ShopFilters } from "@/lib/filter";
+import { EMPTY_FILTERS, filterProducts, isFiltering, type ShopFilters } from "@/lib/filter";
+import { FilterChip, FilterTab } from "@/components/ui/Filters";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { Carousel } from "./Carousel";
 import { ProductCard } from "./ProductCard";
@@ -32,11 +33,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
     [products],
   );
 
-  const browsing =
-    filters.query.trim().length > 0 ||
-    filters.categorySlug !== null ||
-    filters.recommendedOnly ||
-    filters.hideSoldOut;
+  const browsing = isFiltering(filters);
 
   return (
     <>
@@ -82,38 +79,43 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
             aria-label="카테고리"
             className="no-scrollbar -mx-5 mt-2.5 flex gap-1 overflow-x-auto px-5"
           >
-            <Tab
+            <FilterTab
               active={filters.categorySlug === null}
               onClick={() => patch({ categorySlug: null })}
             >
               전체
-            </Tab>
+            </FilterTab>
             {categories.map((category) => (
-              <Tab
+              <FilterTab
                 key={category.id}
                 active={filters.categorySlug === category.slug}
                 onClick={() => patch({ categorySlug: category.slug })}
               >
                 {category.name}
-              </Tab>
+              </FilterTab>
             ))}
           </div>
 
           {/* 보조 필터 — 카테고리 위에 덧씌우는 조건이라 한 단계 약하게.
               모양(테두리)과 크기 둘 다 다르게 해야 역할이 다르다는 게 읽힌다. */}
           <div className="mt-1.5 flex gap-1.5">
-            <Toggle
-              active={filters.recommendedOnly}
-              onClick={() => patch({ recommendedOnly: !filters.recommendedOnly })}
+            <FilterChip
+              active={filters.badgeKey === RECOMMEND_KEY}
+              onClick={() =>
+                patch({
+                  badgeKey:
+                    filters.badgeKey === RECOMMEND_KEY ? null : RECOMMEND_KEY,
+                })
+              }
             >
               추천만
-            </Toggle>
-            <Toggle
+            </FilterChip>
+            <FilterChip
               active={filters.hideSoldOut}
               onClick={() => patch({ hideSoldOut: !filters.hideSoldOut })}
             >
               품절 제외
-            </Toggle>
+            </FilterChip>
           </div>
         </div>
 
@@ -162,73 +164,6 @@ function SectionHead({
       </h2>
       <p className="pt-1 text-[13px] text-ink-soft">{note}</p>
     </div>
-  );
-}
-
-/**
- * 메인 카테고리.
- *
- * 누르는 자리는 48px 를 지키되(프로젝트 규칙) 보이는 배경은 34px 로 짧게 둔다.
- * 여백으로 손가락 자리를 만들면 한 줄이 차지하는 높이는 그대로여도
- * 눈에는 훨씬 가볍게 보인다. 캐러셀 점에서 쓴 방법과 같다.
- */
-function Tab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className="group shrink-0 py-[7px]"
-    >
-      <span
-        className={`block rounded-[10px] px-3.5 py-2 text-[14px] leading-none transition-colors duration-200 ${
-          active
-            ? "bg-ink text-white"
-            : "text-ink-soft group-hover:bg-white group-hover:text-ink"
-        }`}
-      >
-        {children}
-      </span>
-    </button>
-  );
-}
-
-/** 보조 필터. 메인보다 작고, 켜지 않았을 때도 테두리가 남아 성격이 다르다는 걸 보인다. */
-function Toggle({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className="group py-[9px]"
-    >
-      <span
-        className={`block rounded-pill border px-2.5 py-1.5 text-[12.5px] leading-none transition-colors duration-200 ${
-          active
-            ? "border-olive bg-olive-soft text-olive-deep"
-            : "border-line bg-white text-ink-faint group-hover:text-ink-soft"
-        }`}
-      >
-        {children}
-      </span>
-    </button>
   );
 }
 
