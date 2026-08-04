@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { placeOrder } from "@/lib/order-actions";
+import {
+  clearDraft,
+  saveDraft,
+  type CheckoutDraft,
+} from "@/lib/checkout-draft-client";
 import { checkDelivery, type DeliveryQuote, type OpenState } from "@/lib/store";
 import { formatPrice } from "@/lib/format";
 import type { CartSummary } from "@/lib/cart";
@@ -29,6 +34,8 @@ interface CheckoutBoardProps {
   areas: DeliveryArea[];
   slots: string[];
   openState: OpenState;
+  /** 서버가 쿠키에서 되살려 지금 상황에 맞춰준 초기값 */
+  draft: CheckoutDraft;
 }
 
 export function CheckoutBoard({
@@ -39,20 +46,22 @@ export function CheckoutBoard({
   areas,
   slots,
   openState,
+  draft,
 }: CheckoutBoardProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // 배달이 기본이다. 동네 반찬가게 손님은 대부분 집에서 시킨다.
-  const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">(
-    settings.delivery_enabled ? "delivery" : "pickup",
-  );
-  const [addressId, setAddressId] = useState(
-    () => addresses.find((item) => item.is_default)?.id ?? addresses[0]?.id ?? "",
-  );
-  const [slot, setSlot] = useState(() => slots[0] ?? "");
-  const [memo, setMemo] = useState("");
+  // 초기값은 서버가 정한다. 여기서 다시 고르면 하이드레이션이 어긋난다.
+  const [fulfillment, setFulfillment] = useState(draft.fulfillment);
+  const [addressId, setAddressId] = useState(draft.addressId);
+  const [slot, setSlot] = useState(draft.slot);
+  const [memo, setMemo] = useState(draft.memo);
+
+  /** 고른 것이 바뀔 때마다 쿠키에 남긴다. "추가 주문"으로 나갔다 와도 그대로다. */
+  function remember(changes: Partial<CheckoutDraft>) {
+    saveDraft({ fulfillment, addressId, slot, memo, ...changes });
+  }
 
   const address = addresses.find((item) => item.id === addressId) ?? null;
 
@@ -91,8 +100,10 @@ export function CheckoutBoard({
 
     startTransition(async () => {
       const result = await placeOrder(formData);
-      if (result.ok) router.replace(`/orders/${result.data.orderId}`);
-      else setError(result.error);
+      if (result.ok) {
+        clearDraft(); // 주문이 만들어졌으니 들고 있을 이유가 없다
+        router.replace(`/orders/${result.data.orderId}`);
+      } else setError(result.error);
     });
   }
 
@@ -117,14 +128,20 @@ export function CheckoutBoard({
           <Choice
             on={isDelivery}
             disabled={!settings.delivery_enabled}
-            onClick={() => setFulfillment("delivery")}
+            onClick={() => {
+              setFulfillment("delivery");
+              remember({ fulfillment: "delivery" });
+            }}
             label="배달"
             hint={settings.delivery_enabled ? "집 앞까지" : "지금은 안 돼요"}
           />
           <Choice
             on={!isDelivery}
             disabled={!settings.pickup_enabled}
-            onClick={() => setFulfillment("pickup")}
+            onClick={() => {
+              setFulfillment("pickup");
+              remember({ fulfillment: "pickup" });
+            }}
             label="픽업"
             hint={
               settings.pickup_enabled ? "매장에서 찾아가기" : "지금은 안 돼요"
@@ -172,7 +189,10 @@ export function CheckoutBoard({
                       name="address"
                       className="mt-1 h-4 w-4 shrink-0 accent-olive"
                       checked={item.id === addressId}
-                      onChange={() => setAddressId(item.id)}
+                      onChange={() => {
+                        setAddressId(item.id);
+                        remember({ addressId: item.id });
+                      }}
                     />
                     <span className="min-w-0 text-[13.5px] leading-relaxed">
                       {item.label && (
@@ -201,7 +221,10 @@ export function CheckoutBoard({
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setSlot(value)}
+                  onClick={() => {
+                    setSlot(value);
+                    remember({ slot: value });
+                  }}
                   aria-pressed={value === slot}
                   className={`h-11 rounded-pill px-4 text-[14px] tabular-nums transition-colors duration-200 ${
                     value === slot
@@ -220,7 +243,10 @@ export function CheckoutBoard({
       <Section title="요청사항">
         <textarea
           value={memo}
-          onChange={(event) => setMemo(event.target.value)}
+          onChange={(event) => {
+            setMemo(event.target.value);
+            remember({ memo: event.target.value });
+          }}
           maxLength={200}
           rows={2}
           placeholder={isDelivery ? "문 앞에 놓아주세요" : "덜 맵게 해주세요"}

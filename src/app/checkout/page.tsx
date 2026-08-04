@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { CheckoutBoard } from "@/components/checkout/CheckoutBoard";
+import {
+  DRAFT_COOKIE,
+  decodeDraft,
+  reconcileDraft,
+} from "@/lib/checkout-draft";
 import { getAddresses, getCart, getProfile, getStore } from "@/lib/queries";
 import { pickupSlots, storeOpenState, toSeoulClock } from "@/lib/store";
 import { isProfileComplete } from "@/types/database";
@@ -26,11 +32,12 @@ export default function CheckoutPage() {
 }
 
 async function CheckoutBody() {
-  const [profile, cart, addresses, store] = await Promise.all([
+  const [profile, cart, addresses, store, cookieStore] = await Promise.all([
     getProfile(),
     getCart(),
     getAddresses(),
     getStore(),
+    cookies(),
   ]);
 
   if (!profile) redirect("/login?next=%2Fcheckout");
@@ -41,6 +48,23 @@ async function CheckoutBody() {
 
   // 시계는 캐시 밖에서 읽는다. 'use cache' 안에서 읽으면 슬롯이 그 시각에 얼어붙는다.
   const clock = toSeoulClock(new Date());
+  const slots = pickupSlots(store.settings, clock);
+
+  // "추가 주문"으로 다녀온 손님이 고르던 것을 되살린다.
+  // 그 사이 배달이 꺼졌거나 배송지가 지워졌을 수 있으므로 지금 가능한 값으로 맞춘다.
+  const draft = reconcileDraft(
+    decodeDraft(cookieStore.get(DRAFT_COOKIE)?.value),
+    {
+      pickupEnabled: store.settings.pickup_enabled,
+      deliveryEnabled: store.settings.delivery_enabled,
+      addressIds: addresses.map((address) => address.id),
+      defaultAddressId:
+        addresses.find((address) => address.is_default)?.id ??
+        addresses[0]?.id ??
+        "",
+      slots,
+    },
+  );
 
   return (
     <CheckoutBoard
@@ -49,8 +73,9 @@ async function CheckoutBody() {
       addresses={addresses}
       settings={store.settings}
       areas={store.areas}
-      slots={pickupSlots(store.settings, clock)}
+      slots={slots}
       openState={storeOpenState(store.settings, clock)}
+      draft={draft}
     />
   );
 }

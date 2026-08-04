@@ -3,6 +3,11 @@ import { test } from "node:test";
 import { filterProducts, EMPTY_FILTERS } from "./filter.ts";
 import { clampQuantity, lineIssue, summarizeCart } from "./cart.ts";
 import {
+  decodeDraft,
+  encodeDraft,
+  reconcileDraft,
+} from "./checkout-draft.ts";
+import {
   checkDelivery,
   findDeliveryArea,
   formatClockTime,
@@ -508,6 +513,97 @@ test("pickupTimestamp: 한국 벽시계를 +09:00 으로 붙인다", () => {
   assert.equal(at, "2026-08-03T18:30:00+09:00");
   // 실제로 그 순간을 가리키는지 — 한국 18:30 = UTC 09:30
   assert.equal(new Date(at).toISOString(), "2026-08-03T09:30:00.000Z");
+});
+
+// ---- 주문서 임시 저장 ----
+
+const DRAFT_CONTEXT = {
+  pickupEnabled: true,
+  deliveryEnabled: true,
+  addressIds: ["addr-1", "addr-2"],
+  defaultAddressId: "addr-1",
+  slots: ["11:00", "11:30", "12:00"],
+};
+
+test("encodeDraft/decodeDraft 왕복", () => {
+  const draft = {
+    fulfillment: "pickup" as const,
+    addressId: "addr-2",
+    slot: "11:30",
+    memo: "덜 맵게 해주세요",
+  };
+  assert.deepEqual(decodeDraft(encodeDraft(draft)), draft);
+});
+
+test("decodeDraft: 값이 없거나 망가졌으면 빈 객체", () => {
+  assert.deepEqual(decodeDraft(undefined), {});
+  assert.deepEqual(decodeDraft(""), {});
+  assert.deepEqual(decodeDraft("not-json"), {});
+});
+
+// 쿠키 값은 손님이 고칠 수 있다. 이상한 값이 그대로 주문에 실리면 안 된다.
+test("decodeDraft: 모르는 수령 방법과 문자열 아닌 값은 버린다", () => {
+  const raw = encodeURIComponent(JSON.stringify({ f: "택배", m: 42 }));
+  const decoded = decodeDraft(raw);
+  assert.equal(decoded.fulfillment, undefined);
+  assert.equal(decoded.memo, undefined);
+});
+
+test("reconcileDraft: 저장한 값이 아직 유효하면 그대로 되살린다", () => {
+  const restored = reconcileDraft(
+    {
+      fulfillment: "pickup",
+      addressId: "addr-2",
+      slot: "11:30",
+      memo: "문 앞에",
+    },
+    DRAFT_CONTEXT,
+  );
+  assert.deepEqual(restored, {
+    fulfillment: "pickup",
+    addressId: "addr-2",
+    slot: "11:30",
+    memo: "문 앞에",
+  });
+});
+
+/**
+ * 저장한 뒤에 상황이 바뀔 수 있다. 그대로 되살리면 주문 버튼을 눌렀을 때에야 거절당한다.
+ * 요청사항은 손으로 쓴 것이라 무슨 일이 있어도 지킨다.
+ */
+test("reconcileDraft: 지워진 배송지는 기본 배송지로 되돌린다", () => {
+  const restored = reconcileDraft(
+    { addressId: "삭제된주소", memo: "지켜져야 함" },
+    DRAFT_CONTEXT,
+  );
+  assert.equal(restored.addressId, "addr-1");
+  assert.equal(restored.memo, "지켜져야 함");
+});
+
+test("reconcileDraft: 지나간 픽업 시간은 지금 가장 빠른 시간으로", () => {
+  assert.equal(reconcileDraft({ slot: "09:00" }, DRAFT_CONTEXT).slot, "11:00");
+  // 고를 수 있는 시간이 아예 없으면 빈 값 (화면이 안내를 띄운다)
+  assert.equal(
+    reconcileDraft({ slot: "11:00" }, { ...DRAFT_CONTEXT, slots: [] }).slot,
+    "",
+  );
+});
+
+test("reconcileDraft: 사장님이 배달을 끄면 픽업으로 내려온다", () => {
+  const restored = reconcileDraft(
+    { fulfillment: "delivery" },
+    { ...DRAFT_CONTEXT, deliveryEnabled: false },
+  );
+  assert.equal(restored.fulfillment, "pickup");
+});
+
+test("reconcileDraft: 저장된 것이 없으면 배달이 기본", () => {
+  assert.equal(reconcileDraft({}, DRAFT_CONTEXT).fulfillment, "delivery");
+  assert.equal(
+    reconcileDraft({}, { ...DRAFT_CONTEXT, deliveryEnabled: false })
+      .fulfillment,
+    "pickup",
+  );
 });
 
 test("pickupSlots: 픽업이 꺼져 있거나 마감 후면 비어 있다", () => {
