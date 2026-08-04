@@ -46,6 +46,15 @@ export const BADGE_STYLE_INLINE: Record<BadgeTone, string> = {
 export const RECOMMEND_KEY = "recommend";
 
 /**
+ * 추천 캐러셀에 올릴 수 있는 최대 개수.
+ *
+ * 이걸 넘겨 켜면 **아무 표시 없이 안 나온다.** 그래서 관리자 화면이
+ * 지금 몇 개가 켜져 있는지 알려주고, 넘으면 경고한다.
+ * 상한을 두는 이유는 캐러셀 아래 점 표시가 여섯 개를 넘어가면 세기 어려워지기 때문이다.
+ */
+export const MAX_RECOMMENDED = 6;
+
+/**
  * 한 상품에 붙일 수 있는 최대 개수.
  * 3개부터는 카드 사진 위에서 겹치고, 무엇을 강조하려는 건지도 흐려진다.
  */

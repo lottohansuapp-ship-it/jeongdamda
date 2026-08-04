@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createProduct, reorderProducts } from "@/lib/actions";
 import { EMPTY_FILTERS, filterProducts } from "@/lib/filter";
 import { signOut } from "@/lib/auth";
+import { hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
 import { stockStatus } from "@/lib/stock";
 import { missingStoreInfo } from "@/lib/store-info";
 import { Wordmark } from "@/components/ui/Wordmark";
@@ -118,6 +119,10 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
         .length,
       low: selling.filter((p) => stockStatus(p.today_stock).level === "low")
         .length,
+      // 손님 화면 맨 위 캐러셀에 올라가는 개수. 상한을 넘기면 넘긴 만큼은
+      // 아무 표시 없이 안 나오므로 여기서 알려준다.
+      recommended: selling.filter((p) => hasBadge(p.badges, RECOMMEND_KEY))
+        .length,
     };
   }, [products]);
 
@@ -171,6 +176,15 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
           </p>
           <p className="pt-1 text-[13px] text-ink-soft">
             마감임박 {summary.low} · 품절 {summary.soldOut}
+          </p>
+          <p className="pt-1 text-[13px] text-ink-soft">
+            오늘의 추천 {summary.recommended}개
+            {summary.recommended > MAX_RECOMMENDED && (
+              <span className="text-danger">
+                {" "}
+                — {MAX_RECOMMENDED}개까지만 손님 화면에 나와요
+              </span>
+            )}
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
