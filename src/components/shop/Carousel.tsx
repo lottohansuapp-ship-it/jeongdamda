@@ -65,7 +65,13 @@ export function Carousel({ children, label }: CarouselProps) {
         ref={railRef}
         onScroll={handleScroll}
         aria-label={label}
-        className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-5 pb-2"
+        /**
+         * scroll-pl-5 가 없으면 첫 카드가 화면 왼쪽에 딱 붙는다.
+         * snap-start 는 카드의 왼쪽 모서리를 컨테이너 '테두리'에 맞추기 때문에
+         * px-5 로 준 여백 위로 카드를 끌어당겨 버린다.
+         * scroll-padding 은 그 스냅 기준선을 여백만큼 안으로 밀어 준다.
+         */
+        className="no-scrollbar -mx-5 flex snap-x snap-mandatory scroll-pl-5 gap-2.5 overflow-x-auto px-5 pb-2"
       >
         {items.map((item, index) => (
           <div
