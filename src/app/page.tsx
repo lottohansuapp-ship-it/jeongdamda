@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { ShopBrowser } from "@/components/shop/ShopBrowser";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { SiteFooter } from "@/components/ui/SiteFooter";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { getShopData } from "@/lib/queries";
 
@@ -36,24 +36,8 @@ export default async function HomePage() {
         <DataError message={result.error} />
       )}
 
-      <footer className="pt-16 text-center text-[12.5px] leading-relaxed text-ink-faint">
-        <Wordmark size="sm" className="opacity-60" />
-        <p className="pt-3">
-          <a
-            href="tel:02-6953-8086"
-            className="underline underline-offset-4"
-          >
-            02-6953-8086
-          </a>
-        </p>
-        <p className="pt-2">재고는 사장님이 수정하는 즉시 반영됩니다.</p>
-        <Link
-          href="/admin"
-          className="mt-2 inline-block underline underline-offset-4"
-        >
-          사장님 로그인
-        </Link>
-      </footer>
+      {/* 전자상거래법은 사업자 정보를 초기화면에 표시하라고 정한다. 여기가 그 자리다. */}
+      <SiteFooter />
     </main>
     <BottomNav active="home" />
     </>

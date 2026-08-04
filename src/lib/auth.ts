@@ -57,6 +57,15 @@ export async function signUp(
   const rawPhone = String(formData.get("phone") ?? "").trim();
   const next = safeNext(formData.get("next"));
 
+  // 동의 없이 이름·연락처를 받으면 개인정보보호법 위반이다.
+  // 화면의 checkbox required 는 UX 이고 요청은 위조된다. 여기가 방어선이다.
+  if (formData.get("agree") !== "on") {
+    return {
+      error: "이용약관과 개인정보 수집·이용에 동의해 주세요.",
+      notice: null,
+    };
+  }
+
   if (!name) return { error: "이름을 입력해 주세요.", notice: null };
 
   const phone = normalizePhone(rawPhone);
@@ -147,6 +156,14 @@ export async function savePhone(
   const name = String(formData.get("name") ?? "").trim();
   const phone = normalizePhone(String(formData.get("phone") ?? ""));
   const next = safeNext(formData.get("next"));
+
+  // signUp 과 같은 이유 — 동의가 방어선이지 화면의 checkbox 가 아니다
+  if (formData.get("agree") !== "on") {
+    return {
+      error: "이용약관과 개인정보 수집·이용에 동의해 주세요.",
+      notice: null,
+    };
+  }
 
   if (!name) return { error: "이름을 입력해 주세요.", notice: null };
   if (!phone) return { error: "휴대폰 번호를 다시 확인해 주세요.", notice: null };

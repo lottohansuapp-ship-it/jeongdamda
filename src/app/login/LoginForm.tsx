@@ -118,6 +118,37 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
           </label>
         )}
 
+        {/* 개인정보보호법상 동의 없이 이름·연락처를 받을 수 없다.
+            required 라 체크하지 않으면 제출이 막히고, 서버도 다시 확인한다. */}
+        {signingUp && (
+          <label className="flex cursor-pointer gap-2.5 px-1 pt-3">
+            <input
+              type="checkbox"
+              name="agree"
+              required
+              className="mt-0.5 h-4 w-4 shrink-0 accent-olive"
+            />
+            <span className="text-[13px] leading-relaxed text-ink-soft">
+              <Link
+                href="/terms"
+                target="_blank"
+                className="text-ink underline underline-offset-4"
+              >
+                이용약관
+              </Link>
+              과{" "}
+              <Link
+                href="/privacy"
+                target="_blank"
+                className="text-ink underline underline-offset-4"
+              >
+                개인정보 수집·이용
+              </Link>
+              에 동의합니다 <span className="text-clay">(필수)</span>
+            </span>
+          </label>
+        )}
+
         {state.error && (
           <p role="alert" className="px-1 pt-1 text-[13px] text-danger">
             {state.error}

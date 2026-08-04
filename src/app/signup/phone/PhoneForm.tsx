@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { savePhone, type AuthState } from "@/lib/auth";
 
@@ -45,6 +46,34 @@ export function PhoneForm({ next, defaultName, defaultPhone }: PhoneFormProps) {
           autoComplete="tel"
           className={FIELD}
         />
+      </label>
+
+      {/* 카카오로 오신 분이 이름·연락처를 처음 남기는 자리다. 동의를 여기서 받는다. */}
+      <label className="flex cursor-pointer gap-2.5 px-1 pt-3">
+        <input
+          type="checkbox"
+          name="agree"
+          required
+          className="mt-0.5 h-4 w-4 shrink-0 accent-olive"
+        />
+        <span className="text-[13px] leading-relaxed text-ink-soft">
+          <Link
+            href="/terms"
+            target="_blank"
+            className="text-ink underline underline-offset-4"
+          >
+            이용약관
+          </Link>
+          과{" "}
+          <Link
+            href="/privacy"
+            target="_blank"
+            className="text-ink underline underline-offset-4"
+          >
+            개인정보 수집·이용
+          </Link>
+          에 동의합니다 <span className="text-clay">(필수)</span>
+        </span>
       </label>
 
       {state.error && (

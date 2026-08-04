@@ -6,6 +6,7 @@ import { createProduct, reorderProducts } from "@/lib/actions";
 import { EMPTY_FILTERS, filterProducts } from "@/lib/filter";
 import { signOut } from "@/lib/auth";
 import { stockStatus } from "@/lib/stock";
+import { missingStoreInfo } from "@/lib/store-info";
 import { Wordmark } from "@/components/ui/Wordmark";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { AdminRow } from "./AdminRow";
@@ -48,6 +49,33 @@ interface AdminBoardProps {
 interface Toast {
   tone: "error" | "notice";
   message: string;
+}
+
+/**
+ * 사업자 정보가 덜 채워졌다고 알린다.
+ *
+ * 이 항목들은 전자상거래법상 표시 의무이고, 포트원·PG 심사도 신청 시점에
+ * 사이트에 이미 있어야 통과시킨다. 비어 있으면 심사가 반려된다.
+ * 다 채우면 이 안내는 사라진다.
+ */
+function StoreInfoNotice() {
+  const missing = missingStoreInfo();
+  if (missing.length === 0) return null;
+
+  return (
+    <div className="mt-3 rounded-card bg-cream p-3.5">
+      <p className="text-[13px] leading-relaxed">
+        결제를 켜기 전에 <strong className="font-normal text-clay">
+          {missing.join(" · ")}
+        </strong>{" "}
+        을(를) 등록해야 해요. 화면 아래쪽 사업자 정보에 &lsquo;미등록&rsquo;으로
+        보이는 항목입니다.
+      </p>
+      <p className="pt-1.5 text-[12px] text-ink-faint">
+        개발자에게 값을 알려주시면 반영됩니다 (src/lib/store-info.ts)
+      </p>
+    </div>
+  );
 }
 
 export function AdminBoard({ categories, products }: AdminBoardProps) {
@@ -136,6 +164,7 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
         <div>
           <Wordmark size="sm" />
           <h1 className="pt-2 text-[26px] leading-tight">오늘 재고 관리</h1>
+          <StoreInfoNotice />
           <p className="pt-3 text-[13px] text-ink-soft">
             전체 {summary.total}가지 · 판매중 {summary.selling} · 숨김{" "}
             {summary.hidden}

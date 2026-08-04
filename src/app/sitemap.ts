@@ -10,5 +10,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     // lastModified 는 넣지 않는다. new Date() 는 비결정적이라 라우트가 매 요청 렌더로 떨어진다.
     { url: siteUrl, changeFrequency: "daily", priority: 1 },
+    // 약관은 PG 심사에서 직접 열어보는 문서다. 색인에도 남겨 둔다.
+    { url: `${siteUrl}/terms`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${siteUrl}/privacy`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${siteUrl}/refund`, changeFrequency: "yearly", priority: 0.3 },
   ];
 }
