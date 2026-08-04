@@ -71,6 +71,47 @@ export async function createProduct(
   return { ok: true, data: { id: data.id as string } };
 }
 
+/**
+ * 여러 상품을 한 번에 고친다.
+ *
+ * 사장님이 실제로 하는 일은 "오늘 안 파는 것 다 숨기기", "품절된 것 다 숨기기"
+ * 같은 묶음 작업인데, 지금까지는 한 줄씩 스위치를 눌러야 했다. 57개면 57번이다.
+ *
+ * 화면에서 "지금 보이는 것 전부"에 적용한다 — 필터로 추린 목록이 곧 대상이라
+ * 체크박스를 따로 두지 않아도 무엇에 적용되는지 눈에 보인다.
+ *
+ * 상한을 둔다. 실수로 전체를 날리는 걸 막고, 한 번에 도는 쿼리도 묶어 둔다.
+ * 권한은 그대로 is_admin() RLS 가 판단한다 — 0행이면 성공이 아니다 (0004).
+ */
+const BULK_LIMIT = 200;
+
+export async function bulkUpdateProducts(
+  ids: string[],
+  patch: Pick<ProductPatch, "today_available" | "today_stock">,
+): Promise<ActionResult<{ changed: number }>> {
+  const db = await authed();
+  if (!db) return { ok: false, error: "로그인이 필요합니다." };
+
+  if (ids.length === 0) return { ok: true, data: { changed: 0 } };
+  if (ids.length > BULK_LIMIT) {
+    return { ok: false, error: `한 번에 ${BULK_LIMIT}개까지만 바꿀 수 있어요.` };
+  }
+
+  const { data, error } = await db
+    .from("products")
+    .update(patch)
+    .in("id", ids)
+    .select("id");
+
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: "권한이 없거나 대상이 없어요." };
+  }
+
+  updateTag(PRODUCTS_TAG);
+  return { ok: true, data: { changed: data.length } };
+}
+
 export async function deleteProduct(id: string): Promise<ActionResult> {
   const db = await authed();
   if (!db) return { ok: false, error: "로그인이 필요합니다." };

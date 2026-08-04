@@ -38,7 +38,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
   return (
     <>
       {!browsing && recommended.length > 0 && (
-        <section className="pt-2" aria-labelledby="recommend-heading">
+        <section className="pt-1" aria-labelledby="recommend-heading">
           <SectionHead
             id="recommend-heading"
             title="오늘의 추천"
@@ -56,7 +56,12 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
         </section>
       )}
 
-      <section className="pt-8" aria-labelledby="all-heading">
+      {/* 카테고리를 고르면 위의 추천 캐러셀이 사라진다. 그때도 pt-8 이 남아 있으면
+          공지와 검색창 사이가 휑하게 벌어진다. 캐러셀이 있을 때만 띄운다. */}
+      <section
+        className={browsing ? "pt-1" : "pt-8"}
+        aria-labelledby="all-heading"
+      >
         {/* z-20 이어야 한다. 카드의 담기 버튼이 z-10 이라, 같은 층이면 스크롤할 때
             버튼이 이 바 위로 올라와 겹친다. */}
         <div className="sticky top-0 z-20 -mx-5 bg-canvas/92 px-5 pb-2.5 pt-3 backdrop-blur-md">

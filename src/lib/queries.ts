@@ -319,6 +319,49 @@ export async function getAdminOrders(): Promise<OrderWithItems[]> {
   return (data ?? []) as unknown as OrderWithItems[];
 }
 
+export interface SalesSummary {
+  orders: number;
+  revenue: number;
+  delivery: number;
+  pickup: number;
+  canceled: number;
+  refunded: number;
+}
+
+export interface SalesItem {
+  name: string;
+  quantity: number;
+  revenue: number;
+}
+
+/**
+ * 기간 매출. 합산은 DB 안에서 끝난다 — 주문을 전부 앱으로 옮겨 더하면
+ * 한 해가 지났을 때 수천 건을 나른다. 사장님이 매일 여는 화면이라 바로 체감된다.
+ *
+ * 날짜는 한국 기준 "YYYY-MM-DD". 서버는 UTC 라 그냥 비교하면 자정 근처 주문이
+ * 엉뚱한 날로 넘어간다.
+ */
+export async function getSales(
+  from: string,
+  to: string,
+): Promise<{ summary: SalesSummary; items: SalesItem[] } | null> {
+  if (envError()) return null;
+
+  const db = await serverClient();
+  const [summary, items] = await Promise.all([
+    db.rpc("sales_summary", { p_from: from, p_to: to }),
+    db.rpc("sales_top_items", { p_from: from, p_to: to, p_limit: 10 }),
+  ]);
+
+  // 권한이 없으면 함수가 던진다. 화면이 안내를 띄운다.
+  if (summary.error || !summary.data) return null;
+
+  return {
+    summary: summary.data as SalesSummary,
+    items: (items.data ?? []) as SalesItem[],
+  };
+}
+
 function toMessage(error: unknown): string {
   return error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
 }

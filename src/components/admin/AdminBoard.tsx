@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { createProduct, reorderProducts } from "@/lib/actions";
+import {
+  bulkUpdateProducts,
+  createProduct,
+  reorderProducts,
+} from "@/lib/actions";
 import {
   EMPTY_FILTERS,
   filterProducts,
@@ -120,6 +124,32 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
   const onError = (message: string) => setToast({ tone: "error", message });
   const onNotice = (message: string) => setToast({ tone: "notice", message });
 
+  /**
+   * 지금 화면에 보이는 것 전부에 적용한다.
+   * 필터로 추린 목록이 곧 대상이라, 체크박스 없이도 무엇이 바뀌는지 눈에 보인다.
+   */
+  async function bulk(available: boolean) {
+    const targets = visible.filter((p) => p.today_available !== available);
+    if (targets.length === 0) {
+      onNotice("이미 전부 그렇게 되어 있어요");
+      return;
+    }
+    if (
+      !confirm(
+        `보이는 ${targets.length}개를 ${available ? "판매중으로" : "숨김으로"} 바꿀까요?`,
+      )
+    ) {
+      return;
+    }
+
+    const result = await bulkUpdateProducts(
+      targets.map((p) => p.id),
+      { today_available: available },
+    );
+    if (result.ok) onNotice(`${result.data.changed}개 바꿨어요`);
+    else onError(result.error);
+  }
+
   async function move(index: number, direction: -1 | 1) {
     const target = index + direction;
     if (target < 0 || target >= order.length) return;
@@ -177,6 +207,12 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
             className="flex h-11 items-center rounded-pill bg-olive px-4 text-[13px] text-white transition-colors duration-200 hover:bg-olive-deep"
           >
             주문 관리
+          </Link>
+          <Link
+            href="/admin/sales"
+            className="flex h-11 items-center rounded-pill border border-line bg-white px-4 text-[13px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
+          >
+            매출
           </Link>
           <Link
             href="/admin/store"
@@ -348,10 +384,31 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
         </div>
       </div>
 
-      {visible.length !== order.length && (
-        <p className="pb-2 text-[12.5px] text-ink-faint">
-          {visible.length}가지 표시 중 · 순서 변경은 전체 목록에서만 가능해요
-        </p>
+      {filtering && (
+        <div className="mb-2.5 flex flex-wrap items-center gap-2 rounded-card bg-white p-3 shadow-soft">
+          <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-ink-soft">
+            {visible.length}가지 표시 중
+            <span className="text-ink-faint"> · 순서 변경은 전체 목록에서만</span>
+          </p>
+          {visible.length > 0 && (
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => bulk(false)}
+                className="h-9 rounded-pill border border-line px-3 text-[12.5px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger"
+              >
+                전부 숨기기
+              </button>
+              <button
+                type="button"
+                onClick={() => bulk(true)}
+                className="h-9 rounded-pill border border-line px-3 text-[12.5px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
+              >
+                전부 판매중
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {visible.length === 0 ? (

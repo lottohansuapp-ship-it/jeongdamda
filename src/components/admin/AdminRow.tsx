@@ -71,8 +71,11 @@ export function AdminRow({
     [],
   );
 
-  function bump(delta: number) {
-    const next = Math.max(0, stock + delta);
+  /**
+   * 화면을 먼저 바꾸고 잠시 뒤 저장한다.
+   * 연타하거나 숫자를 고쳐 쓰는 동안 매번 서버를 부르면 그만큼 밀린다.
+   */
+  function commitStock(next: number) {
     setStock(next);
 
     if (timer.current) clearTimeout(timer.current);
@@ -86,6 +89,10 @@ export function AdminRow({
         onError(result.error);
       }
     }, COMMIT_DELAY_MS);
+  }
+
+  function bump(delta: number) {
+    commitStock(Math.max(0, stock + delta));
   }
 
   async function patch(
@@ -180,12 +187,27 @@ export function AdminRow({
             >
               −
             </Step>
-            <span className="min-w-[3.5rem] text-center">
-              <span className="text-[20px] tabular-nums tracking-tight">
-                {stock}
-              </span>
-              <span className="pl-1 text-[12px] text-ink-faint">개</span>
-            </span>
+            {/* 아침에 30개를 채우려고 30번 누를 수는 없다. 숫자를 직접 고친다.
+                +/− 는 남겨 둔다 — 한두 개 조정할 땐 그게 빠르다. */}
+            <label className="flex items-baseline">
+              <span className="sr-only">{product.name} 재고 수량</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={999}
+                value={stock}
+                onFocus={(event) => event.currentTarget.select()}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  // 빈 칸이면 NaN 이 된다. 그대로 저장하면 재고가 사라진다.
+                  if (!Number.isFinite(value)) return;
+                  commitStock(Math.min(999, Math.max(0, Math.round(value))));
+                }}
+                className="w-[3.25rem] rounded-[8px] bg-transparent text-center text-[20px] tabular-nums tracking-tight outline-none focus:bg-olive-soft"
+              />
+              <span className="text-[12px] text-ink-faint">개</span>
+            </label>
             <Step label="재고 1개 늘리기" onClick={() => bump(1)}>
               +
             </Step>

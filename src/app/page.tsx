@@ -12,7 +12,7 @@ export default async function HomePage() {
   return (
     <>
     <main className="mx-auto w-full max-w-[1120px] flex-1 px-5 pb-10">
-      <header className="pb-8 pt-9">
+      <header className="pb-5 pt-9">
         <Wordmark as="h1" size="lg" />
         <p className="pt-4 text-[15px] leading-relaxed text-ink-soft">
           오늘 아침에 만든 반찬입니다.
@@ -29,8 +29,9 @@ export default async function HomePage() {
         </p>
       </header>
 
-      {/* 사장님 공지는 목록보다 위에. 반찬을 다 고르고 나서 알면 늦다. */}
-      <div className="pb-6">
+      {/* 사장님 공지는 목록보다 위에. 반찬을 다 고르고 나서 알면 늦다.
+          위(header pb-5)와 아래(pb-5)를 같게 둬서 공지가 한쪽으로 쏠려 보이지 않게 한다. */}
+      <div className="pb-5">
         <StoreNotice notice={store.settings?.notice ?? null} />
       </div>
 
