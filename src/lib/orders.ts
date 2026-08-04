@@ -96,6 +96,14 @@ export function isLive(status: string): boolean {
   return statusMeta(status).tone === "live";
 }
 
+/**
+ * 더 바뀔 일이 없는 주문인지. 화면을 다시 받아올지 여기서 정한다.
+ * isLive 와 다르다 — 결제 대기도 아직 끝난 게 아니다 (10분 뒤 자동 취소된다).
+ */
+export function isSettled(status: string): boolean {
+  return status === "completed" || status === "canceled";
+}
+
 /** 상태 전이가 규칙에 맞는지. 서버가 마지막으로 확인한다. */
 export function canTransition(
   from: string,

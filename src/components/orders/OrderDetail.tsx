@@ -10,17 +10,22 @@ import {
   formatClock,
   formatOrderTime,
   fulfillmentLabel,
+  isSettled,
   progressIndex,
   progressSteps,
   statusMeta,
 } from "@/lib/orders";
 import { formatPrice } from "@/lib/format";
+import { useLiveRefresh } from "@/lib/use-live-refresh";
 import type { OrderWithItems } from "@/types/database";
 
 export function OrderDetail({ order }: { order: OrderWithItems }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  // 사장님이 상태를 바꾸면 손님 화면에도 따라온다. 끝난 주문에서는 돌지 않는다.
+  useLiveRefresh(!isSettled(order.status));
 
   const meta = statusMeta(order.status);
   const isDelivery = order.fulfillment === "delivery";
