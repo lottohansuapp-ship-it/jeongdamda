@@ -28,6 +28,30 @@ const seoulFormat = new Intl.DateTimeFormat("en-US", {
   hour12: false,
 });
 
+const seoulDateFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: SEOUL_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** 한국 날짜 "2026-08-04". 서버가 UTC 라 toISOString() 을 자르면 하루 어긋날 수 있다. */
+export function seoulDate(date: Date): string {
+  const parts = seoulDateFormat.formatToParts(date);
+  const get = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/**
+ * 픽업 슬롯 "18:30" 을 DB 에 넣을 timestamptz 문자열로 바꾼다.
+ * 한국은 1988년 이후 서머타임이 없어 +09:00 이 항상 맞다.
+ * 슬롯은 자정을 넘지 않으므로 (pickupSlots 가 close <= open 이면 빈 배열) 날짜는 오늘이면 된다.
+ */
+export function pickupTimestamp(date: Date, slot: string): string {
+  return `${seoulDate(date)}T${slot}:00+09:00`;
+}
+
 export function toSeoulClock(date: Date): SeoulClock {
   const parts = seoulFormat.formatToParts(date);
   const get = (type: string) =>
@@ -124,37 +148,59 @@ export function minimumFor(
   return area?.min_amount ?? settings.min_order_amount;
 }
 
-export type FulfillmentBlock = { ok: true } | { ok: false; reason: string };
+export interface DeliveryQuote {
+  ok: boolean;
+  /** 막힌 이유. ok 면 null */
+  reason: string | null;
+  fee: number;
+  minimum: number;
+}
 
-/** 배달 주문이 지금 가능한지. 화면 문구까지 여기서 정한다 — 페이지마다 문장이 갈리면 안 된다. */
+/**
+ * 배달 주문이 지금 가능한지, 배달비는 얼마인지. 화면 문구까지 여기서 정한다 —
+ * 페이지마다 문장이 갈리면 안 되고, 금액을 두 군데서 계산하면 반드시 어긋난다.
+ *
+ * 판단 기준은 0010 의 place_order 와 한 줄씩 같아야 한다. 화면이 막는데 DB 는 통과시키거나
+ * 그 반대면, 손님은 왜 안 되는지 영영 알 수 없다.
+ */
 export function checkDelivery(
   settings: StoreSettings,
   areas: readonly DeliveryArea[],
   address: string | null,
   subtotal: number,
-): FulfillmentBlock {
+): DeliveryQuote {
+  const base = { fee: settings.delivery_fee, minimum: settings.min_order_amount };
+
   if (!settings.delivery_enabled) {
-    return { ok: false, reason: "지금은 배달 주문을 받지 않아요." };
+    return { ...base, ok: false, reason: "지금은 배달 주문을 받지 않아요." };
   }
   if (!address) {
-    return { ok: false, reason: "배송지를 먼저 등록해 주세요." };
+    return { ...base, ok: false, reason: "배송지를 먼저 등록해 주세요." };
   }
 
-  const area = findDeliveryArea(areas, address);
-  if (!area) {
-    return { ok: false, reason: "아직 이 지역은 배달이 어려워요." };
+  let { fee, minimum } = base;
+
+  // 지역 제한이 꺼져 있으면 주소를 따지지 않는다 (0010). 켰을 때만 지역별 값으로 덮는다.
+  if (settings.restrict_delivery_area) {
+    const area = findDeliveryArea(areas, address);
+    if (!area) {
+      return { ...base, ok: false, reason: "아직 이 지역은 배달이 어려워요." };
+    }
+    fee = area.fee;
+    minimum = minimumFor(settings, area);
   }
 
-  const minimum = minimumFor(settings, area);
   if (subtotal < minimum) {
     const short = minimum - subtotal;
     return {
+      fee,
+      minimum,
       ok: false,
       reason: `${short.toLocaleString("ko-KR")}원 더 담으면 배달돼요.`,
     };
   }
 
-  return { ok: true };
+  return { fee, minimum, ok: true, reason: null };
 }
 
 /**

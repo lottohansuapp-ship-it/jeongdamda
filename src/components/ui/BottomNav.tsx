@@ -9,11 +9,12 @@ import { CartBadge } from "./CartBadge";
  *
  * 상세 페이지에는 붙이지 않는다 — 하단에 담기 바가 이미 고정돼 있다.
  */
-export type NavTab = "home" | "cart" | "account";
+export type NavTab = "home" | "cart" | "orders" | "account";
 
 const TABS = [
   { key: "home", href: "/", label: "홈", Icon: HomeIcon },
   { key: "cart", href: "/cart", label: "장바구니", Icon: BagIcon },
+  { key: "orders", href: "/orders", label: "주문내역", Icon: ReceiptIcon },
   { key: "account", href: "/account", label: "내 정보", Icon: UserIcon },
 ] as const;
 
@@ -78,6 +79,17 @@ function BagIcon({ active }: { active: boolean }) {
     <svg aria-hidden viewBox="0 0 24 24" className="h-6 w-6" {...STROKE}>
       <path d={d} />
       <path d="M9.5 8V6.5a2.5 2.5 0 0 1 5 0V8" />
+      {active && <path d={d} fill="currentColor" opacity=".12" />}
+    </svg>
+  );
+}
+
+function ReceiptIcon({ active }: { active: boolean }) {
+  const d = "M6 3.5h12v17l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6L6 20.5z";
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="h-6 w-6" {...STROKE}>
+      <path d={d} />
+      <path d="M9.5 8.5h5M9.5 12h5" />
       {active && <path d={d} fill="currentColor" opacity=".12" />}
     </svg>
   );

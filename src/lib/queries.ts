@@ -4,10 +4,13 @@ import { envError, publicClient } from "./supabase/public";
 import { serverClient } from "./supabase/server";
 import { EMPTY_CART, summarizeCart, type CartSummary } from "./cart";
 import {
+  ORDER_COLUMNS,
+  ORDER_ITEM_COLUMNS,
   PRODUCT_COLUMNS,
   type Address,
   type Category,
   type DeliveryArea,
+  type OrderWithItems,
   type ProductWithCategory,
   type Profile,
   type StoreSettings,
@@ -35,7 +38,10 @@ const SELECT = `${PRODUCT_COLUMNS}, category:categories!inner(id, name, slug)`;
 
 /**
  * 캐시되는 안쪽 레이어. 실패하면 던진다 — 실패를 캐시하면 장애가 영구화된다.
- * 재고는 관리자 수정으로만 바뀌므로 cacheLife('max') + updateTag 조합이 성립한다.
+ *
+ * cacheLife('max') 라 시간으로는 만료되지 않는다. 재고를 움직이는 경로가 하나라도
+ * updateTag(PRODUCTS_TAG) 를 빠뜨리면 목록의 재고가 영영 낡은 채로 남는다.
+ * 지금 그 경로는 셋이다 — 관리자 수정(actions.ts), 주문 생성, 주문 취소(order-actions.ts).
  */
 async function fetchShopData(): Promise<ShopData> {
   "use cache";
@@ -263,6 +269,62 @@ export async function getStore(): Promise<{
   } catch {
     return { settings: null, areas: [] };
   }
+}
+
+/**
+ * 주문 조회. 캐시하지 않는다 — 사용자별 데이터이고 cookies() 를 읽는다.
+ * 어느 줄을 볼 수 있는지는 RLS 가 정한다 (손님은 자기 것, 관리자는 전부).
+ */
+const ORDER_SELECT = `${ORDER_COLUMNS}, items:order_items(${ORDER_ITEM_COLUMNS})`;
+
+export async function getOrders(): Promise<OrderWithItems[]> {
+  if (envError()) return [];
+
+  const db = await serverClient();
+  const {
+    data: { user },
+  } = await db.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await db
+    .from("orders")
+    .select(ORDER_SELECT)
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  return (data ?? []) as unknown as OrderWithItems[];
+}
+
+export async function getOrder(id: string): Promise<OrderWithItems | null> {
+  if (envError()) return null;
+
+  const db = await serverClient();
+  const { data } = await db
+    .from("orders")
+    .select(ORDER_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+
+  return (data as unknown as OrderWithItems) ?? null;
+}
+
+/**
+ * 관리자용 — 전체 주문. orders_admin_all 정책을 통과해야 보인다.
+ * 결제 전 주문은 뺀다. 재고만 잡아둔 상태라 매장이 할 일이 없고, 10분 뒤 알아서 사라진다.
+ */
+export async function getAdminOrders(): Promise<OrderWithItems[]> {
+  if (envError()) return [];
+
+  const db = await serverClient();
+  const { data } = await db
+    .from("orders")
+    .select(ORDER_SELECT)
+    .neq("status", "pending_payment")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  return (data ?? []) as unknown as OrderWithItems[];
 }
 
 function toMessage(error: unknown): string {

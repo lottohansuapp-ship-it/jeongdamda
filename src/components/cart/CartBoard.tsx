@@ -205,16 +205,23 @@ export function CartBoard({ cart }: CartBoardProps) {
             </span>
           </div>
 
-          <button
-            type="button"
-            disabled={cart.blockingIssues > 0 || cart.subtotal <= 0}
-            className="tap-target w-full rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            주문서 작성하기
-          </button>
-          <p className="pt-2 text-center text-[11.5px] text-ink-faint">
-            주문·결제 기능은 준비 중이에요
-          </p>
+          {/* 막힌 항목이 있으면 아예 못 넘어가게 한다. 주문서에서 되돌아오면 손님만 헛걸음한다. */}
+          {cart.blockingIssues > 0 || cart.subtotal <= 0 ? (
+            <button
+              type="button"
+              disabled
+              className="tap-target w-full cursor-not-allowed rounded-card bg-olive text-[15px] text-white opacity-40"
+            >
+              주문서 작성하기
+            </button>
+          ) : (
+            <Link
+              href="/checkout"
+              className="tap-target flex w-full items-center justify-center rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep"
+            >
+              주문서 작성하기
+            </Link>
+          )}
         </div>
       </div>
     </div>

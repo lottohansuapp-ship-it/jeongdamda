@@ -145,6 +145,12 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
         </div>
         <div className="flex shrink-0 gap-2">
           <Link
+            href="/admin/orders"
+            className="flex h-11 items-center rounded-pill bg-olive px-4 text-[13px] text-white transition-colors duration-200 hover:bg-olive-deep"
+          >
+            주문 관리
+          </Link>
+          <Link
             href="/admin/store"
             className="flex h-11 items-center rounded-pill border border-line bg-white px-4 text-[13px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
           >

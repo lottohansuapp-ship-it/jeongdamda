@@ -9,6 +9,8 @@ import {
   minimumFor,
   parseClockTime,
   pickupSlots,
+  pickupTimestamp,
+  seoulDate,
   storeOpenState,
   toSeoulClock,
 } from "./store.ts";
@@ -294,6 +296,8 @@ function store(overrides: Partial<StoreSettings> = {}): StoreSettings {
     pickup_enabled: true,
     delivery_enabled: true,
     min_order_amount: 0,
+    delivery_fee: 0,
+    restrict_delivery_area: false, // DB 기본값과 같게 (0010)
     pickup_lead_minutes: 30,
     notice: null,
     updated_at: "2026-08-03T00:00:00+00:00",
@@ -428,8 +432,36 @@ test("checkDelivery: 배송지가 없으면 막는다", () => {
   assert.equal(checkDelivery(store(), [area()], null, 50000).ok, false);
 });
 
-test("checkDelivery: 배달 불가 지역", () => {
-  assert.equal(checkDelivery(store(), [area()], "먼동네 1", 50000).ok, false);
+test("checkDelivery: 지역 제한을 켰을 때만 배달 불가 지역이 있다", () => {
+  const restricted = store({ restrict_delivery_area: true });
+  assert.equal(checkDelivery(restricted, [area()], "먼동네 1", 50000).ok, false);
+});
+
+/**
+ * 지역 제한이 꺼져 있으면(현재 기본값) 주소를 따지지 않는다 — 0010 의 place_order 와 같아야 한다.
+ * 이게 어긋나면 화면은 "배달이 어려워요"로 막는데 DB 는 주문을 받는다. 손님은 이유를 알 수 없다.
+ * 도로명 주소('길음로 12')에는 '길음동'이라는 글자가 없어서 실제로 자주 빗나간다.
+ */
+test("checkDelivery: 지역 제한이 꺼져 있으면 매칭되지 않는 주소도 통과", () => {
+  const result = checkDelivery(store(), [area()], "서울 성북구 길음로 12", 50000);
+  assert.equal(result.ok, true);
+  assert.equal(result.reason, null);
+});
+
+test("checkDelivery: 지역 제한이 꺼져 있으면 매장 기본 배달비를 쓴다", () => {
+  const settings = store({ delivery_fee: 2000 });
+  // 지역(3,000원)이 아니라 매장 기본값이 나와야 한다
+  assert.equal(checkDelivery(settings, [area()], "정담동 1", 50000).fee, 2000);
+  // 켜면 지역 값으로 덮인다
+  assert.equal(
+    checkDelivery(
+      store({ delivery_fee: 2000, restrict_delivery_area: true }),
+      [area()],
+      "정담동 1",
+      50000,
+    ).fee,
+    3000,
+  );
 });
 
 test("checkDelivery: 최소주문 미달이면 부족한 금액을 알려준다", () => {
@@ -440,7 +472,7 @@ test("checkDelivery: 최소주문 미달이면 부족한 금액을 알려준다"
     17000,
   );
   assert.equal(result.ok, false);
-  if (!result.ok) assert.match(result.reason, /3,000원/);
+  assert.match(result.reason ?? "", /3,000원/);
 });
 
 test("checkDelivery: 조건을 다 만족하면 통과", () => {
@@ -461,6 +493,21 @@ test("pickupSlots: 영업 중이면 준비 시간 뒤 30분 단위부터", () =>
 test("pickupSlots: 개점 전이면 개점 시각 기준으로 만든다", () => {
   const slots = pickupSlots(store(), { weekday: 1, minutes: 400 });
   assert.equal(slots[0], "09:30");
+});
+
+// 픽업 시각은 DB 에 timestamptz 로 들어간다. 여기가 틀리면 손님이 고른 시간과
+// 매장이 보는 시간이 9시간 어긋나거나 하루 전날로 잡힌다.
+test("seoulDate: UTC 날짜가 아니라 한국 날짜를 준다", () => {
+  // 2026-08-03T15:30:00Z = 한국 시간 8월 4일 00:30
+  assert.equal(seoulDate(new Date("2026-08-03T15:30:00Z")), "2026-08-04");
+  assert.equal(seoulDate(new Date("2026-08-03T00:30:00Z")), "2026-08-03");
+});
+
+test("pickupTimestamp: 한국 벽시계를 +09:00 으로 붙인다", () => {
+  const at = pickupTimestamp(new Date("2026-08-03T02:00:00Z"), "18:30");
+  assert.equal(at, "2026-08-03T18:30:00+09:00");
+  // 실제로 그 순간을 가리키는지 — 한국 18:30 = UTC 09:30
+  assert.equal(new Date(at).toISOString(), "2026-08-03T09:30:00.000Z");
 });
 
 test("pickupSlots: 픽업이 꺼져 있거나 마감 후면 비어 있다", () => {

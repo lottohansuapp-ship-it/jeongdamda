@@ -72,6 +72,25 @@ export function canAdminCancel(status: string): boolean {
   return status !== "completed" && status !== "canceled";
 }
 
+/**
+ * 손님에게 보여줄 진행 단계. 수령 방법에 따라 네 번째 칸의 말이 갈린다.
+ * pending_payment 와 canceled 는 단계가 아니라 별도 상태라 여기 없다.
+ */
+export function progressSteps(fulfillment: string): OrderStatus[] {
+  return [
+    "paid",
+    "accepted",
+    "preparing",
+    fulfillment === "delivery" ? "delivering" : "ready",
+    "completed",
+  ];
+}
+
+/** 진행 단계 중 지금 어디인지. 단계에 없는 상태면 -1. */
+export function progressIndex(status: string, fulfillment: string): number {
+  return progressSteps(fulfillment).indexOf(status as OrderStatus);
+}
+
 /** 진행 중인 주문인지 — 관리자 목록에서 위로 올릴지 판단한다. */
 export function isLive(status: string): boolean {
   return statusMeta(status).tone === "live";
@@ -88,4 +107,38 @@ export function canTransition(
 
 export function fulfillmentLabel(fulfillment: string): string {
   return fulfillment === "delivery" ? "배달" : "픽업";
+}
+
+/**
+ * 주문 시각 표시. 서버는 UTC 로 돌지만 손님도 사장님도 한국 시간으로 읽는다.
+ * toLocaleString 을 그냥 쓰면 배포 환경의 시간대를 따라가 9시간 어긋난다.
+ */
+const seoulStamp = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  month: "long",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+export function formatOrderTime(iso: string | null): string {
+  if (!iso) return "";
+  return seoulStamp.format(new Date(iso));
+}
+
+/**
+ * "18:42" — 시각만. 결제 마감처럼 시분이 중요한 곳에 쓴다.
+ *
+ * 남은 시간을 "3분"처럼 세지 않는 이유: 렌더 시점에 한 번 계산되고 그대로 멈춘다.
+ * 화면에 5분이 떠 있는데 실제로는 이미 지난 상황이 생긴다. 마감 시각은 늙지 않는다.
+ */
+const seoulTime = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+export function formatClock(iso: string | null): string {
+  if (!iso) return "";
+  return seoulTime.format(new Date(iso));
 }
