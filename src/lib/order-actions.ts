@@ -166,6 +166,7 @@ export async function cancelOrder(
   if (error) return { ok: false, error: rpcError(error.message) };
 
   updateTag(PRODUCTS_TAG); // 재고가 돌아왔다
+  await notify(orderId, "canceled");
   return { ok: true, data: undefined };
 }
 
@@ -210,5 +211,24 @@ export async function advanceOrder(
     };
   }
 
+  // 여기까지 왔다는 건 이 호출이 상태를 실제로 바꿨다는 뜻이다
+  // (위의 .eq("status", 이전값) 이 두 번째 호출을 0행으로 만든다).
+  // 그래서 알림도 한 번만 나간다.
+  await notify(orderId, to);
+
   return { ok: true, data: undefined };
+}
+
+/**
+ * 알림은 주문 처리를 막지 않는다.
+ * 알림톡이 안 갔다고 사장님 화면에서 상태 변경이 실패하면 그게 더 나쁘다.
+ * 실패는 notification_logs 에 남는다.
+ */
+async function notify(orderId: string, kind: string): Promise<void> {
+  try {
+    const { notifyCustomer } = await import("./notify");
+    await notifyCustomer(orderId, kind as never);
+  } catch {
+    // notify 안에서 이미 삼키지만, import 자체가 실패할 수도 있다
+  }
 }

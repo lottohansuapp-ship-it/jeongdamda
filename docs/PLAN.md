@@ -593,10 +593,58 @@ notification_logs
 ```
 변수는 대행사 규격에 맞춰 조정한다. 버튼은 `/admin` 링크.
 
+### 결제 스위치 켜기 — 포트원 계약이 끝난 날 이 순서대로
+
+코드는 전부 들어가 있다 (0012 적용 완료). 아래만 채우면 그날 켜진다.
+하나라도 비면 결제창을 띄우지 않고 지금처럼 주문만 접수된다.
+
+**1. 웹훅용 비밀값을 만들어 두 곳에 같은 값을 넣는다**
+
+`service_role` 키를 쓰지 않는 이유는 D30 에 있다. 값은 한 번만 만든다.
+
+```bash
+openssl rand -base64 32
+```
+
+- Vercel → Settings → Environment Variables → `PAYMENT_WEBHOOK_SECRET`
+- Supabase SQL Editor:
+  ```sql
+  insert into public.app_secrets (key, value)
+  values ('payment_webhook', '<위에서 만든 값>');
+  ```
+
+**2. 포트원 값 네 개를 Vercel 환경변수에 넣는다**
+
+| 이름 | 어디서 | 성격 |
+|---|---|---|
+| `NEXT_PUBLIC_PORTONE_STORE_ID` | 포트원 콘솔 → 상점 정보 | 공개 |
+| `NEXT_PUBLIC_PORTONE_CHANNEL_KEY` | 포트원 콘솔 → 채널 관리 | 공개 |
+| `PORTONE_API_SECRET` | 포트원 콘솔 → API Keys | **서버 전용** |
+| `PORTONE_WEBHOOK_SECRET` | 포트원 콘솔 → 웹훅 (`whsec_…`) | **서버 전용** |
+
+아래 둘에는 `NEXT_PUBLIC_` 을 붙이지 않는다. 붙이면 브라우저로 새어나간다.
+
+**3. 포트원 콘솔에 웹훅 URL 등록**
+
+```
+https://jeongdamda.vercel.app/api/payments/webhook
+```
+
+도메인을 바꾸면 이 값도 함께 바꾼다.
+
+**4. 켜졌는지 확인**
+
+- 주문서 버튼이 "○○원 주문하기" → **"○○원 결제하기"** 로 바뀐다
+- 소액으로 실제 결제 → 주문이 `결제 완료` 가 되고 장바구니가 비워진다
+- 그 주문을 취소 → **카드사 승인 취소**가 잡히고 재고가 돌아온다
+- 재고와 금액은 값으로 확인한다. 화면 문구로 판단하지 않는다
+
 ### 출시 전
 - [ ] 커스텀 도메인 연결 + `NEXT_PUBLIC_SITE_URL` 갱신 (포트원 웹훅 URL이 여기 의존)
-- [ ] 포트원 대시보드에 **웹훅 URL 등록**
-- [ ] 개인정보처리방침 / 이용약관 / 사업자정보 페이지
+- [x] 개인정보처리방침 / 이용약관 / 취소·환불 정책 / 사업자정보 표시
+- [ ] `src/lib/store-info.ts` 의 빈칸 채우기 — 대표자, 사업자등록번호,
+      통신판매업신고번호, 사업장 주소, 이메일, 개인정보 보호책임자.
+      **PG 심사 신청 전에 채워야 한다.** 안 채우면 관리자 화면에 계속 뜬다
 - [ ] QR 코드 제작 (도메인 확정 후)
 
 ---

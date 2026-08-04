@@ -66,5 +66,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: result.error }, { status: 500 });
   }
 
+  // applied 는 이번 호출에서 처음 확정됐다는 뜻이다. 재시도로 다시 와도 false 라
+  // 알림이 두 번 가지 않는다 — 멱등 보장이 곧 중복 발송 방지가 된다.
+  if (result.applied && result.orderId) {
+    const { notifyNewOrder } = await import("@/lib/notify");
+    await notifyNewOrder(result.orderId);
+  }
+
   return NextResponse.json({ applied: result.applied, status: result.status });
 }

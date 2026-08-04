@@ -13,6 +13,12 @@ import {
   verifyWebhookSignature,
 } from "./payments/signature.ts";
 import {
+  customerMessage,
+  shouldNotifyCustomer,
+  storeMessage,
+  summarizeItems,
+} from "./notify/messages.ts";
+import {
   checkDelivery,
   findDeliveryArea,
   formatClockTime,
@@ -527,6 +533,76 @@ test("pickupTimestamp: 한국 벽시계를 +09:00 으로 붙인다", () => {
   assert.equal(at, "2026-08-03T18:30:00+09:00");
   // 실제로 그 순간을 가리키는지 — 한국 18:30 = UTC 09:30
   assert.equal(new Date(at).toISOString(), "2026-08-03T09:30:00.000Z");
+});
+
+// ---- 알림 문안 ----
+
+const NOTIFY_ORDER = {
+  order_no: "20260804-0001",
+  fulfillment: "delivery",
+  total: 32000,
+  address_snapshot: "(02745) 서울 성북구 길음로 12 101동 1001호",
+  pickup_at: null,
+  created_at: "2026-08-04T09:30:00+00:00",
+  items: [
+    { name: "김치찌개", quantity: 2 },
+    { name: "시금치나물", quantity: 1 },
+  ],
+};
+
+test("summarizeItems: 개수까지 붙여 요약한다", () => {
+  assert.equal(
+    summarizeItems(NOTIFY_ORDER.items),
+    "김치찌개 2개, 시금치나물 1개",
+  );
+  assert.equal(summarizeItems([]), "주문 상품");
+});
+
+test("summarizeItems: 많으면 줄인다", () => {
+  const many = [1, 2, 3, 4, 5].map((n) => ({ name: `반찬${n}`, quantity: 1 }));
+  assert.match(summarizeItems(many, 3), /외 2가지$/);
+});
+
+test("storeMessage: 사장님이 배달 갈 주소가 들어간다", () => {
+  const text = storeMessage(NOTIFY_ORDER);
+  assert.match(text, /20260804-0001/);
+  assert.match(text, /배달/);
+  assert.match(text, /32,000원/);
+  assert.match(text, /길음로 12/);
+});
+
+/**
+ * 알림톡은 잠금화면에도 뜨고 옆 사람이 볼 수 있다.
+ * 손님 문안에 주소가 들어가면 그게 곧 개인정보 노출이다.
+ */
+test("customerMessage: 손님 문안에는 주소가 없다", () => {
+  for (const kind of ["accepted", "ready", "delivering", "completed"] as const) {
+    const text = customerMessage(NOTIFY_ORDER, kind) ?? "";
+    assert.ok(text.length > 0, `${kind} 문안이 비어 있다`);
+    assert.equal(text.includes("길음로"), false, `${kind} 에 주소가 들어갔다`);
+    assert.match(text, /20260804-0001/);
+  }
+});
+
+test("customerMessage: 픽업과 배달의 접수 문구가 다르다", () => {
+  const delivery = customerMessage(NOTIFY_ORDER, "accepted") ?? "";
+  const pickup =
+    customerMessage(
+      { ...NOTIFY_ORDER, fulfillment: "pickup", pickup_at: "2026-08-04T09:30:00+00:00" },
+      "accepted",
+    ) ?? "";
+
+  assert.match(delivery, /출발/);
+  assert.match(pickup, /오시면/);
+});
+
+// 접수 직후 알림이 연달아 두 번 가면 성가시다
+test("shouldNotifyCustomer: 준비중과 새주문은 손님에게 보내지 않는다", () => {
+  assert.equal(shouldNotifyCustomer("accepted"), true);
+  assert.equal(shouldNotifyCustomer("canceled"), true);
+  assert.equal(shouldNotifyCustomer("preparing"), false);
+  assert.equal(shouldNotifyCustomer("new_order"), false);
+  assert.equal(customerMessage(NOTIFY_ORDER, "preparing"), null);
 });
 
 // ---- 결제 웹훅 서명 ----
