@@ -11,7 +11,7 @@ export async function CartBadge() {
   return (
     <span
       aria-label={`장바구니에 ${cart.itemCount}개`}
-      className="absolute -right-2 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-pill bg-clay px-1 text-[10px] leading-none text-white"
+      className="absolute -right-2 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-pill bg-clay-deep px-1 text-[10px] leading-none text-white"
     >
       {cart.itemCount > 99 ? "99+" : cart.itemCount}
     </span>

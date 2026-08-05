@@ -243,7 +243,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
                     <div className="flex items-center gap-1.5">
                       <span className="text-[15px]">{area.name}</span>
                       {!area.is_active && (
-                        <span className="rounded-pill bg-line px-2 py-0.5 text-[11px] leading-none text-ink-faint">
+                        <span className="rounded-pill bg-line px-2 py-0.5 text-[11px] leading-none text-ink">
                           중지
                         </span>
                       )}

@@ -73,7 +73,7 @@ export function AddToCart({
           <button
             type="button"
             disabled
-            className="tap-target w-full cursor-not-allowed rounded-card bg-line text-[15px] text-ink-faint"
+            className="tap-target w-full cursor-not-allowed rounded-card border border-line bg-canvas text-[15px] text-ink-soft"
           >
             오늘은 품절되었어요
           </button>
