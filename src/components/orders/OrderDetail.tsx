@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { ReorderButton } from "./ReorderButton";
 import { StatusPill } from "./StatusPill";
 import { cancelOrder } from "@/lib/order-actions";
-import { reorder } from "@/lib/cart-actions";
 import {
   canCustomerCancel,
   formatClock,
@@ -36,28 +36,6 @@ export function OrderDetail({ order }: { order: OrderWithItems }) {
   const isDelivery = order.fulfillment === "delivery";
   const deadline =
     order.status === "pending_payment" ? formatClock(order.reserved_until) : "";
-
-  /**
-   * 지난 주문 그대로 다시 담기. 반찬가게는 같은 걸 또 시키는 손님이 대부분이라
-   * 이 버튼 하나가 목록을 다시 훑는 수고를 없앤다.
-   */
-  function again() {
-    setError(null);
-    startTransition(async () => {
-      const result = await reorder(order.id);
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      if (result.data.skipped > 0) {
-        // 조용히 빼면 손님은 지난번과 다른 걸 받는다
-        setError(
-          `${result.data.added}가지를 담았어요. ${result.data.skipped}가지는 오늘 없어서 빠졌습니다.`,
-        );
-      }
-      router.push("/cart");
-    });
-  }
 
   function cancel() {
     if (!confirm("주문을 취소할까요? 담았던 재고는 매장으로 돌아가요.")) return;
@@ -175,14 +153,11 @@ export function OrderDetail({ order }: { order: OrderWithItems }) {
 
       {/* 끝난 주문에서 가장 자주 하는 일이 "또 시키기" 다. 제일 눈에 띄는 자리에 둔다. */}
       {isSettled(order.status) && order.items.length > 0 && (
-        <button
-          type="button"
-          disabled={pending}
-          onClick={again}
+        <ReorderButton
+          orderId={order.id}
+          label="이 주문 그대로 다시 담기"
           className="tap-target mt-2.5 w-full rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:opacity-40"
-        >
-          {pending ? "담는 중…" : "이 주문 그대로 다시 담기"}
-        </button>
+        />
       )}
 
       <div className="pt-2.5">
