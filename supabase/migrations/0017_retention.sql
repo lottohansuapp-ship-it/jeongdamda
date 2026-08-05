@@ -12,7 +12,11 @@
 -- 매출 화면을 열 때마다 주문 테이블 전체를 훑었다. 환불은 드물게 일어나므로
 -- 부분 인덱스로 충분하다 — 환불 안 된 주문은 인덱스에 들어가지도 않는다.
 
-create index orders_refunded_at_idx on public.orders (refunded_at)
+-- if not exists 를 붙인 이유: 아래 pg_cron 안내가 "이 파일을 다시 실행하세요"
+-- 라고 말한다. 그런데 이 줄에서 relation already exists 로 멈추면 안내대로
+-- 해도 아무 일이 안 일어난다. 나머지(create or replace, revoke, cron.schedule)는
+-- 이미 여러 번 돌려도 되는 문장들이다.
+create index if not exists orders_refunded_at_idx on public.orders (refunded_at)
   where refunded_at is not null;
 
 
@@ -89,9 +93,11 @@ begin
   raise notice 'purge_old_logs 를 매일 돌리도록 예약했습니다.';
 exception
   when others then
+    -- 이어 붙이는 조각마다 E 가 필요하다. 첫 조각에만 붙이면 나머지 \n 은
+    -- 줄바꿈이 아니라 글자 그대로 찍힌다.
     raise notice E'pg_cron 을 쓸 수 없어 예약을 건너뛰었습니다 (%).\n'
-      '  Supabase 대시보드 > Database > Extensions 에서 pg_cron 을 켠 뒤\n'
-      '  이 파일을 다시 실행하세요. 그 전까지는 오래된 로그가 지워지지 않습니다.',
+      E'  Supabase 대시보드 > Database > Extensions 에서 pg_cron 을 켠 뒤\n'
+      E'  이 파일을 다시 실행하세요. 그 전까지는 오래된 로그가 지워지지 않습니다.',
       sqlerrm;
 end;
 $$;

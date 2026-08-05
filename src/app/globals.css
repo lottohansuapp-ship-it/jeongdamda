@@ -3,7 +3,11 @@
 
 /* 라이트 모드 전용. 다크 모드는 v1 범위 밖 (CLAUDE.md 참조) */
 @theme {
-  --color-olive: #6b8e23;
+  /* 원래 #6b8e23 이었는데 흰 글씨를 얹으면 3.8:1 이라 주요 버튼이 전부
+     기준에 못 미쳤다. 로그인·주문하기·담기가 다 이 색이다.
+     버튼마다 색을 갈아 끼우는 대신 토큰을 조금 진하게 해서 4.6:1 로 올렸다.
+     hover 의 olive-deep(#55701c)은 여전히 더 진해서 눌리는 느낌은 그대로다. */
+  --color-olive: #5f7f1f;
   --color-olive-deep: #55701c;
   --color-olive-soft: #eef2e3;
   --color-cream: #fff8f0;

@@ -146,7 +146,7 @@ docs/PLAN.md                 # 설계 + 결정 기록 + 단계
 | 토큰 | 값 | 용도 |
 |---|---|---|
 | `--color-brand` | `#D8352C` | 간판의 「반찬가게」 빨강 — 상호 전용 |
-| `--color-olive` | `#6B8E23` | Primary |
+| `--color-olive` | `#5F7F1F` | Primary |
 | `--color-cream` | `#FFF8F0` | Secondary surface |
 | `--color-clay` | `#C76B29` | Accent |
 | `--color-success` | `#3BA55D` | 재고 충분 |

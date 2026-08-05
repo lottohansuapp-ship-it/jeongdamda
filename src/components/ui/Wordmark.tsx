@@ -28,10 +28,17 @@ export function Wordmark({
   const style = SIZES[size];
 
   return (
-    // role="img" 없이 span 에 aria-label 을 붙이면 스크린리더가 무시한다.
-    // 안쪽 글자는 aria-hidden 이라, 이 이름이 없으면 상호가 아예 안 읽힌다.
+    /*
+      span 에 aria-label 만 붙이면 스크린리더가 무시한다. role 없는 span 은
+      이름을 가질 수 없는 요소라서다. 안쪽 글자가 aria-hidden 이라
+      그대로 두면 상호가 아예 안 읽힌다.
+
+      다만 h1 에는 주면 안 된다. heading 역할을 img 로 덮어써서 상호가
+      제목이 아니게 되고, 그러면 페이지에 h1 이 하나도 없어진다.
+      h1 은 원래 이름을 가질 수 있는 요소라 aria-label 만으로 충분하다.
+    */
     <Tag
-      role="img"
+      role={Tag === "h1" ? undefined : "img"}
       className={`inline-flex items-center ${style.gap} ${className}`}
       aria-label="정, 담따 반찬가게"
     >
