@@ -13,7 +13,7 @@ import type { DeliveryArea, StoreSettings } from "@/types/database";
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 const FIELD =
-  "h-12 w-full rounded-card border border-line bg-canvas px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none";
+  "h-12 w-full rounded-card border border-line bg-canvas px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive";
 
 const CLOSED_TEXT = {
   holiday: "임시 휴무 중이에요",

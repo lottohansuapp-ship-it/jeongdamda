@@ -13,7 +13,18 @@ import {
 const EMPTY: AuthState = { error: null, notice: null };
 
 const FIELD =
-  "h-12 w-full rounded-card border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none";
+  "h-12 w-full rounded-card border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive";
+
+/**
+ * 라벨을 눈에도 보이게 둔다.
+ *
+ * 예전에는 sr-only 라 화면에 보이는 이름이 플레이스홀더뿐이었다.
+ * 칸을 채우고 나면 그게 무슨 칸이었는지 사라진다. 이름·휴대폰·이메일·비밀번호
+ * 넷을 채우고 확인하려는 어르신은 세 번째가 뭐였는지 알 방법이 없었고,
+ * 비밀번호 칸은 점으로만 보여 아예 구분이 안 됐다.
+ * 내 정보 화면(AccountBoard)은 이미 보이는 라벨을 쓰고 있었다 — 그쪽에 맞춘다.
+ */
+const LABEL = "block pb-1 text-[13px] text-ink-soft";
 
 type Mode = "login" | "signup" | "forgot";
 
@@ -68,23 +79,23 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
         {signingUp && (
           <>
             <label className="block">
-              <span className="sr-only">이름</span>
+              <span className={LABEL}>이름</span>
               <input
                 name="name"
                 required
-                placeholder="이름"
+                placeholder="홍길동"
                 autoComplete="name"
                 className={FIELD}
               />
             </label>
             <label className="block">
-              <span className="sr-only">휴대폰 번호</span>
+              <span className={LABEL}>휴대폰 번호</span>
               <input
                 name="phone"
                 required
                 type="tel"
                 inputMode="numeric"
-                placeholder="휴대폰 번호 (010-1234-5678)"
+                placeholder="01012345678"
                 autoComplete="tel"
                 className={FIELD}
               />
@@ -93,12 +104,12 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
         )}
 
         <label className="block">
-          <span className="sr-only">이메일</span>
+          <span className={LABEL}>이메일</span>
           <input
             name="email"
             required
             type="email"
-            placeholder="이메일"
+            placeholder="name@example.com"
             autoComplete={signingUp ? "email" : "username"}
             className={FIELD}
           />
@@ -106,12 +117,12 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
 
         {!forgot && (
           <label className="block">
-            <span className="sr-only">비밀번호</span>
+            <span className={LABEL}>비밀번호</span>
             <input
               name="password"
               required
               type="password"
-              placeholder={signingUp ? "비밀번호 (8자 이상)" : "비밀번호"}
+              placeholder={signingUp ? "8자 이상" : ""}
               autoComplete={signingUp ? "new-password" : "current-password"}
               className={FIELD}
             />

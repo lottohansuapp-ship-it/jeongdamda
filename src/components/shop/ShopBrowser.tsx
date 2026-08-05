@@ -73,7 +73,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
               value={filters.query}
               onChange={(event) => patch({ query: event.target.value })}
               placeholder="먹고 싶은 반찬을 찾아보세요"
-              className="h-12 w-full rounded-pill border border-line bg-white pl-11 pr-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none"
+              className="h-12 w-full rounded-pill border border-line bg-white pl-11 pr-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
             />
           </label>
 

@@ -26,7 +26,7 @@ import { AdminRow } from "./AdminRow";
 const TOAST_MS = 2600;
 
 const INPUT =
-  "h-12 w-full rounded-card border border-line bg-canvas px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none";
+  "h-12 w-full rounded-card border border-line bg-canvas px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive";
 
 interface AdminBoardProps {
   categories: Category[];
@@ -339,7 +339,7 @@ export function AdminBoard({
             value={filters.query}
             onChange={(event) => patch({ query: event.target.value })}
             placeholder="반찬 이름으로 찾기"
-            className="h-12 w-full rounded-pill border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none"
+            className="h-12 w-full rounded-pill border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
           />
         </label>
 

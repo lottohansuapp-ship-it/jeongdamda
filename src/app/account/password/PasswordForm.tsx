@@ -6,7 +6,10 @@ import { updatePassword, type AuthState } from "@/lib/auth";
 const EMPTY: AuthState = { error: null, notice: null };
 
 const FIELD =
-  "h-12 w-full rounded-card border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none";
+  "h-12 w-full rounded-card border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive";
+
+/** 채우고 나면 무슨 칸이었는지 사라지지 않게, 라벨을 눈에도 보이게 둔다. */
+const LABEL = "block pb-1 text-[13px] text-ink-soft";
 
 export function PasswordForm() {
   const [state, action, pending] = useActionState(updatePassword, EMPTY);
@@ -14,20 +17,20 @@ export function PasswordForm() {
   return (
     <form action={action} className="space-y-2.5 pt-8">
       <label className="block">
-        <span className="sr-only">새 비밀번호</span>
+        <span className={LABEL}>새 비밀번호</span>
         <input
           type="password"
           name="password"
           required
           minLength={8}
-          placeholder="새 비밀번호 (8자 이상)"
+          placeholder="8자 이상"
           autoComplete="new-password"
           className={FIELD}
         />
       </label>
 
       <label className="block">
-        <span className="sr-only">새 비밀번호 확인</span>
+        <span className={LABEL}>새 비밀번호 확인</span>
         <input
           type="password"
           name="confirm"

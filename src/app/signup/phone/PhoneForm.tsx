@@ -7,7 +7,10 @@ import { savePhone, type AuthState } from "@/lib/auth";
 const EMPTY: AuthState = { error: null, notice: null };
 
 const FIELD =
-  "h-12 w-full rounded-card border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus:outline-none";
+  "h-12 w-full rounded-card border border-line bg-white px-4 text-[15px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive";
+
+/** 채우고 나면 무슨 칸이었는지 사라지지 않게, 라벨을 눈에도 보이게 둔다. */
+const LABEL = "block pb-1 text-[13px] text-ink-soft";
 
 interface PhoneFormProps {
   next: string;
@@ -23,26 +26,26 @@ export function PhoneForm({ next, defaultName, defaultPhone }: PhoneFormProps) {
       <input type="hidden" name="next" value={next} />
 
       <label className="block">
-        <span className="sr-only">이름</span>
+        <span className={LABEL}>이름</span>
         <input
           name="name"
           required
           defaultValue={defaultName}
-          placeholder="이름"
+          placeholder="홍길동"
           autoComplete="name"
           className={FIELD}
         />
       </label>
 
       <label className="block">
-        <span className="sr-only">휴대폰 번호</span>
+        <span className={LABEL}>휴대폰 번호</span>
         <input
           name="phone"
           required
           type="tel"
           inputMode="numeric"
           defaultValue={defaultPhone}
-          placeholder="휴대폰 번호 (010-1234-5678)"
+          placeholder="01012345678"
           autoComplete="tel"
           className={FIELD}
         />

@@ -263,7 +263,7 @@ export function AdminRow({
                 patch({ price: Math.max(0, Math.round(value)) }, "가격");
               }
             }}
-            className="h-11 w-full rounded-[12px] border border-line bg-canvas px-3 text-[14px] tabular-nums focus:border-olive focus:outline-none"
+            className="h-11 w-full rounded-[12px] border border-line bg-canvas px-3 text-[14px] tabular-nums focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
           />
         </Field>
 
@@ -273,7 +273,7 @@ export function AdminRow({
             onChange={(event) =>
               patch({ category_id: event.target.value }, "카테고리")
             }
-            className="h-11 w-full rounded-[12px] border border-line bg-canvas px-2.5 text-[14px] focus:border-olive focus:outline-none"
+            className="h-11 w-full rounded-[12px] border border-line bg-canvas px-2.5 text-[14px] focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
           >
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
