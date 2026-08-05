@@ -55,8 +55,16 @@ export function Carousel({ children, label }: CarouselProps) {
     if (!rail) return;
 
     const next = Math.max(0, Math.min(count - 1, index));
-    // 부드럽게 움직인다. 모션을 끈 손님에게는 globals.css 가 즉시 이동으로 바꾼다.
-    rail.scrollTo({ left: next * step(), behavior: "smooth" });
+    /*
+     * globals.css 의 scroll-behavior 로 처리될 거라 적어 뒀었는데 사실이 아니다.
+     * scrollTo 에 behavior 를 명시하면 그 인자가 CSS 속성보다 우선한다.
+     * 그래서 "동작 줄이기" 를 켠 손님에게도 화면이 미끄러졌다. 여기서 직접 본다.
+     */
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    rail.scrollTo({ left: next * step(), behavior: reduce ? "auto" : "smooth" });
   }
 
   return (

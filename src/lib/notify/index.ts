@@ -87,29 +87,65 @@ async function deliver(
   }
 }
 
-/** 주문 정보를 한 번에 읽는다. 알림마다 여러 번 조회하지 않는다. */
+/**
+ * 주문 정보를 한 번에 읽는다. 알림마다 여러 번 조회하지 않는다.
+ *
+ * **테이블을 직접 읽지 않고 RPC 를 쓰는 이유** (0018):
+ * 예전에는 `publicClient().from("orders")` 로 읽었다. 그런데 결제 웹훅은
+ * 서버 대 서버 호출이라 세션이 없어 role 이 anon 이고, orders 의 select 정책은
+ * 둘 다 authenticated 전용이다. RLS 는 오류가 아니라 **0행**을 돌려주므로
+ * 이 함수가 늘 null 을 반환했고, 알림이 한 통도 안 나가는데 아무도 몰랐다.
+ *
+ * order_for_notify 는 app_secrets 의 비밀값으로 잠근 SECURITY DEFINER 함수다.
+ * 세션이 없어도 되고, 비밀값을 모르면 한 줄도 못 읽는다.
+ */
 async function loadOrder(
   orderId: string,
 ): Promise<(NotifyOrder & { receiver_phone: string }) | null> {
-  try {
-    const { data } = await publicClient()
-      .from("orders")
-      .select(
-        "order_no, fulfillment, total, address_snapshot, pickup_at, created_at, receiver_phone, items:order_items(name, quantity)",
-      )
-      .eq("id", orderId)
-      .maybeSingle();
+  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
+  if (!secret) return null; // 아직 결제를 안 켰다. 호출부가 이유를 기록한다.
 
-    return (data as unknown as NotifyOrder & { receiver_phone: string }) ?? null;
+  try {
+    const { data, error } = await publicClient().rpc("order_for_notify", {
+      p_order_id: orderId,
+      p_secret: secret,
+    });
+
+    if (error || !data) return null;
+    return data as unknown as NotifyOrder & { receiver_phone: string };
   } catch {
     return null;
   }
 }
 
+/**
+ * 주문을 못 읽으면 알림을 보낼 수 없다. 그냥 돌아가면 안 된다.
+ *
+ * 예전에 여기가 조용히 return 만 해서, 알림이 통째로 죽어 있는데도
+ * notification_logs 에 아무 흔적이 없었다. 실패는 반드시 남긴다.
+ */
+async function reportMissingOrder(
+  orderId: string,
+  kind: NotifyKind,
+): Promise<void> {
+  const reason = process.env.PAYMENT_WEBHOOK_SECRET
+    ? "주문을 읽지 못했습니다 (order_for_notify)"
+    : "PAYMENT_WEBHOOK_SECRET 이 없어 주문을 읽을 수 없습니다";
+
+  await record(orderId, kind, "alimtalk", "", "failed", reason);
+
+  const { reportError } = await import("../report");
+  await reportError("notify", reason, orderId);
+}
+
 /** 결제가 확정된 순간 매장에 보낸다. 사장님이 화면을 안 보고 있어도 알아야 한다. */
 export async function notifyNewOrder(orderId: string): Promise<void> {
   const order = await loadOrder(orderId);
-  if (!order) return;
+  if (!order) {
+    // 매장이 새 주문을 못 받는 상황이다. 조용히 넘어가면 아무도 모른다.
+    await reportMissingOrder(orderId, "new_order");
+    return;
+  }
 
   await deliver(orderId, "new_order", STORE_INFO.phone, storeMessage(order));
 }
@@ -122,7 +158,12 @@ export async function notifyCustomer(
   if (!shouldNotifyCustomer(kind)) return;
 
   const order = await loadOrder(orderId);
-  if (!order?.receiver_phone) return;
+  if (!order) {
+    await reportMissingOrder(orderId, kind);
+    return;
+  }
+  // 번호가 비어 있는 건 주문을 못 읽은 것과 다르다. 남길 것이 없다.
+  if (!order.receiver_phone) return;
 
   const text = customerMessage(order, kind);
   if (!text) return;

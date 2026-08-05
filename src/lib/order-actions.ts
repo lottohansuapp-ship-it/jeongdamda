@@ -126,11 +126,48 @@ export async function cancelOrder(
   orderId: string,
   reason?: string,
 ): Promise<ActionResult> {
+  const first = await attemptCancel(orderId, reason);
+  if (first.ok) return { ok: true, data: undefined };
+
+  /**
+   * 55000 은 "결제된 주문인데 환불 기록이 없다" 는 뜻이다 (0018).
+   *
+   * 손님이 결제창을 띄운 채 취소를 누르면, begin_cancel 이 상태를 읽은 뒤
+   * cancel_order 를 부르기까지 사이에 결제 웹훅이 도착할 수 있다. 그러면
+   * 환불이 필요 없다고 판단해 놓고 실제로는 결제가 끝나 있다.
+   * 예전에는 그대로 취소돼서 손님 돈이 묶였다. 이제 DB 가 거절한다.
+   *
+   * 거절당했다는 건 그 사이 결제가 확정됐다는 뜻이므로 한 번 더 돌리면
+   * begin_cancel 이 이번에는 환불이 필요하다고 알려 준다. 한 번만 시도한다 —
+   * 두 번 연속 나면 우리가 모르는 일이 벌어지는 것이라 사람이 봐야 한다.
+   */
+  if (!first.retryable) return { ok: false, error: first.error };
+
+  const second = await attemptCancel(orderId, reason);
+  return second.ok
+    ? { ok: true, data: undefined }
+    : { ok: false, error: second.error };
+}
+
+type CancelAttempt =
+  | { ok: true }
+  | { ok: false; error: string; retryable: boolean };
+
+async function attemptCancel(
+  orderId: string,
+  reason?: string,
+): Promise<CancelAttempt> {
   const session = await authed();
-  if (!session) return { ok: false, error: "로그인이 필요합니다." };
+  if (!session)
+    return { ok: false, error: "로그인이 필요합니다.", retryable: false };
 
   const claim = await session.db.rpc("begin_cancel", { p_order_id: orderId });
-  if (claim.error) return { ok: false, error: rpcError(claim.error.message) };
+  if (claim.error)
+    return {
+      ok: false,
+      error: rpcError(claim.error.message),
+      retryable: false,
+    };
 
   const { payment_id, total, needs_refund } = claim.data as {
     payment_id: string | null;
@@ -157,6 +194,7 @@ export async function cancelOrder(
       return {
         ok: false,
         error: `환불을 처리하지 못했어요. 매장에 연락해 주세요. (${result.error})`,
+        retryable: false,
       };
     }
     refunded = total;
@@ -168,11 +206,18 @@ export async function cancelOrder(
     p_refunded: refunded,
   });
 
-  if (error) return { ok: false, error: rpcError(error.message) };
+  if (error) {
+    return {
+      ok: false,
+      error: rpcError(error.message),
+      // 55000 = 결제됐는데 환불 기록이 없다. 다시 돌리면 이번엔 환불부터 한다.
+      retryable: error.code === "55000",
+    };
+  }
 
   updateTag(PRODUCTS_TAG); // 재고가 돌아왔다
   await notify(orderId, "canceled");
-  return { ok: true, data: undefined };
+  return { ok: true };
 }
 
 /**

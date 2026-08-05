@@ -19,12 +19,21 @@ export function QuickAdd({
 }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "sending" | "done">("idle");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (state !== "done") return;
     const id = setTimeout(() => setState("idle"), 1400);
     return () => clearTimeout(id);
   }, [state]);
+
+  // 오류는 읽을 시간을 넉넉히 준다. 담기 성공 표시(1.4초)와 달리
+  // 이건 손님이 무엇을 해야 할지 판단해야 하는 내용이다.
+  useEffect(() => {
+    if (!error) return;
+    const id = setTimeout(() => setError(null), 6000);
+    return () => clearTimeout(id);
+  }, [error]);
 
   async function add(event: React.MouseEvent) {
     event.preventDefault();
@@ -43,20 +52,42 @@ export function QuickAdd({
     setState("idle");
     if (result.error.includes("로그인")) {
       router.push(`/login?next=${encodeURIComponent(`/product/${productId}`)}`);
+      return;
     }
+
+    // 예전에는 여기서 그냥 끝났다. 지하철에서 잠깐 끊긴 손님은 버튼이
+    // 눌렸다 돌아오는 것만 보고 왜 안 담기는지 몰라 계속 눌렀다.
+    setError(result.error);
   }
 
   return (
-    <button
-      type="button"
-      onClick={add}
-      aria-label={`${productName} 장바구니에 담기`}
-      className={`grid h-11 w-11 place-items-center rounded-full shadow-lift transition-[background-color,transform] duration-200 active:scale-90 ${
-        state === "done" ? "bg-olive-deep text-white" : "bg-white/95 text-ink"
-      }`}
-    >
-      {state === "done" ? <CheckIcon /> : <PlusIcon />}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={add}
+        aria-label={`${productName} 장바구니에 담기`}
+        className={`grid h-11 w-11 place-items-center rounded-full shadow-lift transition-[background-color,transform] duration-200 active:scale-90 ${
+          state === "done" ? "bg-olive-deep text-white" : "bg-white/95 text-ink"
+        }`}
+      >
+        {state === "done" ? <CheckIcon /> : <PlusIcon />}
+      </button>
+
+      {/* 담겼다는 걸 소리로도 알린다. 아이콘만 바뀌면 눈으로 보는 손님만 알 수 있고,
+          안 들리면 담겼는지 몰라 한 번 더 눌러 두 개가 담긴다. */}
+      <span role="status" className="sr-only">
+        {state === "done" ? `${productName} 1개를 담았어요` : ""}
+      </span>
+
+      {error && (
+        <p
+          role="alert"
+          className="absolute inset-x-3.5 bottom-2 z-20 rounded-[10px] bg-danger px-2.5 py-1.5 text-[12px] leading-snug text-white"
+        >
+          {error}
+        </p>
+      )}
+    </>
   );
 }
 

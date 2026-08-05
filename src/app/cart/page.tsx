@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CartBoard } from "@/components/cart/CartBoard";
-import { BottomNav } from "@/components/ui/BottomNav";
 import { getCart, getStore } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -9,9 +8,18 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/**
+ * 하단 탭을 두지 않는다.
+ *
+ * 예전에는 <BottomNav> 를 그렸는데, 장바구니의 금액·주문 바가 fixed z-40 이라
+ * 탭(sticky z-30, 64px)을 통째로 덮었다. 그리기는 하는데 보이지도 눌리지도
+ * 않는 상태였다. 안 보이는 것을 그리는 것보다 안 그리는 편이 정직하다.
+ *
+ * 주문서(/checkout)도 같은 이유로 탭이 없다. 돌아가는 길은 본문의
+ * "메뉴 더 담기" 가 맡는다.
+ */
 export default function CartPage() {
   return (
-    <>
     <main className="mx-auto w-full max-w-[560px] flex-1 px-5">
       <header className="pb-5 pt-10">
         <h1 className="text-[26px] leading-tight">장바구니</h1>
@@ -21,8 +29,6 @@ export default function CartPage() {
         <CartBody />
       </Suspense>
     </main>
-    <BottomNav active="cart" />
-    </>
   );
 }
 
