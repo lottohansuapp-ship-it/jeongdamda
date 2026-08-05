@@ -24,7 +24,22 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "all", label: "전체" },
 ];
 
-export function OrderBoard({ orders }: { orders: OrderWithItems[] }) {
+const RANGE_LABEL: Record<string, string> = {
+  today: "오늘",
+  week: "7일",
+  month: "30일",
+};
+
+export function OrderBoard({
+  orders,
+  truncated,
+  range,
+}: {
+  orders: OrderWithItems[];
+  /** 상한에 걸려 잘렸는지. 조용히 자르면 사장님이 주문을 놓친다. */
+  truncated: boolean;
+  range: string;
+}) {
   const [tab, setTab] = useState<Tab>("live");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,8 +115,31 @@ export function OrderBoard({ orders }: { orders: OrderWithItems[] }) {
           </Link>
         </div>
         <p className="pt-1.5 text-[13px] text-ink-soft">
-          진행 중 {liveCount}건 · 전체 {orders.length}건
+          진행 중 {liveCount}건 · {RANGE_LABEL[range] ?? "오늘"} {orders.length}건
         </p>
+
+        {/* 기간은 서버에서 자른다. 링크라 새로 조회해 온다 —
+            화면에서 거르면 결국 전부 가져와야 한다. */}
+        <nav className="flex gap-1.5 pt-3">
+          {Object.entries(RANGE_LABEL).map(([key, label]) => (
+            <Link
+              key={key}
+              href={`/admin/orders?range=${key}`}
+              aria-current={key === range ? "page" : undefined}
+              className={`rounded-[10px] px-3 py-2 text-[13px] leading-none transition-colors duration-200 ${
+                key === range ? "bg-ink text-white" : "bg-white text-ink-soft"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+
+        {truncated && (
+          <p className="pt-2.5 text-[12.5px] leading-relaxed text-[#a96f14]">
+            주문이 많아 일부만 보여드리고 있어요. 기간을 좁히면 전부 보입니다.
+          </p>
+        )}
       </header>
 
       <div className="sticky top-0 z-20 -mx-5 mb-3 bg-canvas/95 px-5 py-2.5 backdrop-blur-md">

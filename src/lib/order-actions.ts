@@ -149,6 +149,11 @@ export async function cancelOrder(
     );
 
     if (!result.ok) {
+      // 돈이 걸린 실패다. 반드시 남긴다 — 취소는 걸려 있고 환불은 안 나간 상태로
+      // 주문이 멈춰 있으므로 누군가 이어서 처리해야 한다.
+      const { reportError } = await import("./report");
+      await reportError("refund", result.error, payment_id ?? orderId);
+
       return {
         ok: false,
         error: `환불을 처리하지 못했어요. 매장에 연락해 주세요. (${result.error})`,

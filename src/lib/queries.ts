@@ -2,6 +2,7 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { envError, publicClient } from "./supabase/public";
 import { currentUserId, serverClient } from "./supabase/server";
+import { seoulDate } from "./store";
 import { EMPTY_CART, summarizeCart, type CartSummary } from "./cart";
 import {
   ORDER_COLUMNS,
@@ -301,22 +302,52 @@ export async function getOrder(id: string): Promise<OrderWithItems | null> {
   return (data as unknown as OrderWithItems) ?? null;
 }
 
+/** 한 번에 가져올 주문 수. 넘으면 잘렸다고 알린다. */
+export const ADMIN_ORDER_LIMIT = 200;
+
+export interface AdminOrders {
+  orders: OrderWithItems[];
+  /** 상한에 걸려 잘렸는지. 조용히 자르면 사장님이 주문을 놓친다. */
+  truncated: boolean;
+}
+
 /**
- * 관리자용 — 전체 주문. orders_admin_all 정책을 통과해야 보인다.
- * 결제 전 주문은 뺀다. 재고만 잡아둔 상태라 매장이 할 일이 없고, 10분 뒤 알아서 사라진다.
+ * 관리자용 주문 목록. orders_admin_all 정책을 통과해야 보인다.
+ *
+ * **기간으로 자른다.** 예전에는 status <> 'pending_payment' 로 걸러 최근 100건을
+ * 가져왔는데, 그 조건은 (status, created_at) 인덱스를 못 타서 주문이 쌓일수록
+ * 전체를 훑고 정렬하게 된다. 사장님이 매일 여는 화면이라 제일 먼저 느려진다.
+ *
+ * 기간 시작은 한국 날짜 자정이다. UTC 로 자르면 자정 근처 주문이 어제로 넘어간다.
+ *
+ * 페이지 나누기는 넣지 않았다. 하루 100건 규모에서 30일이면 3천 건인데,
+ * 그건 기간을 좁히면 될 일이지 페이지로 풀 일이 아니다. 대신 상한에 걸리면
+ * 잘렸다고 알려 사장님이 기간을 줄이도록 안내한다.
  */
-export async function getAdminOrders(): Promise<OrderWithItems[]> {
-  if (envError()) return [];
+export async function getAdminOrders(days: number): Promise<AdminOrders> {
+  if (envError()) return { orders: [], truncated: false };
+
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - Math.max(0, days - 1));
+  const from = `${seoulDate(since)}T00:00:00+09:00`;
 
   const db = await serverClient();
   const { data } = await db
     .from("orders")
     .select(ORDER_SELECT)
+    .gte("created_at", from)
+    // 결제 전 주문은 뺀다. 재고만 잡아둔 상태라 매장이 할 일이 없고
+    // 10분 뒤 알아서 사라진다.
     .neq("status", "pending_payment")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(ADMIN_ORDER_LIMIT + 1);
 
-  return (data ?? []) as unknown as OrderWithItems[];
+  const rows = (data ?? []) as unknown as OrderWithItems[];
+
+  return {
+    orders: rows.slice(0, ADMIN_ORDER_LIMIT),
+    truncated: rows.length > ADMIN_ORDER_LIMIT,
+  };
 }
 
 export interface SalesSummary {
@@ -360,6 +391,33 @@ export async function getSales(
     summary: summary.data as SalesSummary,
     items: (items.data ?? []) as SalesItem[],
   };
+}
+
+export interface ErrorLog {
+  id: string;
+  scope: string;
+  message: string;
+  detail: string | null;
+  created_at: string;
+}
+
+/**
+ * 최근 오류. 관리자 화면 맨 위에 띄운다 — 기록만 하고 아무도 안 보면 없는 것과 같다.
+ * is_admin() 이 아니면 RLS 가 0행을 준다.
+ */
+export async function getRecentErrors(hours = 24): Promise<ErrorLog[]> {
+  if (envError()) return [];
+
+  const since = new Date(Date.now() - hours * 3600_000).toISOString();
+  const db = await serverClient();
+  const { data } = await db
+    .from("error_logs")
+    .select("id, scope, message, detail, created_at")
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  return (data ?? []) as ErrorLog[];
 }
 
 function toMessage(error: unknown): string {

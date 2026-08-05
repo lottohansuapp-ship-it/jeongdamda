@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { AdminBoard } from "@/components/admin/AdminBoard";
-import { getAdminData } from "@/lib/queries";
+import { getAdminData, getRecentErrors } from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "오늘 재고 관리",
@@ -20,7 +21,14 @@ export default function AdminPage() {
 
 // getAdminData 는 로그인 쿠키를 읽으므로 요청 시점에만 실행될 수 있다.
 async function Board() {
-  const result = await getAdminData();
+  // 최근 오류를 "지금부터 24시간 전"으로 세므로 시각을 읽는다.
+  // 프리렌더 중에는 시각을 읽을 수 없어 요청 시점임을 먼저 알린다.
+  await connection();
+
+  const [result, errors] = await Promise.all([
+    getAdminData(),
+    getRecentErrors(),
+  ]);
 
   if (!result.ok) {
     return (
@@ -37,6 +45,7 @@ async function Board() {
     <AdminBoard
       categories={result.data.categories}
       products={result.data.products}
+      errors={errors}
     />
   );
 }

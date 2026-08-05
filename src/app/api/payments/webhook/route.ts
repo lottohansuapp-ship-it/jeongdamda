@@ -62,7 +62,10 @@ export async function POST(request: Request) {
 
   if (!result.ok) {
     // 포트원 조회 실패나 DB 오류다. 다시 받아야 하므로 5xx.
-    console.error("[payment-webhook]", paymentId, result.error);
+    // 사장님이 관리자 화면에서 볼 수 있게 남긴다 — 결제가 안 잡히는 건
+    // 손님이 전화하기 전에 알아야 한다.
+    const { reportError } = await import("@/lib/report");
+    await reportError("payment-webhook", result.error, paymentId);
     return NextResponse.json({ message: result.error }, { status: 500 });
   }
 

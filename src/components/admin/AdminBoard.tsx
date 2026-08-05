@@ -19,6 +19,7 @@ import { BADGES, hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
 import { stockStatus } from "@/lib/stock";
 import { missingStoreInfo } from "@/lib/store-info";
 import { Wordmark } from "@/components/ui/Wordmark";
+import type { ErrorLog } from "@/lib/queries";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { AdminRow } from "./AdminRow";
 
@@ -30,6 +31,8 @@ const INPUT =
 interface AdminBoardProps {
   categories: Category[];
   products: ProductWithCategory[];
+  /** 최근 24시간 오류. 비어 있으면 아무것도 그리지 않는다. */
+  errors: ErrorLog[];
 }
 
 interface Toast {
@@ -64,7 +67,41 @@ function StoreInfoNotice() {
   );
 }
 
-export function AdminBoard({ categories, products }: AdminBoardProps) {
+/**
+ * 최근에 무엇이 실패했는지. 기록만 하고 아무도 안 보면 없는 것과 같다.
+ *
+ * 결제가 안 잡히거나 알림이 안 나가는 건 손님이 전화하기 전에 알아야 한다.
+ * 개인정보는 담기지 않는다 — 어디서 났는지와 메시지뿐이다 (0016).
+ */
+function ErrorNotice({ errors }: { errors: ErrorLog[] }) {
+  if (errors.length === 0) return null;
+
+  return (
+    <div className="mt-3 rounded-card border border-danger/30 bg-danger/5 p-3.5">
+      <p className="text-[13px] text-danger">
+        최근 24시간에 처리하지 못한 일이 {errors.length}건 있어요
+      </p>
+      <ul className="space-y-1 pt-2">
+        {errors.slice(0, 3).map((item) => (
+          <li key={item.id} className="text-[12px] leading-relaxed text-ink-soft">
+            <span className="text-ink-faint">{item.scope}</span> · {item.message}
+          </li>
+        ))}
+      </ul>
+      {errors.length > 3 && (
+        <p className="pt-1.5 text-[12px] text-ink-faint">
+          외 {errors.length - 3}건
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function AdminBoard({
+  categories,
+  products,
+  errors,
+}: AdminBoardProps) {
   const [order, setOrder] = useState(products);
   const [synced, setSynced] = useState(products);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -191,6 +228,7 @@ export function AdminBoard({ categories, products }: AdminBoardProps) {
           <Wordmark size="sm" />
           <h1 className="pt-2 text-[26px] leading-tight">오늘 재고 관리</h1>
           <StoreInfoNotice />
+          <ErrorNotice errors={errors} />
           <p className="pt-3 text-[13px] text-ink-soft">
             전체 {summary.total}가지 · 판매중 {summary.selling}
           </p>

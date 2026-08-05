@@ -69,6 +69,12 @@ async function deliver(
       result.ok ? "sent" : "failed",
       result.ok ? undefined : result.error,
     );
+
+    if (!result.ok) {
+      // 매장이 새 주문을 못 받는 상황이다. 기록만으로는 아무도 안 본다.
+      const { reportError } = await import("../report");
+      await reportError("notify", result.error, kind);
+    }
   } catch (error) {
     await record(
       orderId,
