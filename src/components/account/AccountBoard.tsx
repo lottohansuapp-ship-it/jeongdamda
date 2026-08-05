@@ -280,20 +280,7 @@ function AddressForm({
   const [address1, setAddress1] = useState(address?.address1 ?? "");
   const detailRef = useRef<HTMLInputElement>(null);
 
-  async function search() {
-    try {
-      await loadPostcodeScript();
-    } catch {
-      onError("주소 검색을 불러오지 못했어요. 네트워크를 확인해 주세요.");
-      return;
-    }
-
-    const Postcode = window.daum?.Postcode;
-    if (!Postcode) {
-      onError("주소 검색을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
-      return;
-    }
-
+  function openPostcode(Postcode: NonNullable<typeof window.daum>["Postcode"]) {
     new Postcode({
       oncomplete: (data) => {
         const base = data.roadAddress || data.jibunAddress;
@@ -302,6 +289,43 @@ function AddressForm({
         detailRef.current?.focus();
       },
     }).open();
+  }
+
+  /**
+   * 폼이 열리는 순간 스크립트를 미리 받아 둔다.
+   *
+   * 다음 우편번호의 open() 은 새 창을 띄운다. 그런데 iOS Safari 는 사용자가
+   * 누른 **직후**가 아닌 창을 막는다. 예전에는 클릭 핸들러에서 await 로
+   * 스크립트를 받고 그 뒤에 열어서, 아직 안 받아 둔 첫 방문에는 아이폰에서
+   * 아무 일도 일어나지 않을 수 있었다. 저장 버튼은 주소가 없으면 막혀 있으니
+   * 그 손님은 **배달 주문을 영영 못 한다.**
+   *
+   * 미리 받아 두면 아래 search() 가 await 없이 바로 열 수 있다.
+   */
+  useEffect(() => {
+    loadPostcodeScript().catch(() => {
+      // 여기서 알리지 않는다. 아직 누르지도 않은 손님에게 띄울 말이 아니다.
+      // 실제로 누르면 search() 가 다시 시도하고 그때 안내한다.
+    });
+  }, []);
+
+  function search() {
+    const ready = window.daum?.Postcode;
+    if (ready) {
+      // 미리 받아 뒀으면 여기서 끝. await 가 없어야 아이폰이 창을 막지 않는다.
+      openPostcode(ready);
+      return;
+    }
+
+    loadPostcodeScript()
+      .then(() => {
+        const Postcode = window.daum?.Postcode;
+        if (!Postcode) throw new Error("not ready");
+        openPostcode(Postcode);
+      })
+      .catch(() => {
+        onError("주소 검색을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      });
   }
 
   return (
