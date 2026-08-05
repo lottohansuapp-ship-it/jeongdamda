@@ -162,7 +162,7 @@ export function CheckoutBoard({
           </p>
           <Link
             href="/cart"
-            className="mt-2 inline-flex text-[13px] text-clay underline underline-offset-4"
+            className="mt-2 inline-flex text-[13px] text-clay-deep underline underline-offset-4"
           >
             장바구니에서 정리하기
           </Link>
@@ -242,7 +242,7 @@ export function CheckoutBoard({
                     />
                     <span className="min-w-0 text-[13.5px] leading-relaxed">
                       {item.label && (
-                        <span className="mr-1.5 text-[12px] text-clay">
+                        <span className="mr-1.5 text-[12px] text-clay-deep">
                           {item.label}
                         </span>
                       )}
@@ -295,7 +295,12 @@ export function CheckoutBoard({
           }}
           maxLength={200}
           rows={2}
-          placeholder={isDelivery ? "문 앞에 놓아주세요" : "덜 맵게 해주세요"}
+          // 배달에만 예시를 둔다. 문 앞에 두는 것처럼 손님이 실제로 자주 부탁하는
+          // 일이 있어서다. 픽업은 매장에서 직접 받아가므로 그런 부탁이 없고,
+          // 없는 예시를 띄우면 오히려 뭘 써야 하나 헷갈린다.
+          placeholder={
+            isDelivery ? "문 앞에 놓아주세요" : "매장에 전할 말을 적어주세요"
+          }
           className="w-full resize-none rounded-[12px] border border-line bg-canvas p-3 text-[14px] leading-relaxed outline-none transition-colors duration-200 placeholder:text-ink-faint focus:border-olive"
         />
       </Section>
@@ -308,7 +313,7 @@ export function CheckoutBoard({
           {/* 주문서에서 메뉴를 더 담고 싶을 때. 여기서 나가도 담아둔 것은 그대로 남는다. */}
           <Link
             href="/"
-            className="shrink-0 text-[13px] text-clay underline underline-offset-4"
+            className="shrink-0 text-[13px] text-clay-deep underline underline-offset-4"
           >
             추가 주문
           </Link>
@@ -528,7 +533,7 @@ function Empty({
       <p className="text-[13.5px] text-ink-soft">{text}</p>
       <Link
         href={href}
-        className="mt-2 inline-flex text-[13px] text-clay underline underline-offset-4"
+        className="mt-2 inline-flex text-[13px] text-clay-deep underline underline-offset-4"
       >
         {action}
       </Link>

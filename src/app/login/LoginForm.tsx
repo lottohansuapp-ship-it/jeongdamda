@@ -144,7 +144,7 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
               >
                 개인정보 수집·이용
               </Link>
-              에 동의합니다 <span className="text-clay">(필수)</span>
+              에 동의합니다 <span className="text-clay-deep">(필수)</span>
             </span>
           </label>
         )}

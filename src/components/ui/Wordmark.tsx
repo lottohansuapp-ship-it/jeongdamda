@@ -28,7 +28,10 @@ export function Wordmark({
   const style = SIZES[size];
 
   return (
+    // role="img" 없이 span 에 aria-label 을 붙이면 스크린리더가 무시한다.
+    // 안쪽 글자는 aria-hidden 이라, 이 이름이 없으면 상호가 아예 안 읽힌다.
     <Tag
+      role="img"
       className={`inline-flex items-center ${style.gap} ${className}`}
       aria-label="정, 담따 반찬가게"
     >

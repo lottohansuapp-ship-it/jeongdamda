@@ -1,7 +1,7 @@
 import { statusMeta } from "@/lib/orders";
 
 const TONE: Record<string, string> = {
-  wait: "bg-cream text-clay",
+  wait: "bg-cream text-clay-deep",
   live: "bg-olive-soft text-olive-deep",
   done: "bg-canvas text-ink-faint",
   dead: "bg-canvas text-ink-faint",

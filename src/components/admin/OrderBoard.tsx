@@ -231,7 +231,7 @@ function OrderCard({
             {order.order_no} · {formatOrderTime(order.created_at)}
           </p>
           <p className="pt-1 text-[15px]">
-            <span className={isDelivery ? "text-clay" : "text-olive-deep"}>
+            <span className={isDelivery ? "text-clay-deep" : "text-olive-deep"}>
               {fulfillmentLabel(order.fulfillment)}
             </span>
             <span className="pl-2">{order.receiver_name}</span>

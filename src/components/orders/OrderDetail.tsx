@@ -92,7 +92,7 @@ export function OrderDetail({ order }: { order: OrderWithItems }) {
               {deadline && (
                 <>
                   {" "}
-                  <strong className="font-normal text-clay">
+                  <strong className="font-normal text-clay-deep">
                     {deadline}
                   </strong>{" "}
                   까지 결제되지 않으면 자동으로 취소되고 재고가 매장으로 돌아가요.

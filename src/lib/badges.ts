@@ -30,16 +30,17 @@ export interface Badge {
  * 특정 컴포넌트에 두면 그 컴포넌트를 지울 때 다른 화면이 따라 깨진다.
  */
 export const BADGE_STYLE: Record<BadgeTone, string> = {
-  olive: "bg-olive text-white",
-  clay: "bg-white/95 text-clay",
+  // olive(#6B8E23) + 흰 글씨는 3.6:1 이라 10px 글자에 모자란다. olive-deep 은 5.1:1.
+  olive: "bg-olive-deep text-white",
+  clay: "bg-white/95 text-clay-deep",
   danger: "bg-danger text-white",
 };
 
 /** 사진 위가 아니라 흰 배경 위에 놓을 때. 대비를 다르게 준다. */
 export const BADGE_STYLE_INLINE: Record<BadgeTone, string> = {
   olive: "bg-olive-soft text-olive-deep",
-  clay: "bg-clay-soft text-clay",
-  danger: "bg-danger/10 text-danger",
+  clay: "bg-clay-soft text-clay-deep",
+  danger: "bg-danger/10 text-danger-deep",
 };
 
 /** 추천 캐러셀이 고르는 기준 */

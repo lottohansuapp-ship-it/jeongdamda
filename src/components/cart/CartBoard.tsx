@@ -137,7 +137,7 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
           return (
             <li
               key={line.product.id}
-              className={`rounded-card bg-white p-4 shadow-soft ${blocked ? "opacity-75" : ""}`}
+              className="rounded-card bg-white p-4 shadow-soft"
             >
               <div className="flex gap-3.5">
                 <Link
@@ -298,7 +298,7 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
             <div className="pb-3">
               <div className="flex items-baseline justify-between pb-1.5">
                 <span className="text-[13px]">
-                  <strong className="font-normal text-clay">
+                  <strong className="font-normal text-clay-deep">
                     {formatPrice(gap.short)}
                   </strong>{" "}
                   더 담으면 배달돼요

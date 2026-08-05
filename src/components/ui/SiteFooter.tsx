@@ -20,7 +20,7 @@ const POLICIES = [
 export function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-line pt-8 text-[12px] leading-relaxed text-ink-faint">
-      <Wordmark size="sm" className="opacity-70" />
+      <Wordmark size="sm" />
 
       <nav aria-label="약관" className="flex flex-wrap gap-x-4 gap-y-1.5 pt-4">
         {POLICIES.map(({ href, label }) => (

@@ -150,7 +150,7 @@ docs/PLAN.md                 # 설계 + 결정 기록 + 단계
 | `--color-cream` | `#FFF8F0` | Secondary surface |
 | `--color-clay` | `#C76B29` | Accent |
 | `--color-success` | `#3BA55D` | 재고 충분 |
-| `--color-danger` | `#E53935` | 품절 |
+| `--color-danger` | `#D32F2F` | 품절 |
 | `--color-canvas` | `#FAFAF8` | Background |
 | `--color-ink` | `#222222` | Text |
 

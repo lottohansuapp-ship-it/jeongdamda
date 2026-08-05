@@ -110,8 +110,9 @@ export function Carousel({ children, label }: CarouselProps) {
                 onClick={() => goTo(index)}
                 aria-label={`${index + 1}번째 반찬 보기`}
                 aria-current={index === active}
-                // 점은 작아도 누르는 자리는 넓게. 음수 마진 + 패딩으로 만든다.
-                className="group -m-1.5 p-1.5"
+                // 점은 작아도 누르는 자리는 24px 이상이어야 한다 (WCAG 2.2).
+                // 6px 점 + 상하 10px 패딩 = 26px.
+                className="group -my-2.5 p-2.5"
               >
                 <span
                   className={`block h-1.5 rounded-pill transition-[width,background-color] duration-300 ${

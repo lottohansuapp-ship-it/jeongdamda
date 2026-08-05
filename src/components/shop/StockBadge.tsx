@@ -1,7 +1,7 @@
 import { stockStatus, type StockLevel } from "@/lib/stock";
 
 const TONE: Record<StockLevel, string> = {
-  out: "bg-danger/8 text-danger",
+  out: "bg-danger/8 text-danger-deep",
   low: "bg-warn/12 text-[#a96f14]",
   plenty: "bg-success/10 text-[#2f8449]",
 };
@@ -23,7 +23,7 @@ export function StockBadge({ stock, showCount = false }: StockBadgeProps) {
       <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-current" />
       {status.label}
       {showCount && status.level !== "out" && (
-        <span className="opacity-70">{stock}개</span>
+        <span>{stock}개</span>
       )}
     </span>
   );

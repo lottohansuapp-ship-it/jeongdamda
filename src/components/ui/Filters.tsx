@@ -46,7 +46,7 @@ export function FilterTab({
 const ACTIVE = {
   neutral: "border-olive bg-olive-soft text-olive-deep",
   warn: "border-warn bg-warn/12 text-[#a96f14]",
-  danger: "border-danger bg-danger/10 text-danger",
+  danger: "border-danger bg-danger/10 text-danger-deep",
 } as const;
 
 export function FilterChip({
@@ -83,7 +83,7 @@ export function FilterChip({
       >
         {children}
         {count !== undefined && (
-          <span className="tabular-nums opacity-70">{count}</span>
+          <span className="tabular-nums">{count}</span>
         )}
       </span>
     </button>

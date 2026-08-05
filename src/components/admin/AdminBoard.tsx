@@ -54,7 +54,7 @@ function StoreInfoNotice() {
   return (
     <div className="mt-3 rounded-card bg-cream p-3.5">
       <p className="text-[13px] leading-relaxed">
-        결제를 켜기 전에 <strong className="font-normal text-clay">
+        결제를 켜기 전에 <strong className="font-normal text-clay-deep">
           {missing.join(" · ")}
         </strong>{" "}
         을(를) 등록해야 해요. 화면 아래쪽 사업자 정보에 &lsquo;미등록&rsquo;으로
