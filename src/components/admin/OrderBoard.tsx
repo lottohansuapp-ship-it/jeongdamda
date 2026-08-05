@@ -272,6 +272,18 @@ function OrderCard({
         </p>
       )}
 
+      {/*
+        취소된 주문은 누가 취소했는지가 먼저 궁금하다. 사장님이 취소할 때는
+        사유를 반드시 고르게 되어 있고, 손님이 취소하면 사유가 비어 있다.
+        그 빈칸을 그냥 두면 사장님은 자기가 취소한 건지 손님이 취소한 건지
+        헷갈린다. 빈칸을 말로 바꿔 준다.
+      */}
+      {order.status === "canceled" && (
+        <p className="mt-2.5 rounded-[12px] bg-danger/8 p-3 text-[13px] leading-relaxed text-danger-deep">
+          취소 · {order.cancel_reason ?? "손님이 직접 취소했어요"}
+        </p>
+      )}
+
       <p className="pt-3 text-[16px] tabular-nums tracking-tight">
         {formatPrice(order.total)}
         {isDelivery && order.delivery_fee > 0 && (
