@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { deleteProduct, updateProduct, uploadPhoto } from "@/lib/actions";
+import { shrinkPhoto } from "@/lib/image";
 import { BADGES, canAddBadge, toggleBadge } from "@/lib/badges";
 import { formatPrice } from "@/lib/format";
 import { stockStatus } from "@/lib/stock";
@@ -130,8 +131,14 @@ export function AdminRow({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // 휴대폰 사진은 3~5MB 다. 목록은 84px 썸네일로 쓰는데 원본을 그대로
+    // 올리면 반찬 60가지에 300MB 가 쌓이고, 매장에서 올리는 사장님 데이터도
+    // 그만큼 쓴다. 브라우저에서 줄여서 보낸다 — 실패하면 원본이 그대로 간다.
+    onNotice(`${product.name} · 사진 올리는 중…`);
+    const ready = await shrinkPhoto(file);
+
     const form = new FormData();
-    form.set("photo", file);
+    form.set("photo", ready);
     const result = await uploadPhoto(product.id, form);
     event.target.value = "";
 

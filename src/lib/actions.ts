@@ -163,6 +163,15 @@ export async function uploadPhoto(
   const extension = file.type.split("/")[1].replace("jpeg", "jpg");
   const path = `${productId}/${Date.now()}.${extension}`;
 
+  // 바꾸기 전 사진을 미리 알아 둔다. 경로에 시각이 들어가 매번 새 파일이
+  // 생기는데, photo_path 만 갈아 끼우면 예전 파일이 버킷에 영원히 남는다.
+  // 메뉴 사진을 몇 번만 바꿔도 안 쓰는 파일이 계속 쌓인다.
+  const { data: before } = await db
+    .from("products")
+    .select("photo_path")
+    .eq("id", productId)
+    .maybeSingle();
+
   const upload = await db.storage
     .from(PHOTO_BUCKET)
     .upload(path, file, { contentType: file.type, upsert: true });
@@ -175,6 +184,14 @@ export async function uploadPhoto(
     .eq("id", productId);
 
   if (error) return { ok: false, error: error.message };
+
+  // 새 사진이 확실히 자리를 잡은 뒤에 지운다. 먼저 지웠다가 업로드가 실패하면
+  // 사진이 아예 없어진다. 지우기가 실패해도 알리지 않는다 — 손님에게도
+  // 사장님에게도 보이지 않는 일이고, 새 사진은 이미 올라가 있다.
+  const previous = before?.photo_path;
+  if (previous && previous !== path) {
+    await db.storage.from(PHOTO_BUCKET).remove([previous]);
+  }
 
   updateTag(PRODUCTS_TAG);
   return { ok: true, data: { path } };
