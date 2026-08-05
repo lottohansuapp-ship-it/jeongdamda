@@ -93,11 +93,11 @@ begin
   raise notice 'purge_old_logs 를 매일 돌리도록 예약했습니다.';
 exception
   when others then
-    -- 이어 붙이는 조각마다 E 가 필요하다. 첫 조각에만 붙이면 나머지 \n 은
-    -- 줄바꿈이 아니라 글자 그대로 찍힌다.
-    raise notice E'pg_cron 을 쓸 수 없어 예약을 건너뛰었습니다 (%).\n'
-      E'  Supabase 대시보드 > Database > Extensions 에서 pg_cron 을 켠 뒤\n'
-      E'  이 파일을 다시 실행하세요. 그 전까지는 오래된 로그가 지워지지 않습니다.',
-      sqlerrm;
+    -- 한 줄씩 따로 띄운다. 문자열을 이어 붙이면 E 접두사를 어디에 붙이는지가
+    -- 문제가 되는데(둘째 조각부터는 붙이면 문법 오류다), 안내문 하나 띄우자고
+    -- 따질 일이 아니다. raise 를 세 번 하면 그런 규칙이 아예 사라진다.
+    raise notice 'pg_cron 을 쓸 수 없어 예약을 건너뛰었습니다 (%).', sqlerrm;
+    raise notice '  Supabase 대시보드 > Database > Extensions 에서 pg_cron 을 켜고';
+    raise notice '  이 파일을 다시 실행하세요. 그 전까지는 오래된 로그가 남습니다.';
 end;
 $$;
