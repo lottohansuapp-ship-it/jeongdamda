@@ -140,7 +140,7 @@ export function AddToCart({
         </div>
 
         {quantity >= ceiling && stock <= 5 && (
-          <p className="pt-2 text-center text-[12.5px] text-[#a96f14]">
+          <p className="pt-2 text-center text-[12.5px] text-clay-deep">
             {productName}은(는) 지금 {stock}개까지 담을 수 있어요
           </p>
         )}

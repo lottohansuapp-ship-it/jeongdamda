@@ -230,6 +230,9 @@ function KakaoButton({ next }: { next: string }) {
       <button
         type="submit"
         disabled={pending}
+        /* 카카오가 정한 색이라 토큰으로 올리지 않는다. 노란색 #FEE500 과
+           글자색 #191600 은 카카오 로그인 버튼 규정에 박혀 있어서, 우리 팔레트가
+           바뀌어도 따라 바뀌면 안 된다. 규정 위반이면 심사에서 걸린다. */
         className="flex h-12 w-full items-center justify-center gap-2 rounded-card bg-[#FEE500] text-[15px] text-[#191600] transition-opacity duration-200 hover:opacity-90 disabled:opacity-50"
       >
         <KakaoMark />

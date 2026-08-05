@@ -2,8 +2,8 @@ import { stockStatus, type StockLevel } from "@/lib/stock";
 
 const TONE: Record<StockLevel, string> = {
   out: "bg-danger/8 text-danger-deep",
-  low: "bg-warn/12 text-[#a96f14]",
-  plenty: "bg-success/10 text-[#2f8449]",
+  low: "bg-warn/12 text-clay-deep",
+  plenty: "bg-success/10 text-success-deep",
 };
 
 interface StockBadgeProps {

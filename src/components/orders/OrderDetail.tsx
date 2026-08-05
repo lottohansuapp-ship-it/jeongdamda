@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { isPaymentConfigured } from "@/lib/payments/config";
 import { ReorderButton } from "./ReorderButton";
 import { StatusPill } from "./StatusPill";
 import { cancelOrder } from "@/lib/order-actions";
@@ -51,7 +52,13 @@ export function OrderDetail({ order }: { order: OrderWithItems }) {
     <div className="pb-10">
       <section className="rounded-card bg-white p-5 shadow-soft">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+          {/*
+            사장님이 상태를 바꾸면 useLiveRefresh 가 이 화면을 다시 그린다.
+            그런데 안내가 없어서, 픽업 시간에 맞춰 화면을 열어 둔 손님은
+            "준비 완료" 로 바뀌어도 아무 소리를 못 들었다. 이 페이지의
+            존재 이유가 바로 그 알림이라 status 영역으로 감싼다.
+          */}
+          <div role="status" className="min-w-0">
             <p className="text-[12.5px] text-ink-faint">
               주문번호 {order.order_no}
             </p>
@@ -63,10 +70,19 @@ export function OrderDetail({ order }: { order: OrderWithItems }) {
           <StatusPill status={order.status} />
         </div>
 
+        {/*
+          pending_payment 는 결제를 안 켠 지금만 나오는 상태가 아니다.
+          결제를 켜도 나온다 — 모바일 간편결제는 리다이렉트 방식이라 손님이
+          돈을 내고 이 화면에 도착했는데 웹훅이 아직 안 왔을 수 있다.
+          그때 "결제 기능은 준비 중" 이 뜨면 방금 결제한 손님이 놀란다.
+          켜는 날 고칠 코드를 남기지 않는다는 원칙(D16)에도 어긋난다.
+        */}
         {order.status === "pending_payment" && (
           <div className="mt-4 rounded-[12px] bg-cream p-3.5">
             <p className="text-[13px] leading-relaxed">
-              결제 기능은 준비 중이에요. 지금은 주문만 접수된 상태예요.
+              {isPaymentConfigured()
+                ? "결제를 확인하고 있어요. 잠시만 기다려 주세요."
+                : "결제 기능은 준비 중이에요. 지금은 주문만 접수된 상태예요."}
               {deadline && (
                 <>
                   {" "}
@@ -206,7 +222,11 @@ function Progress({
   return (
     <ol className="mt-5 flex gap-1.5">
       {steps.map((step, index) => (
-        <li key={step} className="flex-1">
+        <li
+          key={step}
+          className="flex-1"
+          aria-current={index === current ? "step" : undefined}
+        >
           <span
             aria-hidden
             className={`block h-1 rounded-pill transition-colors duration-300 ${
@@ -214,7 +234,7 @@ function Progress({
             }`}
           />
           <span
-            className={`block pt-1.5 text-center text-[10.5px] ${
+            className={`block pt-1.5 text-center text-[12px] ${
               index <= current ? "text-olive-deep" : "text-ink-faint"
             }`}
           >

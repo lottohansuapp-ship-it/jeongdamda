@@ -59,7 +59,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
             영업 설정
           </h2>
           <span
-            className={`text-[12.5px] ${openState.open ? "text-[#2f8449]" : "text-danger"}`}
+            className={`text-[12.5px] ${openState.open ? "text-success-deep" : "text-danger"}`}
           >
             {openState.open
               ? "지금 주문 받는 중"

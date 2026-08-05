@@ -45,7 +45,7 @@ export function FilterTab({
 
 const ACTIVE = {
   neutral: "border-olive bg-olive-soft text-olive-deep",
-  warn: "border-warn bg-warn/12 text-[#a96f14]",
+  warn: "border-warn bg-warn/12 text-clay-deep",
   danger: "border-danger bg-danger/10 text-danger-deep",
 } as const;
 

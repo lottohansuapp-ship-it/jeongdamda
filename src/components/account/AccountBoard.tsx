@@ -122,7 +122,7 @@ export function AccountBoard({ profile, addresses }: AccountBoardProps) {
         </h2>
         <form action={onProfileSubmit} className="space-y-2.5">
           <label className="block">
-            <span className="block pb-1 text-[12px] text-ink-faint">이름</span>
+            <span className="block pb-1 text-[13px] text-ink-soft">이름</span>
             <input
               name="name"
               required
@@ -132,15 +132,16 @@ export function AccountBoard({ profile, addresses }: AccountBoardProps) {
             />
           </label>
           <label className="block">
-            <span className="block pb-1 text-[12px] text-ink-faint">
+            <span className="block pb-1 text-[13px] text-ink-soft">
               휴대폰 번호
             </span>
             <input
               name="phone"
               type="tel"
+              required
               inputMode="numeric"
               defaultValue={profile.phone ?? ""}
-              placeholder="010-1234-5678"
+              placeholder="01012345678"
               className={FIELD}
               autoComplete="tel"
             />
@@ -315,7 +316,7 @@ function AddressForm({
       <p className="text-[15px]">{address ? "배송지 수정" : "새 배송지"}</p>
 
       <div>
-        <span className="block pb-1 text-[12px] text-ink-faint">
+        <span className="block pb-1 text-[13px] text-ink-soft">
           주소 <span className="text-danger">*</span> 검색으로만 입력할 수 있어요
         </span>
         <button
@@ -361,7 +362,7 @@ function AddressForm({
           type="checkbox"
           name="is_default"
           defaultChecked={address?.is_default ?? false}
-          className="h-5 w-5 accent-[#6B8E23]"
+          className="h-5 w-5 accent-olive"
         />
         <span className="text-[14px] text-ink-soft">기본 배송지로 설정</span>
       </label>

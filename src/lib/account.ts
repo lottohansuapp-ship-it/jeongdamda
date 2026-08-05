@@ -20,8 +20,20 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
 
   if (!name) return { ok: false, error: "이름을 입력해 주세요." };
 
-  const phone = rawPhone ? normalizePhone(rawPhone) : null;
-  if (rawPhone && !phone) {
+  /**
+   * 전화번호를 비운 채로 저장할 수 없다.
+   *
+   * 예전에는 빈 값이면 조용히 null 로 저장했다. 그런데 주문에는 연락처가
+   * 반드시 필요해서, 다음에 주문하려는 순간 "가입 마무리" 화면으로 튕겼다.
+   * 이름만 고치려다 실수로 번호를 지운 손님은 왜 갑자기 그 화면이 뜨는지
+   * 알 수가 없다. 지우는 그 자리에서 막는다.
+   */
+  if (!rawPhone) {
+    return { ok: false, error: "휴대폰 번호를 입력해 주세요." };
+  }
+
+  const phone = normalizePhone(rawPhone);
+  if (!phone) {
     return { ok: false, error: "휴대폰 번호를 다시 확인해 주세요." };
   }
 

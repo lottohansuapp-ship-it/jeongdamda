@@ -147,7 +147,7 @@ export function OrderBoard({
         </nav>
 
         {truncated && (
-          <p className="pt-2.5 text-[12.5px] leading-relaxed text-[#a96f14]">
+          <p className="pt-2.5 text-[12.5px] leading-relaxed text-clay-deep">
             주문이 많아 일부만 보여드리고 있어요. 기간을 좁히면 전부 보입니다.
           </p>
         )}
@@ -293,7 +293,13 @@ function OrderCard({
         )}
       </p>
 
-      {(next.length > 0 || canAdminCancel(order.status)) && (
+      {/*
+        취소를 접수 버튼 옆에 두지 않는다.
+        아침에 주문 열 건을 연달아 접수하다 8px 옆으로 한 번 빗나가면
+        재고가 돌아가고 손님 화면에 "취소됨" 이 뜬다. 되돌릴 수 없는 동작은
+        연타하는 손가락의 궤적에서 비켜 있어야 한다. 줄을 나누고 무게도 낮춘다.
+      */}
+      {next.length > 0 && (
         <div className="flex gap-2 pt-3.5">
           {next.map((to) => (
             <button
@@ -306,16 +312,19 @@ function OrderCard({
               {statusMeta(to).label}
             </button>
           ))}
-          {canAdminCancel(order.status) && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setPicking(true)}
-              className="tap-target shrink-0 rounded-card border border-line px-4 text-[14px] text-ink-faint transition-colors duration-200 hover:border-danger hover:text-danger disabled:opacity-40"
-            >
-              취소
-            </button>
-          )}
+        </div>
+      )}
+
+      {canAdminCancel(order.status) && !picking && (
+        <div className="flex justify-end pt-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setPicking(true)}
+            className="flex min-h-[44px] items-center px-3 text-[13px] text-ink-faint underline underline-offset-4 transition-colors duration-200 hover:text-danger disabled:opacity-40"
+          >
+            주문 취소
+          </button>
         </div>
       )}
 
@@ -334,7 +343,7 @@ function OrderCard({
                   setPicking(false);
                   onCancel(reason);
                 }}
-                className="rounded-pill border border-line bg-white px-3 py-2 text-[12.5px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger disabled:opacity-40"
+                className="flex min-h-[44px] items-center rounded-pill border border-line bg-white px-3.5 text-[13px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger disabled:opacity-40"
               >
                 {reason}
               </button>
@@ -342,7 +351,7 @@ function OrderCard({
             <button
               type="button"
               onClick={() => setPicking(false)}
-              className="rounded-pill px-3 py-2 text-[12.5px] text-ink-faint"
+              className="flex min-h-[44px] items-center rounded-pill px-3.5 text-[13px] text-ink-faint"
             >
               그만두기
             </button>

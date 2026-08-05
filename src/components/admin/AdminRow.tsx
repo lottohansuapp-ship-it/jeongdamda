@@ -12,8 +12,8 @@ const COMMIT_DELAY_MS = 500;
 
 const TONE = {
   out: "text-danger",
-  low: "text-[#a96f14]",
-  plenty: "text-[#2f8449]",
+  low: "text-clay-deep",
+  plenty: "text-success-deep",
 } as const;
 
 interface AdminRowProps {

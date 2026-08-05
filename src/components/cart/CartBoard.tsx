@@ -289,7 +289,7 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
             </p>
           )}
           {view.blockingIssues > 0 && (
-            <p className="pb-2 text-[12.5px] text-[#a96f14]">
+            <p className="pb-2 text-[12.5px] text-clay-deep">
               주문할 수 없는 상품 {view.blockingIssues}개를 먼저 정리해 주세요
             </p>
           )}
