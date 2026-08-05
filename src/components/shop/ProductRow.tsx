@@ -24,7 +24,7 @@ export function ProductRow({ product }: { product: ProductWithCategory }) {
 
   return (
     <article
-      className="relative flex gap-3.5 rounded-card bg-white p-3.5 shadow-soft transition-shadow duration-200 hover:shadow-lift"
+      className="defer-offscreen relative flex gap-3.5 rounded-card bg-white p-3.5 shadow-soft transition-shadow duration-200 hover:shadow-lift"
     >
       <div className="relative h-[84px] w-[84px] shrink-0 overflow-hidden rounded-[12px]">
         <ProductPhoto
