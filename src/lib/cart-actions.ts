@@ -101,6 +101,89 @@ export async function setCartQuantity(
   return { ok: true, data: undefined };
 }
 
+/**
+ * 지난 주문 그대로 다시 담기.
+ *
+ * 반찬가게 매출은 단골 재구매에서 나온다. 매번 같은 대여섯 가지를 고르려고
+ * 목록을 훑는 건 손님에게 가장 지루한 일이다.
+ *
+ * 장바구니를 비우지 않고 **더한다.** 뭔가 담아둔 채로 눌렀을 때 그게 사라지면
+ * 손님은 무엇을 잃었는지 모른다.
+ *
+ * 오늘 없는 반찬은 조용히 빼지 않고 몇 개가 빠졌는지 알린다 —
+ * 말없이 빼면 손님은 지난번과 다른 걸 받게 된다.
+ */
+export async function reorder(
+  orderId: string,
+): Promise<ActionResult<{ added: number; skipped: number }>> {
+  const session = await authed();
+  if (!session) return { ok: false, error: "로그인이 필요합니다." };
+
+  // 남의 주문은 RLS 가 0행으로 막는다. 여기서 권한을 다시 따질 필요가 없다.
+  const { data, error } = await session.db
+    .from("order_items")
+    .select("product_id, quantity, order:orders!inner(id)")
+    .eq("order_id", orderId);
+
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: "주문을 찾을 수 없어요." };
+  }
+
+  const wanted = (
+    data as unknown as { product_id: string | null; quantity: number }[]
+  ).filter((row): row is { product_id: string; quantity: number } =>
+    Boolean(row.product_id),
+  );
+
+  // 지금 살 수 있는 것만 남긴다. 판매를 껐거나 지운 상품은 RLS 가 감춘다.
+  const { data: alive } = await session.db
+    .from("products")
+    .select("id")
+    .in(
+      "id",
+      wanted.map((row) => row.product_id),
+    )
+    .eq("today_available", true);
+
+  const available = new Set((alive ?? []).map((row) => row.id));
+  const rows = wanted.filter((row) => available.has(row.product_id));
+  const skipped = data.length - rows.length;
+
+  if (rows.length === 0) {
+    return { ok: false, error: "지난번에 담으신 반찬이 오늘은 없어요." };
+  }
+
+  // 이미 담긴 것과 합친다. 그래서 그냥 덮지 않고 기존 수량을 읽어 더한다.
+  const { data: current } = await session.db
+    .from("cart_items")
+    .select("product_id, quantity")
+    .eq("user_id", session.userId);
+
+  const already = new Map(
+    (current ?? []).map((row) => [
+      row.product_id as string,
+      row.quantity as number,
+    ]),
+  );
+
+  const { error: writeError } = await session.db.from("cart_items").upsert(
+    rows.map((row) => ({
+      user_id: session.userId,
+      product_id: row.product_id,
+      quantity: Math.min(
+        MAX_PER_ITEM,
+        (already.get(row.product_id) ?? 0) + row.quantity,
+      ),
+    })),
+    { onConflict: "user_id,product_id" },
+  );
+
+  if (writeError) return { ok: false, error: writeError.message };
+
+  return { ok: true, data: { added: rows.length, skipped } };
+}
+
 export async function clearCart(): Promise<ActionResult> {
   const session = await authed();
   if (!session) return { ok: false, error: "로그인이 필요합니다." };

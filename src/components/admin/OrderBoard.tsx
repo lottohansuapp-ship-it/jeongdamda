@@ -24,6 +24,17 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "all", label: "전체" },
 ];
 
+/**
+ * 취소 사유. 손님 주문내역에 그대로 보이므로 손님이 읽을 말로 쓴다.
+ * 예전에는 "매장에서 취소" 하나로 고정이라, 손님은 왜 취소됐는지 알 수 없었다.
+ */
+const CANCEL_REASONS = [
+  "재료가 떨어졌어요",
+  "오늘 영업이 어려워요",
+  "주문하신 수량을 준비하기 어려워요",
+  "손님 요청으로 취소",
+] as const;
+
 const RANGE_LABEL: Record<string, string> = {
   today: "오늘",
   week: "7일",
@@ -185,10 +196,8 @@ export function OrderBoard({
               onAdvance={(to) =>
                 run(order, to, () => advanceOrder(order.id, to))
               }
-              onCancel={() =>
-                run(order, "canceled", () =>
-                  cancelOrder(order.id, "매장에서 취소"),
-                )
+              onCancel={(reason) =>
+                run(order, "canceled", () => cancelOrder(order.id, reason))
               }
             />
           ))}
@@ -207,8 +216,9 @@ function OrderCard({
   order: OrderWithItems;
   busy: boolean;
   onAdvance: (to: string) => void;
-  onCancel: () => void;
+  onCancel: (reason: string) => void;
 }) {
+  const [picking, setPicking] = useState(false);
   const isDelivery = order.fulfillment === "delivery";
   // 지금 누를 수 있는 버튼은 규칙이 정한다. 안 쓰는 버튼은 아예 그리지 않는다.
   const next = nextStatuses(order.status, order.fulfillment);
@@ -288,14 +298,43 @@ function OrderCard({
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                if (confirm("주문을 취소할까요? 재고는 되돌아갑니다.")) onCancel();
-              }}
+              onClick={() => setPicking(true)}
               className="tap-target shrink-0 rounded-card border border-line px-4 text-[14px] text-ink-faint transition-colors duration-200 hover:border-danger hover:text-danger disabled:opacity-40"
             >
               취소
             </button>
           )}
+        </div>
+      )}
+
+      {picking && (
+        <div className="mt-2.5 rounded-[12px] border border-danger/30 bg-danger/5 p-3">
+          <p className="pb-2 text-[12.5px] text-ink-soft">
+            취소 사유를 골라 주세요. 손님 주문내역에 그대로 보입니다.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {CANCEL_REASONS.map((reason) => (
+              <button
+                key={reason}
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setPicking(false);
+                  onCancel(reason);
+                }}
+                className="rounded-pill border border-line bg-white px-3 py-2 text-[12.5px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger disabled:opacity-40"
+              >
+                {reason}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setPicking(false)}
+              className="rounded-pill px-3 py-2 text-[12.5px] text-ink-faint"
+            >
+              그만두기
+            </button>
+          </div>
         </div>
       )}
     </li>
