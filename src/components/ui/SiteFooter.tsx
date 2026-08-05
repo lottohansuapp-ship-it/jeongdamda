@@ -22,12 +22,15 @@ export function SiteFooter() {
     <footer className="mt-16 border-t border-line pt-8 text-[12px] leading-relaxed text-ink-faint">
       <Wordmark size="sm" />
 
-      <nav aria-label="약관" className="flex flex-wrap gap-x-4 gap-y-1.5 pt-4">
+      {/* 글자만 두면 높이가 20px 라 어르신 손가락으로 맞추기 어렵다.
+          위아래 여백으로 누르는 자리를 44px 로 넓힌다 — 글자 크기와 줄 배치는
+          그대로다. 법으로 걸어 둔 링크일수록 닿을 수 있어야 한다. */}
+      <nav aria-label="약관" className="flex flex-wrap gap-x-4 pt-2">
         {POLICIES.map(({ href, label }) => (
           <Link
             key={href}
             href={href}
-            className="text-[12.5px] text-ink-soft underline underline-offset-4"
+            className="flex min-h-[44px] items-center text-[12.5px] text-ink-soft underline underline-offset-4"
           >
             {label}
           </Link>
@@ -43,14 +46,16 @@ export function SiteFooter() {
         ))}
       </dl>
 
-      <p className="pt-4">
+      {/* "전화로 주세요" 라고 안내하면서 정작 그 번호가 19px 이었다.
+          어르신이 가장 자주 누를 링크라 글자도 키우고 자리도 넓힌다. */}
+      <p className="pt-2">
         <a
           href={`tel:${STORE_INFO.phone}`}
-          className="underline underline-offset-4"
+          className="inline-flex min-h-[44px] items-center pr-2 text-[14px] text-ink-soft underline underline-offset-4"
         >
           {STORE_INFO.phone}
         </a>
-        {" · 문의는 영업시간 안에 전화로 주세요"}
+        <span className="block">문의는 영업시간 안에 전화로 주세요</span>
       </p>
 
       <p className="pt-3">
@@ -58,8 +63,11 @@ export function SiteFooter() {
         상품과 거래에 대한 책임을 집니다.
       </p>
 
-      <p className="pt-4">
-        <Link href="/admin" className="underline underline-offset-4">
+      <p>
+        <Link
+          href="/admin"
+          className="inline-flex min-h-[44px] items-center pr-2 underline underline-offset-4"
+        >
           사장님 로그인
         </Link>
       </p>

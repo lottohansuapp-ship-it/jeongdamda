@@ -175,7 +175,7 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
                           () => removeFromCart(line.product.id),
                         )
                       }
-                      className="shrink-0 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
+                      className="-my-3.5 -mr-2 flex min-h-[48px] shrink-0 items-center px-2 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
                     >
                       삭제
                     </button>
@@ -250,7 +250,7 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
               type="button"
               disabled={pending}
               onClick={() => run(rows, () => removeFromCart(id))}
-              className="shrink-0 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
+              className="-my-3.5 -mr-2 flex min-h-[48px] shrink-0 items-center px-2 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
             >
               빼기
             </button>

@@ -33,7 +33,7 @@ export function BottomNav({ active }: { active: NavTab }) {
               <Link
                 href={href}
                 aria-current={on ? "page" : undefined}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[11px] transition-colors duration-200 ${
+                className={`flex flex-col items-center gap-1 py-2.5 text-[12.5px] transition-colors duration-200 ${
                   on ? "text-olive-deep" : "text-ink-faint"
                 }`}
               >
