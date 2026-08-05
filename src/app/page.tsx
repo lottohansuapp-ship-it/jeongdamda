@@ -11,6 +11,19 @@ export default async function HomePage() {
 
   return (
     <>
+    {/*
+      반찬 60줄 × (이름 링크 + 담기 버튼) 이라 하단 탭까지 탭 정지점이 약 120개다.
+      스크린리더는 랜드마크로 건너뛸 수 있지만, 스크린리더를 안 쓰는
+      키보드·스위치 사용자에게는 이 링크가 유일한 지름길이다.
+      긴 목록이 있는 화면은 여기뿐이라 전역이 아니라 홈에만 둔다 —
+      하단 탭이 없는 화면(로그인·약관)에 두면 가리킬 곳이 없는 링크가 된다.
+    */}
+    <a
+      href="#main-nav"
+      className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-card focus:bg-ink focus:px-4 focus:py-3 focus:text-[14px] focus:text-white"
+    >
+      메뉴로 건너뛰기
+    </a>
     <main className="mx-auto w-full max-w-[1120px] flex-1 px-5 pb-10">
       <header className="pb-5 pt-9">
         <Wordmark as="h1" size="lg" />

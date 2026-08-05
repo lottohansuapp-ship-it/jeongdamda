@@ -35,19 +35,6 @@ export default function RootLayout({
   return (
     <html lang="ko" className="h-full antialiased">
       <body className="flex min-h-full flex-col bg-canvas text-ink">
-        {/*
-          홈에서 하단 탭까지 가려면 반찬 60줄 × (이름 링크 + 담기 버튼) 을
-          지나야 한다 — 탭을 120번 눌러야 주문내역으로 갈 수 있었다.
-          스크린리더는 랜드마크로 건너뛸 수 있지만, 스크린리더를 안 쓰는
-          키보드·스위치 사용자에게는 이 링크가 유일한 지름길이다.
-          평소엔 안 보이고 탭으로 닿았을 때만 나타난다.
-        */}
-        <a
-          href="#main-nav"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-card focus:bg-ink focus:px-4 focus:py-3 focus:text-[14px] focus:text-white"
-        >
-          메뉴로 건너뛰기
-        </a>
         {children}
       </body>
     </html>
