@@ -10,11 +10,17 @@ export function StoreNotice({ notice }: { notice: string | null }) {
   const text = notice?.trim();
   if (!text) return null;
 
+  // role="status" 였는데 이건 페이지가 열릴 때부터 있는 정적 공지다.
+  // 주문 상세·관리자는 15~60초마다 화면을 다시 그리는데, 그때마다
+  // 바뀌지도 않은 공지를 다시 읽을 수 있다. aside 가 뜻에 맞다.
   return (
-    <div role="status" className="flex gap-2.5 rounded-card bg-cream px-4 py-3.5">
+    <aside
+      aria-label="매장 공지"
+      className="flex gap-2.5 rounded-card bg-cream px-4 py-3.5"
+    >
       <SpeakerIcon />
       <p className="min-w-0 flex-1 text-[13.5px] leading-relaxed">{text}</p>
-    </div>
+    </aside>
   );
 }
 

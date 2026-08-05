@@ -19,6 +19,9 @@ export default function OrderPage({ params }: PageProps) {
   return (
     <>
       <main className="mx-auto w-full max-w-[560px] flex-1 px-5 pt-6">
+        {/* 앱에서 유일하게 h1 이 없던 화면이다. 제목으로 훑는 손님은
+            "배송 정보"(h2)부터 만나 어느 주문인지 알 수 없었다. */}
+        <h1 className="sr-only">주문 상세</h1>
         <Suspense fallback={<Skeleton />}>
           <OrderBody params={params} />
         </Suspense>

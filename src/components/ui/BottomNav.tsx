@@ -22,6 +22,7 @@ export function BottomNav({ active }: { active: NavTab }) {
   return (
     <nav
       aria-label="주요 메뉴"
+      id="main-nav"
       className="sticky bottom-0 z-30 mt-auto border-t border-line bg-white/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
     >
       <ul className="mx-auto flex max-w-[560px]">

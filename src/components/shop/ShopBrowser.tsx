@@ -129,7 +129,11 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
               ? categories.find((c) => c.slug === filters.categorySlug)?.name
               : "전체 반찬"}
           </h2>
-          <span className="text-[13px] text-ink-soft">{visible.length}가지</span>
+          {/* 카테고리를 고르거나 검색어를 치면 목록이 바뀌는데 아무 안내가 없었다.
+              결과가 몇 가지인지 읽히면 화면을 처음부터 다시 훑지 않아도 된다. */}
+          <span role="status" className="text-[13px] text-ink-soft">
+            {visible.length}가지
+          </span>
         </div>
 
         {visible.length === 0 ? (
