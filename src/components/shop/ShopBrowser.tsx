@@ -77,11 +77,23 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
             />
           </label>
 
-          {/* 메인 카테고리 — 무엇을 보고 있는지 정하는 자리라 가장 진하게.
-              고르지 않은 것은 배경 없이 글자만 남겨 한 줄이 가볍게 보이게 한다. */}
+          {/*
+            메인 카테고리 — 무엇을 보고 있는지 정하는 자리라 가장 진하게.
+            고르지 않은 것은 배경 없이 글자만 남긴다.
+
+            가로로 밀지 않고 접는다. 카테고리가 9개인데 예전 여백(px-3.5)으로는
+            줄 폭이 527px 이라 화면(390px)을 넘어, 뒤쪽 셋은 손가락으로 밀어야만
+            보였다. 좌우 여백을 6px 로 좁히니 360px 이상에서는 아홉 개가 한 줄에
+            들어간다. 글자 크기는 14px 그대로 뒀다 — 어르신이 읽을 수 있게
+            키워 둔 것을 여백 때문에 되돌릴 수는 없다.
+
+            320px 기기에서는 두 줄로 접힌다. 밀어서 찾는 것보다 접혀 보이는 편이
+            낫고, 이 폭에서 아홉 개를 한 줄에 넣으려면 글자를 줄이는 수밖에 없다.
+            좁아진 뒤에도 누르는 자리는 24×44px 로 기준을 지킨다.
+          */}
           <div
             aria-label="카테고리"
-            className="no-scrollbar -mx-5 mt-2.5 flex gap-1 overflow-x-auto px-5"
+            className="-mx-1 mt-2.5 flex flex-wrap gap-x-0.5 gap-y-0"
           >
             <FilterTab
               active={filters.categorySlug === null}

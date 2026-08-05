@@ -38,7 +38,7 @@ export function FilterTab({
       className="group shrink-0 py-[7px]"
     >
       <span
-        className={`block rounded-[10px] px-3.5 py-2 text-[14px] leading-none transition-colors duration-200 ${
+        className={`block rounded-[10px] px-1.5 py-2 text-[14px] leading-none transition-colors duration-200 ${
           active
             ? "bg-ink text-white"
             : "text-ink-soft group-hover:bg-white group-hover:text-ink"
