@@ -23,10 +23,17 @@ export function FilterTab({
   children: React.ReactNode;
 }) {
   return (
+    /*
+      role="tab" 을 쓰지 않는다.
+      탭 위젯이라고 알리면 스크린리더는 화살표 키로 옮기는 것으로 처리하는데,
+      여기엔 tabpanel 도 aria-controls 도 화살표 처리도 없다. 실제로는
+      화살표가 안 먹고 Tab 키로 하나씩 지나가야 해서, 위젯이 고장 난 줄 알고
+      화면을 나가게 된다. 하는 일은 목록을 거르는 것이니 누른 버튼으로 알린다.
+      바로 아래 FilterChip 도 같은 방식이라 둘이 어긋나지도 않는다.
+    */
     <button
       type="button"
-      role="tab"
-      aria-selected={active}
+      aria-pressed={active}
       onClick={onClick}
       className="group shrink-0 py-[7px]"
     >

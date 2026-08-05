@@ -80,7 +80,6 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
           {/* 메인 카테고리 — 무엇을 보고 있는지 정하는 자리라 가장 진하게.
               고르지 않은 것은 배경 없이 글자만 남겨 한 줄이 가볍게 보이게 한다. */}
           <div
-            role="tablist"
             aria-label="카테고리"
             className="no-scrollbar -mx-5 mt-2.5 flex gap-1 overflow-x-auto px-5"
           >

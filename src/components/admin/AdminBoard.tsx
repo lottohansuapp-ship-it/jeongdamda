@@ -346,7 +346,6 @@ export function AdminBoard({
         {/* 손님 화면과 같은 칩을 쓴다. 사장님이 두 화면을 오갈 때 다른 앱처럼
             느껴지면 안 된다. */}
         <div
-          role="tablist"
           aria-label="카테고리"
           className="no-scrollbar -mx-5 mt-2.5 flex gap-1 overflow-x-auto px-5"
         >

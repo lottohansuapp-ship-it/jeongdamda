@@ -56,6 +56,16 @@ html {
   background: var(--color-canvas);
   color: var(--color-ink);
   -webkit-tap-highlight-color: transparent;
+
+  /*
+   * 아래에 고정 바가 떠 있는 화면(상세·장바구니·주문서)에서 탭으로 내려가면
+   * 포커스가 그 바 밑으로 숨었다. 키보드로 쓰는 손님은 지금 어디에 있는지
+   * 안 보인 채로 엔터를 누르게 된다.
+   *
+   * 브라우저가 포커스를 화면 안으로 끌어올 때 아래쪽에 이만큼을 비워 둔다.
+   * 세 화면의 바가 각각 157~220px 이라 넉넉히 220px 로 잡았다.
+   */
+  scroll-padding-bottom: 220px;
 }
 
 body {

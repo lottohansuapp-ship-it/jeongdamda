@@ -102,9 +102,12 @@ export function AddToCart({
             >
               −
             </Step>
-            <span className="min-w-[2.25rem] text-center text-[16px] tabular-nums">
+            <output
+              aria-live="polite"
+              className="min-w-[2.25rem] text-center text-[16px] tabular-nums"
+            >
               {quantity}
-            </span>
+            </output>
             <Step
               label="수량 늘리기"
               onClick={() => bump(1)}

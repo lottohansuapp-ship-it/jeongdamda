@@ -72,7 +72,7 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
 
   useEffect(() => {
     if (!error) return;
-    const id = setTimeout(() => setError(null), 2600);
+    const id = setTimeout(() => setError(null), 6000);
     return () => clearTimeout(id);
   }, [error]);
 
@@ -208,9 +208,14 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
                       >
                         −
                       </Step>
-                      <span className="min-w-[2rem] text-center text-[15px] tabular-nums">
+                      {/* 버튼 이름은 계속 "수량 늘리기" 라서, 세 번 눌러도 지금이
+                          몇 개인지 알 방법이 없었다. 금액이 걸린 숫자는 바뀌면 읽혀야 한다. */}
+                      <output
+                        aria-live="polite"
+                        className="min-w-[2rem] text-center text-[15px] tabular-nums"
+                      >
                         {line.quantity}
-                      </span>
+                      </output>
                       <Step
                         label="수량 늘리기"
                         disabled={line.quantity >= ceiling}

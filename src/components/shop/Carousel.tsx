@@ -72,6 +72,9 @@ export function Carousel({ children, label }: CarouselProps) {
       <div
         ref={railRef}
         onScroll={handleScroll}
+        // role 없는 div 에 aria-label 을 붙이면 무시된다 — 워드마크에서 고쳤던 것과
+        // 같은 실수가 여기 남아 있었다. "오늘의 추천" 이라는 이름이 아무 데도 안 읽혔다.
+        role="group"
         aria-label={label}
         /**
          * scroll-pl-5 가 없으면 첫 카드가 화면 왼쪽에 딱 붙는다.

@@ -73,7 +73,7 @@ export function AccountBoard({ profile, addresses }: AccountBoardProps) {
 
   useEffect(() => {
     if (!toast) return;
-    const id = setTimeout(() => setToast(null), 2600);
+    const id = setTimeout(() => setToast(null), 6000);
     return () => clearTimeout(id);
   }, [toast]);
 
