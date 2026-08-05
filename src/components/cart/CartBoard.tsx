@@ -340,15 +340,29 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
             </span>
           </div>
 
-          {/* 막힌 항목이 있으면 아예 못 넘어가게 한다. 주문서에서 되돌아오면 손님만 헛걸음한다. */}
+          {/* 막힌 항목이 있으면 아예 못 넘어가게 한다. 주문서에서 되돌아오면 손님만 헛걸음한다.
+              다만 disabled 로 두면 키보드로 훑는 손님은 버튼이 있다는 것도 모르고,
+              왜 못 넘어가는지도 모른 채 끝난다. 이유를 버튼에 묶어 둔다. */}
           {view.blockingIssues > 0 || view.subtotal <= 0 ? (
-            <button
-              type="button"
-              disabled
-              className="tap-target w-full cursor-not-allowed rounded-card bg-olive text-[15px] text-white opacity-40"
-            >
-              주문서 작성하기
-            </button>
+            <>
+              <p
+                id="cart-blocked"
+                role="status"
+                className="pb-2.5 text-[13px] leading-relaxed text-clay-deep"
+              >
+                {view.subtotal <= 0
+                  ? "담긴 반찬이 없어요."
+                  : `주문할 수 없는 상품 ${view.blockingIssues}개를 먼저 정리해 주세요.`}
+              </p>
+              <button
+                type="button"
+                aria-disabled
+                aria-describedby="cart-blocked"
+                className="tap-target w-full cursor-not-allowed rounded-card bg-olive text-[15px] text-white opacity-40"
+              >
+                주문서 작성하기
+              </button>
+            </>
           ) : (
             <Link
               href="/checkout"

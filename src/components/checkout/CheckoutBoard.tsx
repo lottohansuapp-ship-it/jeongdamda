@@ -359,22 +359,44 @@ export function CheckoutBoard({
             </div>
           </dl>
 
+          {/*
+            막힌 이유는 반드시 읽혀야 한다. 예전에는 error 일 때만 role 을 줘서
+            "픽업 시간을 선택해 주세요" 나 "3,000원 더 담으면 배달돼요" 같은
+            **주문을 막고 있는 이유**가 스크린리더에 전혀 안내되지 않았다.
+            오류는 alert(즉시), 안내는 status(하던 말이 끝난 뒤)로 나눈다.
+          */}
           {(error || blocked) && (
             <p
-              role={error ? "alert" : undefined}
+              id="checkout-blocked"
+              role={error ? "alert" : "status"}
               className={`pb-2.5 text-[13px] leading-relaxed ${
-                error ? "text-danger" : "text-[#a96f14]"
+                error ? "text-danger" : "text-clay-deep"
               }`}
             >
               {error ?? blocked}
             </p>
           )}
 
+          {/*
+            disabled 를 쓰지 않는다. disabled 버튼은 탭 순서에서 빠져서,
+            키보드로 훑는 손님은 결제 버튼이 있다는 것조차 모른 채 페이지
+            끝에 닿는다. 주문을 못 한다는 것만 알고 이유는 모른 채 나가게 된다.
+            aria-disabled 로 "지금은 못 누른다" 를 알리되 찾을 수는 있게 하고,
+            describedby 로 이유를 버튼에 묶는다. 실제 방어는 핸들러에서 한다.
+          */}
           <button
             type="button"
-            disabled={pending || blocked !== null}
-            onClick={submit}
-            className="tap-target w-full rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:cursor-not-allowed disabled:opacity-40"
+            aria-disabled={pending || blocked !== null}
+            aria-describedby={blocked ? "checkout-blocked" : undefined}
+            onClick={() => {
+              if (pending || blocked !== null) return;
+              submit();
+            }}
+            className={`tap-target w-full rounded-card bg-olive text-[15px] text-white transition-colors duration-200 ${
+              pending || blocked !== null
+                ? "cursor-not-allowed opacity-40"
+                : "hover:bg-olive-deep"
+            }`}
           >
             {pending
               ? "주문 확인 중…"
