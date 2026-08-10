@@ -49,8 +49,7 @@ export const STORE_INFO: StoreInfo = {
   address:
     "서울특별시 성북구 오패산로 46, 주상가동 117호(하월곡동, 월곡두산위브아파트)",
   phone: "02-6953-8086",
-  // 손님 문의를 받을 주소. 아직 못 받았다.
-  email: "",
+  email: "jeongdamtta@gmail.com",
   // 1인 사업자라 대표자가 맡는다. 따로 두시면 그때 바꾼다.
   privacyOfficer: "노재순",
   // 확인함(2026-08-04): Supabase 프로젝트도 Vercel 함수(icn1)도 서울이다.
