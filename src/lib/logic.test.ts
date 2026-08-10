@@ -621,7 +621,7 @@ test("storeMessage: 사장님이 배달 갈 주소가 들어간다", () => {
  * 손님 문안에 주소가 들어가면 그게 곧 개인정보 노출이다.
  */
 test("customerMessage: 손님 문안에는 주소가 없다", () => {
-  for (const kind of ["accepted", "ready", "delivering", "completed"] as const) {
+  for (const kind of ["order_placed", "canceled"] as const) {
     const text = customerMessage(NOTIFY_ORDER, kind) ?? "";
     assert.ok(text.length > 0, `${kind} 문안이 비어 있다`);
     assert.equal(text.includes("길음로"), false, `${kind} 에 주소가 들어갔다`);
@@ -629,25 +629,43 @@ test("customerMessage: 손님 문안에는 주소가 없다", () => {
   }
 });
 
-test("customerMessage: 픽업과 배달의 접수 문구가 다르다", () => {
-  const delivery = customerMessage(NOTIFY_ORDER, "accepted") ?? "";
+test("customerMessage: 픽업과 배달의 주문 완료 문구가 다르다", () => {
+  const delivery = customerMessage(NOTIFY_ORDER, "order_placed") ?? "";
   const pickup =
     customerMessage(
       { ...NOTIFY_ORDER, fulfillment: "pickup", pickup_at: "2026-08-04T09:30:00+00:00" },
-      "accepted",
+      "order_placed",
     ) ?? "";
 
-  assert.match(delivery, /출발/);
+  assert.match(delivery, /배달/);
   assert.match(pickup, /오시면/);
 });
 
-// 접수 직후 알림이 연달아 두 번 가면 성가시다
-test("shouldNotifyCustomer: 준비중과 새주문은 손님에게 보내지 않는다", () => {
-  assert.equal(shouldNotifyCustomer("accepted"), true);
+/**
+ * 손님에게 가는 알림은 둘뿐이다 (사장님 결정, 2026-08).
+ * 알림톡은 건당 요금이라, 단계마다 보내면 주문 하나에 네다섯 통이 나간다.
+ * 중간 상태는 앱 화면에 실시간으로 보이므로 알림까지 보낼 값이 없다.
+ */
+test("shouldNotifyCustomer: 손님에게는 주문완료와 취소만 보낸다", () => {
+  assert.equal(shouldNotifyCustomer("order_placed"), true);
   assert.equal(shouldNotifyCustomer("canceled"), true);
-  assert.equal(shouldNotifyCustomer("preparing"), false);
+
+  for (const kind of ["accepted", "preparing", "ready", "delivering", "completed"] as const) {
+    assert.equal(shouldNotifyCustomer(kind), false, `${kind} 는 보내지 않아야 한다`);
+    assert.equal(customerMessage(NOTIFY_ORDER, kind), null);
+  }
+  // 매장용이라 손님 문안이 없다
   assert.equal(shouldNotifyCustomer("new_order"), false);
-  assert.equal(customerMessage(NOTIFY_ORDER, "preparing"), null);
+});
+
+/**
+ * 제목을 statusMeta 에서 가져오면 order_placed 가 모르는 값으로 취급돼
+ * "취소됨" 이 제목으로 나간다 — 주문하자마자 취소 카톡을 받는 셈이다.
+ */
+test("customerMessage: 주문 완료 제목이 취소로 나가지 않는다", () => {
+  const text = customerMessage(NOTIFY_ORDER, "order_placed") ?? "";
+  assert.match(text, /주문 완료/);
+  assert.equal(text.includes("취소"), false);
 });
 
 // ---- 결제 웹훅 서명 ----

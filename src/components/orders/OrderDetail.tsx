@@ -102,8 +102,8 @@ export function OrderDetail({ order }: { order: OrderWithItems }) {
           </p>
         )}
 
-        {progressIndex(order.status, order.fulfillment) >= 0 && (
-          <Progress status={order.status} fulfillment={order.fulfillment} />
+        {progressIndex(order.status) >= 0 && (
+          <Progress status={order.status} />
         )}
       </section>
 
@@ -209,15 +209,9 @@ export function OrderDetail({ order }: { order: OrderWithItems }) {
 }
 
 /** 어디까지 왔는지 한눈에. 지난 단계는 채우고 남은 단계는 비운다. */
-function Progress({
-  status,
-  fulfillment,
-}: {
-  status: string;
-  fulfillment: string;
-}) {
-  const steps = progressSteps(fulfillment);
-  const current = progressIndex(status, fulfillment);
+function Progress({ status }: { status: string }) {
+  const steps = progressSteps();
+  const current = progressIndex(status);
 
   return (
     <ol className="mt-5 flex gap-1.5">

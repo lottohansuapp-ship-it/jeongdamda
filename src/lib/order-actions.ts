@@ -242,7 +242,7 @@ export async function advanceOrder(
   if (readError) return { ok: false, error: readError.message };
   if (!current) return { ok: false, error: "주문을 찾을 수 없습니다." };
 
-  if (!canTransition(current.status, to, current.fulfillment)) {
+  if (!canTransition(current.status, to)) {
     return { ok: false, error: "지금은 그 상태로 바꿀 수 없어요." };
   }
 

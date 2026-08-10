@@ -221,7 +221,7 @@ function OrderCard({
   const [picking, setPicking] = useState(false);
   const isDelivery = order.fulfillment === "delivery";
   // 지금 누를 수 있는 버튼은 규칙이 정한다. 안 쓰는 버튼은 아예 그리지 않는다.
-  const next = nextStatuses(order.status, order.fulfillment);
+  const next = nextStatuses(order.status);
 
   return (
     <li className="rounded-card bg-white p-4 shadow-soft">

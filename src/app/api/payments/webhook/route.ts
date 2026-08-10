@@ -72,8 +72,11 @@ export async function POST(request: Request) {
   // applied 는 이번 호출에서 처음 확정됐다는 뜻이다. 재시도로 다시 와도 false 라
   // 알림이 두 번 가지 않는다 — 멱등 보장이 곧 중복 발송 방지가 된다.
   if (result.applied && result.orderId) {
-    const { notifyNewOrder } = await import("@/lib/notify");
+    // 매장에 새 주문을, 손님에게 "주문 완료" 를 한 통씩 보낸다.
+    // applied 가 true 인 이번 호출에서만 보내므로 웹훅이 재시도돼도 두 번 가지 않는다.
+    const { notifyNewOrder, notifyCustomer } = await import("@/lib/notify");
     await notifyNewOrder(result.orderId);
+    await notifyCustomer(result.orderId, "order_placed");
   }
 
   return NextResponse.json({ applied: result.applied, status: result.status });

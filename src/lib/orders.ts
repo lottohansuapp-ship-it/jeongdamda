@@ -40,17 +40,25 @@ export function statusMeta(status: string): StatusMeta {
 }
 
 /** 사장님이 다음에 누를 수 있는 버튼. 수령 방법에 따라 갈린다. */
-export function nextStatuses(
-  status: string,
-  fulfillment: string,
-): OrderStatus[] {
+/**
+ * 사장님이 다음에 누를 수 있는 버튼.
+ *
+ * 예전에는 접수 → 준비중 → 배달중(픽업준비완료) → 완료 로 네 번 눌러야 했다.
+ * 하루 20건이면 80번이다. 그 단계들은 원래 손님에게 진행 상황을 알리려고
+ * 만든 것인데, 손님 알림을 "주문 완료" 와 "취소" 둘로 줄이면서 아무한테도
+ * 안 알려지는 상태가 됐다. 사장님만 네 번 누르고 볼 사람은 없는 셈이다.
+ *
+ * 그래서 "끝났다" 하나만 남긴다. 결제되면 목록에 뜨고 알림톡도 이미 갔으니
+ * "봤다"(접수)를 따로 누를 이유도 약하다.
+ *
+ * 옛 주문이 preparing/ready/delivering 에 멈춰 있을 수 있어 그 상태에서도
+ * 완료로 갈 길은 남겨 둔다 — 화면에서 사라지지 않게.
+ */
+export function nextStatuses(status: string): OrderStatus[] {
   switch (status) {
     case "paid":
-      return ["accepted"];
     case "accepted":
-      return ["preparing"];
     case "preparing":
-      return fulfillment === "delivery" ? ["delivering"] : ["ready"];
     case "ready":
     case "delivering":
       return ["completed"];
@@ -76,19 +84,22 @@ export function canAdminCancel(status: string): boolean {
  * 손님에게 보여줄 진행 단계. 수령 방법에 따라 네 번째 칸의 말이 갈린다.
  * pending_payment 와 canceled 는 단계가 아니라 별도 상태라 여기 없다.
  */
-export function progressSteps(fulfillment: string): OrderStatus[] {
-  return [
-    "paid",
-    "accepted",
-    "preparing",
-    fulfillment === "delivery" ? "delivering" : "ready",
-    "completed",
-  ];
+export function progressSteps(): OrderStatus[] {
+  // 단계가 둘뿐이라 진행 막대도 두 칸이다. 다섯 칸을 그려 놓고 가운데
+  // 셋이 영원히 안 채워지면 손님은 주문이 멈춘 줄 안다.
+  return ["paid", "completed"];
 }
 
 /** 진행 단계 중 지금 어디인지. 단계에 없는 상태면 -1. */
-export function progressIndex(status: string, fulfillment: string): number {
-  return progressSteps(fulfillment).indexOf(status as OrderStatus);
+export function progressIndex(status: string): number {
+  // 단계를 줄이기 전에 만들어진 주문이 preparing/ready/delivering 에 남아 있을 수
+  // 있다. indexOf 로 찾으면 -1 이 나와 진행 막대가 통째로 사라진다.
+  // 그 상태들은 "진행 중"(0번 칸)으로 본다.
+  if (status === "completed") return 1;
+  if (["paid", "accepted", "preparing", "ready", "delivering"].includes(status)) {
+    return 0;
+  }
+  return -1; // pending_payment, canceled 는 단계가 아니다
 }
 
 /** 진행 중인 주문인지 — 관리자 목록에서 위로 올릴지 판단한다. */
@@ -105,12 +116,8 @@ export function isSettled(status: string): boolean {
 }
 
 /** 상태 전이가 규칙에 맞는지. 서버가 마지막으로 확인한다. */
-export function canTransition(
-  from: string,
-  to: string,
-  fulfillment: string,
-): boolean {
-  return nextStatuses(from, fulfillment).includes(to as OrderStatus);
+export function canTransition(from: string, to: string): boolean {
+  return nextStatuses(from).includes(to as OrderStatus);
 }
 
 export function fulfillmentLabel(fulfillment: string): string {
