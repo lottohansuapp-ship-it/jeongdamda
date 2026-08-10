@@ -272,21 +272,50 @@ export async function getStore(): Promise<{
  */
 const ORDER_SELECT = `${ORDER_COLUMNS}, items:order_items(${ORDER_ITEM_COLUMNS})`;
 
-export async function getOrders(): Promise<OrderWithItems[]> {
-  if (envError()) return [];
+/** 한 번에 보여줄 주문 수. 넘으면 "이전 주문 더 보기" 가 붙는다. */
+export const ORDER_PAGE_SIZE = 30;
+
+export interface CustomerOrders {
+  orders: OrderWithItems[];
+  /** 이 시각보다 예전 주문이 더 있으면 그 커서. 없으면 null. */
+  nextCursor: string | null;
+}
+
+/**
+ * 손님 주문내역.
+ *
+ * 예전에는 최근 50건만 가져오고 그게 끝이었다. 반찬가게는 같은 걸 또 시키는
+ * 단골이 핵심인데, 주 1회만 시켜도 1년이면 52건이라 오래된 주문이 목록에서
+ * 조용히 사라졌다. 재주문하려고 찾으면 없다.
+ *
+ * 번호(offset) 대신 시각(cursor)으로 넘긴다. 보는 중에 새 주문이 생겨도
+ * 경계가 밀리지 않고, orders_user_idx (user_id, created_at desc) 를 그대로 탄다.
+ */
+export async function getOrders(before?: string): Promise<CustomerOrders> {
+  if (envError()) return { orders: [], nextCursor: null };
 
   const userId = await currentUserId();
-  if (!userId) return [];
+  if (!userId) return { orders: [], nextCursor: null };
 
   const db = await serverClient();
-  const { data } = await db
+  let query = db
     .from("orders")
     .select(ORDER_SELECT)
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(50);
+    // 한 건 더 받아서 "다음이 있는지" 를 센다. 개수를 따로 세면 조회가 하나 는다.
+    .limit(ORDER_PAGE_SIZE + 1);
 
-  return (data ?? []) as unknown as OrderWithItems[];
+  if (before) query = query.lt("created_at", before);
+
+  const rows = ((await query).data ?? []) as unknown as OrderWithItems[];
+  const hasMore = rows.length > ORDER_PAGE_SIZE;
+  const orders = rows.slice(0, ORDER_PAGE_SIZE);
+
+  return {
+    orders,
+    nextCursor: hasMore ? orders[orders.length - 1].created_at : null,
+  };
 }
 
 export async function getOrder(id: string): Promise<OrderWithItems | null> {

@@ -170,6 +170,17 @@ export function CheckoutBoard({
       )}
 
       <Section title="수령 방법">
+        {/*
+          배달 ↔ 픽업을 바꾸면 아래 섹션이 "배송지" ↔ "픽업 시간" 으로 통째로
+          교체된다. 그런데 버튼의 aria-pressed 만 바뀌고 무엇이 달라졌는지는
+          알리지 않았다. 눈으로 보는 손님은 바뀐 걸 보지만, 안 보이는 손님은
+          다음에 무엇을 채워야 하는지 모른 채 아래로 내려가야 했다.
+        */}
+        <span role="status" className="sr-only">
+          {isDelivery
+            ? "배달로 바꿨어요. 배송지를 골라 주세요."
+            : "픽업으로 바꿨어요. 픽업 시간을 골라 주세요."}
+        </span>
         <div className="grid grid-cols-2 gap-2">
           <Choice
             on={isDelivery}

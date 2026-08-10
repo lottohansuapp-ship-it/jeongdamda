@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function OrdersPage() {
+export default function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ before?: string }>;
+}) {
   return (
     <>
       <main className="mx-auto w-full max-w-[560px] flex-1 px-5">
@@ -18,8 +22,9 @@ export default function OrdersPage() {
           <h1 className="text-[26px] leading-tight">주문내역</h1>
         </header>
 
+        {/* searchParams 를 읽으므로 Suspense 안에 있어야 한다 (PPR 요구사항) */}
         <Suspense fallback={<Skeleton />}>
-          <OrdersBody />
+          <OrdersBody searchParams={searchParams} />
         </Suspense>
       </main>
       <BottomNav active="orders" />
@@ -27,11 +32,20 @@ export default function OrdersPage() {
   );
 }
 
-async function OrdersBody() {
+async function OrdersBody({
+  searchParams,
+}: {
+  searchParams: Promise<{ before?: string }>;
+}) {
   const profile = await getProfile();
   if (!profile) redirect("/login?next=%2Forders");
 
-  return <OrderList orders={await getOrders()} />;
+  const { before } = await searchParams;
+  const { orders, nextCursor } = await getOrders(before);
+
+  return (
+    <OrderList orders={orders} nextCursor={nextCursor} paged={Boolean(before)} />
+  );
 }
 
 function Skeleton() {

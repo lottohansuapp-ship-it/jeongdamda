@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   requestPasswordReset,
   signIn,
@@ -49,6 +49,30 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
   const signingUp = mode === "signup";
   const forgot = mode === "forgot";
 
+  /**
+   * 모드를 바꾸면 key={mode} 때문에 폼이 통째로 다시 그려진다.
+   * 회원가입을 누르면 위쪽에 이름·휴대폰 칸과 동의 체크박스가 새로 생기는데,
+   * 포커스는 방금 누른 버튼(폼 아래)에 그대로 남아 아무 안내가 없었다.
+   * 눈으로 보는 손님은 위가 바뀐 걸 보지만, 안 보이는 손님은 위로 올라가
+   * 처음부터 다시 훑어야 무엇이 생겼는지 알 수 있었다.
+   *
+   * 바꾼 뒤 첫 입력칸으로 포커스를 옮긴다. 스크린리더가 그 칸 이름을 읽어 주니
+   * 화면이 바뀐 것과 지금 무엇을 채워야 하는지가 한 번에 전해진다.
+   */
+  const formRef = useRef<HTMLFormElement>(null);
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    // 처음 열릴 때는 옮기지 않는다. 손님이 바꿨을 때만 따라간다.
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    formRef.current
+      ?.querySelector<HTMLInputElement>("input:not([type=hidden])")
+      ?.focus();
+  }, [mode]);
+
   const state = forgot ? resetState : signingUp ? signupState : loginState;
   const pending = forgot
     ? resetPending
@@ -70,6 +94,7 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
       )}
 
       <form
+        ref={formRef}
         key={mode}
         action={forgot ? resetAction : signingUp ? signupAction : loginAction}
         className="space-y-2.5"
