@@ -40,14 +40,23 @@ const SELECT = `${PRODUCT_COLUMNS}, category:categories!inner(id, name, slug)`;
 /**
  * 캐시되는 안쪽 레이어. 실패하면 던진다 — 실패를 캐시하면 장애가 영구화된다.
  *
- * cacheLife('max') 라 시간으로는 만료되지 않는다. 재고를 움직이는 경로가 하나라도
- * updateTag(PRODUCTS_TAG) 를 빠뜨리면 목록의 재고가 영영 낡은 채로 남는다.
- * 지금 그 경로는 셋이다 — 관리자 수정(actions.ts), 주문 생성, 주문 취소(order-actions.ts).
+ * 빠른 갱신은 updateTag(PRODUCTS_TAG) 가 맡는다. 관리자 수정, 주문 생성,
+ * 주문 취소, 결제 확정이 전부 그걸 부른다. 사장님이 재고를 고치면 즉시 반영된다.
+ *
+ * **그런데 'max' 로 두면 안 된다.** 'max' 는 시간으로 만료되지 않아서,
+ * 앱을 거치지 않고 DB 를 직접 바꾸면 목록이 **영영** 낡은 채로 남는다.
+ * 실제로 겪었다 — 사진 39장을 스크립트로 올렸더니 DB 에는 다 들어갔는데
+ * 손님 화면에는 회색 자리만 계속 보였다. 오류가 안 나서 아무도 모른다.
+ * 배포해도 안 풀린다. Vercel 의 데이터 캐시는 배포를 넘어 살아남는다.
+ *
+ * 'hours' 는 한 시간마다 뒤에서 다시 가져온다. 조회 하나가 시간당 한 번 더 도는
+ * 값으로 "영영 틀린 화면" 이라는 실패 방식을 없앤다.
+ * 손님이 기다리는 시간은 그대로다 — 낡은 값을 먼저 주고 뒤에서 갱신한다.
  */
 async function fetchShopData(): Promise<ShopData> {
   "use cache";
   cacheTag(PRODUCTS_TAG);
-  cacheLife("max");
+  cacheLife("hours");
 
   const db = publicClient();
   const [categories, products] = await Promise.all([
@@ -83,10 +92,11 @@ export async function getShopData(): Promise<ShopResult> {
   }
 }
 
+/** 상세도 목록과 같은 이유로 'hours' 다. 위 fetchShopData 주석 참고. */
 async function fetchProduct(id: string): Promise<ProductWithCategory | null> {
   "use cache";
   cacheTag(PRODUCTS_TAG);
-  cacheLife("max");
+  cacheLife("hours");
 
   const { data, error } = await publicClient()
     .from("products")
