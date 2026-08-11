@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test \"src/lib/*.test.ts\"",
-    "test:e2e": "node --test \"e2e/*.test.mjs\""
+    "test:e2e": "node --test \"e2e/*.test.mjs\"",
+    "upload-photos": "node --env-file=.env.local scripts/upload-photos.mjs"
   },
   "dependencies": {
     "@portone/browser-sdk": "^0.1.9",
