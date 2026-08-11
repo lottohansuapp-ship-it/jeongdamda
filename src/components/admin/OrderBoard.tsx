@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AdminNav } from "./AdminNav";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StatusPill } from "@/components/orders/StatusPill";
 import { advanceOrder, cancelOrder } from "@/lib/order-actions";
 import {
@@ -15,6 +15,7 @@ import {
 } from "@/lib/orders";
 import { formatPrice } from "@/lib/format";
 import { useLiveRefresh } from "@/lib/use-live-refresh";
+import { armAlarm, checkNewOrders, playOrderAlarm, stopAlarm } from "@/lib/alarm";
 import type { OrderWithItems } from "@/types/database";
 
 type Tab = "live" | "done" | "all";
@@ -82,7 +83,49 @@ export function OrderBoard({
    */
   // 필터를 걸지 않는다 — 사장님은 모든 주문을 봐야 하고, 누가 무엇을 받을지는
   // RLS(orders_admin_all)가 가른다.
-  useLiveRefresh({ enabled: busyId === null });
+  // 매장 PC 는 다른 탭을 보고 계셔도 소리가 나야 한다.
+  useLiveRefresh({ enabled: busyId === null, evenWhenHidden: true });
+
+  /**
+   * 새 주문 소리.
+   *
+   * 브라우저는 사람이 누르지 않은 소리를 막는다. 그래서 켜는 건 사장님이
+   * 직접 누르셔야 하고, 새로고침하면 풀린다 — 저장해 두고 켜진 척할 수 없다.
+   * 꺼져 있을 때 크게 보이는 이유다.
+   */
+  const [alarmOn, setAlarmOn] = useState(false);
+  const [newCount, setNewCount] = useState(0);
+  const watermark = useRef<number | null>(null);
+
+  useEffect(() => {
+    const at = orders.map((order) => order.created_at);
+    const result = checkNewOrders(at, watermark.current);
+    watermark.current = result.watermark;
+
+    if (result.count === 0) return;
+    setNewCount((n) => n + result.count);
+    if (alarmOn) playOrderAlarm(result.count);
+    // alarmOn 은 일부러 뺐다. 소리를 켠 것만으로 지난 주문이 울리면 안 된다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
+
+  function toggleAlarm() {
+    if (alarmOn) {
+      stopAlarm();
+      setAlarmOn(false);
+      return;
+    }
+    // 켜는 순간 한 번 울린다. 소리가 실제로 나는지, 볼륨이 맞는지
+    // 장사 시작 전에 확인하실 수 있어야 한다.
+    if (!armAlarm()) return;
+    setAlarmOn(true);
+    playOrderAlarm(1);
+  }
+
+  function acknowledge() {
+    stopAlarm();
+    setNewCount(0);
+  }
 
   const liveCount = rows.filter((order) => isLive(order.status)).length;
   const visible = rows.filter((order) => {
@@ -117,6 +160,13 @@ export function OrderBoard({
   return (
     <div className="pb-16">
       <AdminNav current="/admin/orders" title="주문 관리" />
+
+      <AlarmBar
+        on={alarmOn}
+        newCount={newCount}
+        onToggle={toggleAlarm}
+        onAcknowledge={acknowledge}
+      />
 
       <header className="pb-4">
         <p className="text-[13px] text-ink-soft">
@@ -198,6 +248,89 @@ export function OrderBoard({
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * 소리 상태 줄. 꺼져 있을 때가 위험한 상태라 그때 제일 크게 보인다.
+ *
+ * 작은 아이콘으로 두면 안 된다. 사장님은 켜 뒀다고 생각하고 하루를 보내다가
+ * 주문을 놓치신다. 새로고침·PC 재시작·배포마다 풀리는 값이라 자주 일어난다.
+ */
+function AlarmBar({
+  on,
+  newCount,
+  onToggle,
+  onAcknowledge,
+}: {
+  on: boolean;
+  newCount: number;
+  onToggle: () => void;
+  onAcknowledge: () => void;
+}) {
+  if (!on) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        className="mb-4 flex w-full items-center justify-center gap-2 rounded-card bg-clay px-4 py-4 text-[16px] text-white shadow-soft transition-colors duration-200 hover:bg-clay-deep"
+      >
+        <BellIcon />
+        주문 소리 꺼짐 — 눌러서 켜기
+      </button>
+    );
+  }
+
+  if (newCount > 0) {
+    return (
+      <div
+        role="alert"
+        className="mb-4 flex items-center justify-between gap-3 rounded-card bg-olive px-4 py-3.5 text-white shadow-soft"
+      >
+        <span className="text-[16px]">새 주문 {newCount}건이 들어왔어요</span>
+        <button
+          type="button"
+          onClick={onAcknowledge}
+          className="h-11 shrink-0 rounded-pill bg-white/95 px-4 text-[14px] text-olive-deep transition-colors duration-200 hover:bg-white"
+        >
+          확인
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3 rounded-card bg-white px-4 py-2.5 shadow-soft">
+      <span className="flex items-center gap-2 text-[13.5px] text-olive-deep">
+        <BellIcon />
+        주문 소리 켜짐
+      </span>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="h-10 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-ink"
+      >
+        끄기
+      </button>
+    </div>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 20 20"
+      className="h-[18px] w-[18px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 3a4.5 4.5 0 0 0-4.5 4.5c0 3-1.5 4.5-1.5 4.5h12s-1.5-1.5-1.5-4.5A4.5 4.5 0 0 0 10 3Z" />
+      <path d="M8.5 15a1.7 1.7 0 0 0 3 0" />
+    </svg>
   );
 }
 

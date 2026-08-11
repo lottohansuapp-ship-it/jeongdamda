@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { filterProducts, isFiltering, EMPTY_FILTERS } from "./filter.ts";
+import { checkNewOrders } from "./alarm.ts";
 import { clampQuantity, lineIssue, summarizeCart } from "./cart.ts";
 import {
   decodeDraft,
@@ -858,4 +859,48 @@ test("pickupSlots: 픽업이 꺼져 있거나 마감 후면 비어 있다", () =
     [],
   );
   assert.deepEqual(pickupSlots(store(), { weekday: 1, minutes: 1250 }), []);
+});
+
+/*
+ * 주문 알림. 못 울리면 사장님이 주문을 놓치고, 잘못 울리면 소리를 꺼 버리신다.
+ * 둘 다 매장이 손해라 돈·재고와 같은 급으로 본다.
+ */
+const T = (m: number) => `2026-08-03T10:${String(m).padStart(2, "0")}:00.000Z`;
+
+test("checkNewOrders: 첫 화면에 있던 주문은 새 주문이 아니다", () => {
+  const first = checkNewOrders([T(5), T(1)], null);
+  assert.equal(first.count, 0);
+  assert.equal(first.watermark, Date.parse(T(5)));
+});
+
+test("checkNewOrders: 기준보다 늦게 들어온 것만 센다", () => {
+  const base = Date.parse(T(5));
+  assert.equal(checkNewOrders([T(5), T(1)], base).count, 0);
+  assert.equal(checkNewOrders([T(6), T(5), T(1)], base).count, 1);
+  assert.equal(checkNewOrders([T(8), T(7), T(5)], base).count, 2);
+});
+
+test("checkNewOrders: 기간을 넓혀 지난 주문이 쏟아져도 조용하다", () => {
+  // '오늘'로 보다가 '7일'을 누르면 며칠치가 한꺼번에 들어온다.
+  const base = checkNewOrders([T(5)], null).watermark;
+  const wider = checkNewOrders(
+    ["2026-07-28T09:00:00.000Z", "2026-07-30T09:00:00.000Z", T(5)],
+    base,
+  );
+  assert.equal(wider.count, 0);
+  assert.equal(wider.watermark, base);
+});
+
+test("checkNewOrders: 한 번에 두 건이 들어와도 기준은 가장 늦은 것으로", () => {
+  const base = Date.parse(T(5));
+  const next = checkNewOrders([T(9), T(7), T(5)], base);
+  assert.equal(next.count, 2);
+  // 같은 주문으로 두 번 울리면 안 된다.
+  assert.equal(checkNewOrders([T(9), T(7), T(5)], next.watermark).count, 0);
+});
+
+test("checkNewOrders: 주문이 하나도 없다가 첫 주문이 와도 울린다", () => {
+  const empty = checkNewOrders([], null);
+  assert.equal(empty.count, 0);
+  assert.equal(checkNewOrders([T(3)], empty.watermark).count, 1);
 });
