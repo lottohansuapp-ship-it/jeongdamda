@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
 import { EMPTY_FILTERS, filterProducts, isFiltering, type ShopFilters } from "@/lib/filter";
 import { FilterChip, FilterTab } from "@/components/ui/Filters";
@@ -19,6 +19,39 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
 
   const patch = (next: Partial<ShopFilters>) =>
     setFilters((current) => ({ ...current, ...next }));
+
+  const listRef = useRef<HTMLElement>(null);
+
+  /**
+   * 카테고리를 고르면 목록 첫 줄로 옮겨 준다.
+   *
+   * 반찬이 서른아홉 가지라 손님은 한참 내려간 자리에서 카테고리를 누르게 된다.
+   * 그러면 목록은 바뀌었는데 화면은 그대로 아래에 있어서, 고른 카테고리의
+   * 첫 반찬을 보려면 다시 위로 올려야 했다. 무엇이 바뀌었는지도 잘 안 보인다.
+   *
+   * 위로 끝까지 올리지는 않는다. 검색창과 카테고리 줄은 화면에 남겨 둬야
+   * 손님이 방금 무엇을 골랐는지 보이고, 바로 다른 카테고리로 옮길 수 있다.
+   */
+  function chooseCategory(slug: string | null) {
+    patch({ categorySlug: slug });
+
+    /*
+      한 프레임 기다렸다가 옮긴다. 지금 재면 안 된다 —
+      카테고리를 고르는 순간 위의 추천 캐러셀이 사라지고 여백(pt-8 -> pt-1)도
+      줄어서 목록이 통째로 위로 올라온다. 바뀌기 전 위치로 옮기면 목록 한참
+      아래에 떨어진다. 클릭은 화면에 그리기 전에 반영되므로 rAF 안에서는
+      바뀐 자리를 잰다.
+
+      자리 계산은 브라우저에 맡긴다. 여백은 scroll-mt-3 으로 준다.
+    */
+    requestAnimationFrame(() => {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      listRef.current?.scrollIntoView({
+        block: "start",
+        behavior: reduce ? "auto" : "smooth",
+      });
+    });
+  }
 
   const visible = useMemo(
     () => filterProducts(products, filters),
@@ -59,7 +92,8 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
       {/* 카테고리를 고르면 위의 추천 캐러셀이 사라진다. 그때도 pt-8 이 남아 있으면
           공지와 검색창 사이가 휑하게 벌어진다. 캐러셀이 있을 때만 띄운다. */}
       <section
-        className={browsing ? "pt-1" : "pt-8"}
+        className={`scroll-mt-3 ${browsing ? "pt-1" : "pt-8"}`}
+        ref={listRef}
         aria-labelledby="all-heading"
       >
         {/* z-20 이어야 한다. 카드의 담기 버튼이 z-10 이라, 같은 층이면 스크롤할 때
@@ -115,7 +149,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
           >
             <FilterTab
               active={filters.categorySlug === null}
-              onClick={() => patch({ categorySlug: null })}
+              onClick={() => chooseCategory(null)}
             >
               전체
             </FilterTab>
@@ -123,7 +157,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
               <FilterTab
                 key={category.id}
                 active={filters.categorySlug === category.slug}
-                onClick={() => patch({ categorySlug: category.slug })}
+                onClick={() => chooseCategory(category.slug)}
               >
                 {category.name}
               </FilterTab>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AdminNav } from "./AdminNav";
 import { useEffect, useState } from "react";
 import { StatusPill } from "@/components/orders/StatusPill";
 import { advanceOrder, cancelOrder } from "@/lib/order-actions";
@@ -115,17 +116,10 @@ export function OrderBoard({
 
   return (
     <div className="pb-16">
-      <header className="pb-4 pt-8">
-        <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-[24px] leading-tight">주문 관리</h1>
-          <Link
-            href="/admin"
-            className="text-[13px] text-ink-faint underline underline-offset-4"
-          >
-            재고 관리
-          </Link>
-        </div>
-        <p className="pt-1.5 text-[13px] text-ink-soft">
+      <AdminNav current="/admin/orders" title="주문 관리" />
+
+      <header className="pb-4">
+        <p className="text-[13px] text-ink-soft">
           진행 중 {liveCount}건 · {RANGE_LABEL[range] ?? "오늘"} {orders.length}건
         </p>
 

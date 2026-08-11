@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   bulkUpdateProducts,
@@ -14,11 +13,10 @@ import {
   type ShopFilters,
 } from "@/lib/filter";
 import { FilterChip, FilterTab } from "@/components/ui/Filters";
-import { signOut } from "@/lib/auth";
 import { BADGES, hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
 import { stockStatus } from "@/lib/stock";
 import { missingStoreInfo } from "@/lib/store-info";
-import { Wordmark } from "@/components/ui/Wordmark";
+import { AdminNav } from "./AdminNav";
 import type { ErrorLog } from "@/lib/queries";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { AdminRow } from "./AdminRow";
@@ -223,51 +221,21 @@ export function AdminBoard({
 
   return (
     <div className="pb-24">
-      <header className="flex items-start justify-between gap-3 pb-6 pt-10">
-        <div>
-          <Wordmark size="sm" />
-          <h1 className="pt-2 text-[26px] leading-tight">오늘 재고 관리</h1>
-          <StoreInfoNotice />
-          <ErrorNotice errors={errors} />
-          <p className="pt-3 text-[13px] text-ink-soft">
-            전체 {summary.total}가지 · 판매중 {summary.selling}
+      <AdminNav current="/admin" title="오늘 재고 관리" />
+
+      <div className="pb-4">
+        <StoreInfoNotice />
+        <ErrorNotice errors={errors} />
+        <p className="pt-1 text-[13px] text-ink-soft">
+          전체 {summary.total}가지 · 판매중 {summary.selling}
+        </p>
+        {summary.recommended > MAX_RECOMMENDED && (
+          <p className="pt-1 text-[13px] text-danger">
+            추천이 {summary.recommended}개예요 — 손님 화면에는{" "}
+            {MAX_RECOMMENDED}개까지만 나옵니다
           </p>
-          {summary.recommended > MAX_RECOMMENDED && (
-            <p className="pt-1 text-[13px] text-danger">
-              추천이 {summary.recommended}개예요 — 손님 화면에는{" "}
-              {MAX_RECOMMENDED}개까지만 나옵니다
-            </p>
-          )}
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Link
-            href="/admin/orders"
-            className="flex h-11 items-center rounded-pill bg-olive px-4 text-[13px] text-white transition-colors duration-200 hover:bg-olive-deep"
-          >
-            주문 관리
-          </Link>
-          <Link
-            href="/admin/sales"
-            className="flex h-11 items-center rounded-pill border border-line bg-white px-4 text-[13px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
-          >
-            매출
-          </Link>
-          <Link
-            href="/admin/store"
-            className="flex h-11 items-center rounded-pill border border-line bg-white px-4 text-[13px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
-          >
-            매장 설정
-          </Link>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="h-11 rounded-pill border border-line bg-white px-4 text-[13px] text-ink-soft transition-colors duration-200 hover:border-ink-faint"
-            >
-              로그아웃
-            </button>
-          </form>
-        </div>
-      </header>
+        )}
+      </div>
 
       {adding ? (
         <form

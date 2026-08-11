@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { AdminNav } from "@/components/admin/AdminNav";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { StoreForm } from "@/components/admin/StoreForm";
@@ -14,15 +14,11 @@ export const metadata: Metadata = {
 export default function AdminStorePage() {
   return (
     <main className="mx-auto w-full max-w-[560px] flex-1 px-5">
-      <header className="pb-6 pt-10">
-        <Link href="/admin" className="text-[13px] text-ink-soft">
-          ← 재고 관리로
-        </Link>
-        <h1 className="pt-2 text-[26px] leading-tight">매장 설정</h1>
-        <p className="pt-2 text-[13px] leading-relaxed text-ink-soft">
-          영업시간과 배달 조건은 손님 주문서에 그대로 적용됩니다.
-        </p>
-      </header>
+      <AdminNav current="/admin/store" title="매장 설정" />
+
+      <p className="pb-5 text-[13px] leading-relaxed text-ink-soft">
+        영업시간과 배달 조건은 손님 주문서에 그대로 적용됩니다.
+      </p>
 
       <Suspense fallback={<Skeleton />}>
         <StoreBody />

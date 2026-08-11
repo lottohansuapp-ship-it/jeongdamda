@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdminNav } from "@/components/admin/AdminNav";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { formatPrice } from "@/lib/format";
@@ -24,12 +25,7 @@ interface PageProps {
 export default function SalesPage({ searchParams }: PageProps) {
   return (
     <main className="mx-auto w-full max-w-[560px] flex-1 px-5 pb-16">
-      <header className="pb-5 pt-10">
-        <Link href="/admin" className="text-[13px] text-ink-soft">
-          ← 재고 관리로
-        </Link>
-        <h1 className="pt-2 text-[26px] leading-tight">매출</h1>
-      </header>
+      <AdminNav current="/admin/sales" title="매출" />
 
       <Suspense fallback={<Skeleton />}>
         <SalesBody searchParams={searchParams} />
