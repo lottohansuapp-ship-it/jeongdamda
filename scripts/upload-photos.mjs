@@ -157,7 +157,26 @@ async function main() {
   }
 
   console.log(`\n올린 사진 ${done}장, 아낀 용량 약 ${mb(saved)}MB`);
-  console.log("관리자 화면에서 확인해 주세요.");
+
+  /*
+   * 여기서 끝내면 안 된다.
+   *
+   * 목록·상세는 'use cache' + cacheLife('max') 라 시간으로는 만료되지 않는다.
+   * 캐시를 깨는 건 앱을 거친 변경이 부르는 updateTag(PRODUCTS_TAG) 뿐인데,
+   * 이 스크립트는 DB 에 직접 쓰기 때문에 그걸 부르지 못한다.
+   *
+   * 그래서 사진이 다 올라갔는데도 손님 화면에는 회색 자리만 계속 보인다.
+   * 오류가 안 나서 아무도 눈치채지 못하는 종류다 — 실제로 한 번 겪었다.
+   */
+  console.log("\n" + "-".repeat(52));
+  console.log("아직 손님 화면에는 안 보입니다. 한 가지가 남았습니다.");
+  console.log("");
+  console.log("  관리자 화면(/admin)에서 아무 반찬의 재고를 한 번 바꿔 주세요.");
+  console.log("  그 순간 목록 캐시가 갱신되면서 사진이 전부 나타납니다.");
+  console.log("");
+  console.log("  이 스크립트는 DB 에 직접 써서 앱의 캐시를 깨지 못합니다.");
+  console.log("  목록 캐시는 시간이 지나도 스스로 만료되지 않습니다.");
+  console.log("-".repeat(52));
 }
 
 main().catch((error) => {
