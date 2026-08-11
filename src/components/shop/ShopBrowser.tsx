@@ -94,14 +94,24 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
           <div
             aria-label="카테고리"
             /*
-              min-h 로 한 줄 높이를 잡아 둔다.
-              첫 화면이 대체 폰트로 그려지면 한글 폭이 넓어져 두 줄이 됐다가
-              Pretendard 가 도착하면 한 줄로 접힌다. 그때 아래 목록이 통째로
-              44px 위로 밀렸다 (CLS 0.002 → 0.195). 폰트 목록도 함께 고쳤지만,
-              기기마다 어떤 폰트로 떨어질지는 알 수 없으니 높이로 못 박는다.
-              두 줄이 되는 좁은 화면에서는 min-h 를 넘어 자연스럽게 늘어난다.
+              접지 않는다. 한 줄로 고정하고, 넘치면 밀어서 본다.
+
+              flex-wrap 이었을 때 이런 일이 있었다. 첫 화면은 대체 폰트로
+              그려지는데 한글 폭이 넓어 카테고리가 두 줄(88px)이 된다.
+              Pretendard 가 도착하면 한 줄(44px)로 접히고, 그 순간 아래 목록이
+              통째로 44px 위로 밀린다. CLS 가 0.002 에서 0.195 로 뛰었다 —
+              손님이 누르려던 반찬이 손가락 아래에서 사라지는 크기다.
+
+              min-h 로 막아 보려 했지만 소용없었다. 최소 높이는 두 줄로
+              커지는 것을 막지 못한다. 폰트 목록에 한글 대체 폰트를 넣어도
+              첫 페인트는 여전히 두 줄이었다.
+
+              nowrap 이면 폰트가 무엇이든 높이가 한 줄로 고정된다.
+              아홉 개가 360px 이상에서 한 줄에 들어가는 것은 이미 확인했고,
+              320px 처럼 좁은 화면에서만 살짝 밀어서 보게 된다.
+              화면이 튀는 것보다 그편이 낫다.
             */
-            className="-mx-1 mt-2.5 flex min-h-[44px] flex-wrap gap-x-0.5 gap-y-0"
+            className="no-scrollbar -mx-5 mt-2.5 flex flex-nowrap gap-x-0.5 overflow-x-auto px-5"
           >
             <FilterTab
               active={filters.categorySlug === null}
