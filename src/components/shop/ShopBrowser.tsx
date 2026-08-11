@@ -93,7 +93,15 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
           */}
           <div
             aria-label="카테고리"
-            className="-mx-1 mt-2.5 flex flex-wrap gap-x-0.5 gap-y-0"
+            /*
+              min-h 로 한 줄 높이를 잡아 둔다.
+              첫 화면이 대체 폰트로 그려지면 한글 폭이 넓어져 두 줄이 됐다가
+              Pretendard 가 도착하면 한 줄로 접힌다. 그때 아래 목록이 통째로
+              44px 위로 밀렸다 (CLS 0.002 → 0.195). 폰트 목록도 함께 고쳤지만,
+              기기마다 어떤 폰트로 떨어질지는 알 수 없으니 높이로 못 박는다.
+              두 줄이 되는 좁은 화면에서는 min-h 를 넘어 자연스럽게 늘어난다.
+            */
+            className="-mx-1 mt-2.5 flex min-h-[44px] flex-wrap gap-x-0.5 gap-y-0"
           >
             <FilterTab
               active={filters.categorySlug === null}

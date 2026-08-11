@@ -40,8 +40,22 @@
   --color-ink-faint: #737369;
   --color-line: #ebebe6;
 
+  /*
+   * 한글 대체 폰트를 반드시 적어 둔다.
+   *
+   * 예전 목록은 -apple-system / BlinkMacSystemFont / system-ui 뒤에 바로
+   * sans-serif 였다. 그런데 이 이름들이 안 잡히는 환경에서는 브라우저 기본
+   * 세리프(Times New Roman)로 떨어진다. 한글 폭이 확 넓어져 카테고리 줄이
+   * 2줄로 벌어졌다가 Pretendard 가 도착하면 1줄로 접힌다 —
+   * 그 순간 목록 전체가 44px 위로 밀린다 (CLS 0.002 → 0.195).
+   *
+   * 기기마다 있는 한글 폰트를 끼워 넣어 첫 화면부터 비슷한 폭으로 그리게 한다.
+   * 애플 SD 산돌고딕과 맑은 고딕은 Pretendard 와 자폭이 가까워 흔들림이 작다.
+   */
   --font-sans:
-    "Pretendard Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    "Pretendard Variable", -apple-system, BlinkMacSystemFont, system-ui,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕",
+    sans-serif;
 
   --radius-card: 16px;
   --radius-pill: 999px;
