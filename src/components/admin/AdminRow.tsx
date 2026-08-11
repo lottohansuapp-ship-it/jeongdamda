@@ -321,6 +321,25 @@ export function AdminRow({
           </div>
         </Field>
 
+        {/* 한 줄을 다 쓴다. 위 넷은 숫자·버튼이라 좁아도 되지만 이건 글자다.
+            지울 때는 null 로 넣어야 한다 — 빈 문자열은 값이 있는 걸로 쳐서
+            손님 상세에 "원산지" 줄만 덩그러니 남는다. */}
+        <div className="col-span-2 sm:col-span-4">
+          <Field label="원산지">
+            <input
+              type="text"
+              defaultValue={product.origin ?? ""}
+              placeholder="국내산"
+              onBlur={(event) => {
+                const value = event.target.value.trim();
+                if (value === (product.origin ?? "")) return;
+                patch({ origin: value || null }, "원산지");
+              }}
+              className="h-11 w-full rounded-[12px] border border-line bg-canvas px-3 text-[14px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+            />
+          </Field>
+        </div>
+
         <div className="col-span-2 flex justify-end sm:col-span-4">
           <button
             type="button"

@@ -76,7 +76,6 @@ async function ProductBody({ params }: PageProps) {
   const facts = [
     ["원산지", product.origin],
     ["알레르기 정보", product.allergy],
-    ["보관방법", product.storage],
     ["추천 조합", product.pairing],
   ].filter(([, value]) => Boolean(value)) as [string, string][];
 
