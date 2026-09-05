@@ -46,6 +46,19 @@ export function AdminRow({
   const settled = useRef(product.today_stock);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /** 아직 서버에 못 보낸 값. null 이면 보낼 것이 없다. */
+  const waiting = useRef<number | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "done">("idle");
+
+  /**
+   * 숫자를 고쳐 쓰는 동안의 입력 문자열. null 이면 편집 중이 아니다.
+   *
+   * 칸을 비우는 순간을 저장하면 안 된다. Number("") 는 NaN 이 아니라 **0** 이라
+   * 예전 검사(Number.isFinite)를 그냥 통과했다. 지우고 다른 곳을 누르면
+   * 재고가 0 이 된다 — 품절로 보이고 손님은 그 반찬을 못 산다.
+   */
+  const [draft, setDraft] = useState<string | null>(null);
+
   // 서버가 새 값을 내려주면 맞춘다. 렌더 중에 해야 한 프레임 어긋나지 않는다.
   const [syncedBadges, setSyncedBadges] = useState(product.badges);
   if (syncedBadges !== product.badges) {
@@ -58,39 +71,93 @@ export function AdminRow({
     setAvailable(product.today_available);
   }
 
-  // 편집 중이 아닐 때만 서버 값을 반영한다. 입력 중에 덮어쓰면 손가락이 튕긴다.
+  /**
+   * 편집 중이 아닐 때만 서버 값을 반영한다. 입력 중에 덮어쓰면 손가락이 튕긴다.
+   *
+   * 의존성에 product.today_stock 만 둔다. draft 를 넣으면 칸에서 손을 떼는
+   * 순간 이 효과가 다시 돌아 서버의 옛 값으로 되돌린다 — 방금 저장한 숫자가
+   * 눈앞에서 사라진다. 서버 값이 실제로 바뀌었을 때만 맞추면 된다.
+   */
   useEffect(() => {
-    if (timer.current) return;
+    if (timer.current || waiting.current !== null) return;
     settled.current = product.today_stock;
     setStock(product.today_stock);
   }, [product.today_stock]);
 
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
-
   /**
    * 화면을 먼저 바꾸고 잠시 뒤 저장한다.
    * 연타하거나 숫자를 고쳐 쓰는 동안 매번 서버를 부르면 그만큼 밀린다.
+   *
+   * 다만 **그 잠시 안에 화면을 떠나도 저장은 되어야 한다.** 예전에는 언마운트
+   * 정리에서 타이머를 그냥 지웠다. 그래서 사장님이 재고를 고치고 바로
+   * 당겨서 새로고침하거나, 다른 탭으로 넘어가거나, 휴대폰 화면이 꺼지면
+   * 그 변경이 조용히 사라졌다. 아무 표시가 없어서 저장된 줄 아신다.
+   * PC 에서는 그 0.5초 안에 떠날 일이 드물어 안 드러났던 것이다.
    */
   function commitStock(next: number) {
     setStock(next);
+    waiting.current = next;
 
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      timer.current = null;
+    timer.current = setTimeout(() => void flushRef.current(), COMMIT_DELAY_MS);
+  }
+
+  /**
+   * 최신 저장 함수를 담아 둔다. 언마운트 정리가 옛 클로저를 부르면
+   * 이미 지난 값을 저장하게 된다. 렌더 중에 ref 를 건드리면 안 되므로
+   * 매 렌더 뒤에 갈아 끼운다 (의존성 배열 없음).
+   */
+  const flushRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    flushRef.current = async () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+      const next = waiting.current;
+      if (next === null) return;
+      waiting.current = null;
+
+      setSaveState("saving");
       const result = await updateProduct(product.id, { today_stock: next });
       if (result.ok) {
         settled.current = next;
+        setSaveState("done");
       } else {
         setStock(settled.current);
+        setSaveState("idle");
         onError(result.error);
       }
-    }, COMMIT_DELAY_MS);
-  }
+    };
+  });
+
+  /**
+   * 화면을 떠나기 전에 보낸다.
+   *
+   *  · visibilitychange — 앱 전환, 화면 잠금
+   *  · pagehide — 새로고침(당겨서 새로고침 포함), 뒤로 가기, 탭 닫기
+   *  · 정리 함수 — 목록에서 이 줄이 사라질 때 (검색·필터)
+   *
+   * 페이지가 곧바로 죽으면 요청이 끊길 수도 있다. 그래서 이것만 믿지 않고
+   * "저장 중…" 을 화면에 띄운다 — 떠나도 되는지 사장님이 보고 판단하신다.
+   */
+  useEffect(() => {
+    const flush = () => void flushRef.current();
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", flush);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
+
+  // "저장됨" 은 잠깐만 보여준다. 계속 남으면 다음 변경 때 헷갈린다.
+  useEffect(() => {
+    if (saveState !== "done") return;
+    const id = setTimeout(() => setSaveState("idle"), 1500);
+    return () => clearTimeout(id);
+  }, [saveState]);
 
   function bump(delta: number) {
     commitStock(Math.max(0, stock + delta));
@@ -203,14 +270,22 @@ export function AdminRow({
                 inputMode="numeric"
                 min={0}
                 max={999}
-                value={stock}
+                value={draft ?? String(stock)}
                 onFocus={(event) => event.currentTarget.select()}
                 onChange={(event) => {
-                  const value = Number(event.target.value);
-                  // 빈 칸이면 NaN 이 된다. 그대로 저장하면 재고가 사라진다.
+                  const raw = event.target.value;
+                  setDraft(raw);
+
+                  // 지우는 중이다. 아직 저장할 값이 아니다 — 여기서 저장하면
+                  // 0 이 들어간다 (Number("") 는 0 이다).
+                  if (raw.trim() === "") return;
+
+                  const value = Number(raw);
                   if (!Number.isFinite(value)) return;
                   commitStock(Math.min(999, Math.max(0, Math.round(value))));
                 }}
+                // 지운 채로 떠나면 고치기 전 값으로 되돌린다. 빈 칸은 0 이 아니다.
+                onBlur={() => setDraft(null)}
                 className="w-[3.25rem] rounded-[8px] bg-transparent text-center text-[20px] tabular-nums tracking-tight outline-none focus:bg-olive-soft"
               />
               <span className="text-[12px] text-ink-faint">개</span>
@@ -227,6 +302,18 @@ export function AdminRow({
                 className="h-[7px] w-[7px] rounded-full bg-current"
               />
               {status.label}
+            </span>
+
+            {/*
+              저장됐는지 보이게 한다. 예전에는 아무 표시가 없어서, 저장이
+              사라져도 사장님은 끝난 줄 아셨다. role="status" 라 화면을
+              못 보는 분께도 읽힌다.
+            */}
+            <span role="status" className="text-[12px] text-ink-faint">
+              {saveState === "saving" && "저장 중…"}
+              {saveState === "done" && (
+                <span className="text-success-deep">저장됨</span>
+              )}
             </span>
           </div>
         </div>
