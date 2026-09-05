@@ -624,12 +624,21 @@ notification_logs
 ```
 변수는 대행사 규격에 맞춰 조정한다. 버튼은 `/admin` 링크.
 
-### 결제 스위치 켜기 — 포트원 계약이 끝난 날 이 순서대로
+### 결제 — 테스트 먼저, 실연동은 그다음
 
-코드는 전부 들어가 있다 (0012 적용 완료). 아래만 채우면 그날 켜진다.
-하나라도 비면 결제창을 띄우지 않고 지금처럼 주문만 접수된다.
+코드는 전부 들어가 있다 (0012 적용 완료). 아래 값만 채우면 켜진다.
+**넷 중 하나라도 비면 결제창을 띄우지 않고 지금처럼 주문만 접수된다**
+(`isPaymentLive()`). 반쪽만 켜져서 손님 돈이 새는 일을 막기 위한 것이다.
 
-**1. 웹훅용 비밀값을 만들어 두 곳에 같은 값을 넣는다**
+포트원은 PG 계약 전에 **테스트 채널**을 쓸 수 있다. 그래서 순서는
+테스트 결제로 흐름을 다 확인한 뒤에 심사를 넣는 것이다.
+
+#### 1단계 — 테스트 채널로 검증 (계약 전, 지금)
+
+**웹훅은 localhost 로 오지 않는다.** 포트원이 바깥에서 우리 서버를 부르는 것이라
+`http://localhost:3000` 은 닿지 않는다. 배포본(`jeongdamda.vercel.app`)에서 한다.
+
+**(1) 웹훅용 비밀값을 만들어 두 곳에 같은 값을 넣는다**
 
 `service_role` 키를 쓰지 않는 이유는 D30 에 있다. 값은 한 번만 만든다.
 
@@ -641,34 +650,66 @@ openssl rand -base64 32
 - Supabase SQL Editor:
   ```sql
   insert into public.app_secrets (key, value)
-  values ('payment_webhook', '<위에서 만든 값>');
+  values ('payment_webhook', '<위에서 만든 값>')
+  on conflict (key) do update set value = excluded.value;
   ```
 
-**2. 포트원 값 네 개를 Vercel 환경변수에 넣는다**
+**(2) 포트원 콘솔에서 테스트 채널을 만든다**
 
-| 이름 | 어디서 | 성격 |
+결제 연동 → 연동 관리 → 채널 추가. **환경을 "테스트"로** 고른다.
+결제대행사는 아무거나 (KG이니시스·토스페이먼츠 테스트). 계약과 무관하다.
+
+**(3) 값 네 개를 Vercel 환경변수에 넣는다**
+
+| 이름 | 포트원 콘솔 위치 | 성격 |
 |---|---|---|
-| `NEXT_PUBLIC_PORTONE_STORE_ID` | 포트원 콘솔 → 상점 정보 | 공개 |
-| `NEXT_PUBLIC_PORTONE_CHANNEL_KEY` | 포트원 콘솔 → 채널 관리 | 공개 |
-| `PORTONE_API_SECRET` | 포트원 콘솔 → API Keys | **서버 전용** |
-| `PORTONE_WEBHOOK_SECRET` | 포트원 콘솔 → 웹훅 (`whsec_…`) | **서버 전용** |
+| `NEXT_PUBLIC_PORTONE_STORE_ID` | 결제 연동 → 연동 관리 (상점 아이디) | 공개 |
+| `NEXT_PUBLIC_PORTONE_CHANNEL_KEY` | 결제 연동 → 연동 관리 → 방금 만든 채널 | 공개 |
+| `PORTONE_API_SECRET` | 결제 연동 → 연동 관리 → 식별코드·API Keys → **V2 API** | **서버 전용** |
+| `PORTONE_WEBHOOK_SECRET` | 결제 연동 → 연동 관리 → 결제알림(Webhook) 관리 → 웹훅 시크릿 발급 (`whsec_…`) | **서버 전용** |
 
-아래 둘에는 `NEXT_PUBLIC_` 을 붙이지 않는다. 붙이면 브라우저로 새어나간다.
+아래 둘에 `NEXT_PUBLIC_` 을 붙이지 않는다. 붙이면 브라우저로 새어나간다.
+API Secret 은 발급 화면을 벗어나면 다시 못 본다 — 그 자리에서 복사한다.
 
-**3. 포트원 콘솔에 웹훅 URL 등록**
+**(4) 웹훅 URL 등록**
+
+결제 연동 → 연동 관리 → 결제알림(Webhook) 관리 → Endpoint URL:
 
 ```
 https://jeongdamda.vercel.app/api/payments/webhook
 ```
 
+Content-Type 은 `application/json`. 이벤트는 최소 `Transaction.Paid`,
+`Transaction.Cancelled`, `Transaction.Failed`.
 도메인을 바꾸면 이 값도 함께 바꾼다.
 
-**4. 켜졌는지 확인**
+**(5) 다시 배포한다.** 환경변수는 빌드 때 박히므로 넣기만 해서는 안 바뀐다.
 
-- 주문서 버튼이 "○○원 주문하기" → **"○○원 결제하기"** 로 바뀐다
-- 소액으로 실제 결제 → 주문이 `결제 완료` 가 되고 장바구니가 비워진다
-- 그 주문을 취소 → **카드사 승인 취소**가 잡히고 재고가 돌아온다
-- 재고와 금액은 값으로 확인한다. 화면 문구로 판단하지 않는다
+**(6) 테스트 카드로 확인한다 — 화면 문구가 아니라 값으로**
+
+- [ ] 주문서 버튼이 "○○원 주문하기" → **"○○원 결제하기"** 로 바뀐다
+- [ ] 테스트 카드로 결제 → 주문이 `결제 완료` 가 되고 장바구니가 비워진다
+- [ ] 관리자 주문 관리에 그 주문이 뜨고 **소리가 울린다**
+- [ ] `select status, payment_id, paid_amount from orders order by created_at desc limit 1;`
+      — `paid_amount` 가 주문 총액과 같은지
+- [ ] 그 주문을 취소 → 승인 취소가 잡히고 **재고가 돌아온다**
+      (`today_stock` 값으로 확인. 화면 뱃지로 판단하지 않는다)
+- [ ] 결제창을 그냥 닫아 본다 → `pending_payment` 로 남고 10분 뒤 재고 반환
+- [ ] `select * from error_logs order by created_at desc limit 10;` — 웹훅 오류가 없는지
+
+여기까지 통과하면 심사 의뢰.
+
+#### 2단계 — 실연동 전환 (심사 통과 후)
+
+같은 자리에서 **실연동 채널**을 추가하고 네 값을 전부 바꾼다.
+테스트와 실연동은 채널 키도 웹훅 시크릿도 다르다. 넷 중 하나만 옛 값으로
+남으면 그때부터 결제가 조용히 어긋난다.
+
+- [ ] 채널 키 교체
+- [ ] API Secret 교체 (실연동용)
+- [ ] 웹훅 시크릿 교체 (실연동 환경에서 다시 발급)
+- [ ] 재배포 후 **소액 실제 결제 1건** → 확정 → 취소까지 확인
+- [ ] `store_settings` 로 주문 받기 시작
 
 ### 출시 전
 - [ ] 커스텀 도메인 연결 + `NEXT_PUBLIC_SITE_URL` 갱신 (포트원 웹훅 URL이 여기 의존)
