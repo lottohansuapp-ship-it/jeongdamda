@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { filterProducts, isFiltering, EMPTY_FILTERS } from "./filter.ts";
+import {
+  compareProducts,
+  filterProducts,
+  isFiltering,
+  EMPTY_FILTERS,
+} from "./filter.ts";
 import { checkNewOrders } from "./alarm.ts";
 import {
   isPaymentReady,
@@ -1012,4 +1017,29 @@ test("missingPaymentKeys: 빠진 것의 이름만 돌려준다 (값은 안 나�
   const all = missingPaymentKeys({ ...FULL_KEYS, apiSecret: "" }).join(" ");
   assert.equal(all.includes(FULL_KEYS.storeId), false);
   assert.equal(all.includes(FULL_KEYS.webhookSecret), false);
+});
+
+/*
+ * 목록 순서. sort_order 는 카테고리마다 1부터 다시 매겨져 있어 전체에서는
+ * 중복이 많다. 동점 기준이 없으면 재고를 고칠 때마다 순서가 흔들린다.
+ */
+test("compareProducts: sort_order 가 같으면 이름으로 가른다", () => {
+  const 목록 = [
+    { sort_order: 2, name: "가지나물" },
+    { sort_order: 1, name: "고추장진미채" },
+    { sort_order: 2, name: "간장홍진미채" },
+    { sort_order: 1, name: "고추잎무침" },
+  ];
+
+  const 정렬 = [...목록].sort(compareProducts).map((p) => p.name);
+  assert.deepEqual(정렬, [
+    "고추잎무침",
+    "고추장진미채",
+    "가지나물",
+    "간장홍진미채",
+  ]);
+
+  // 순서를 어떻게 섞어 넣어도 결과가 같아야 한다. 이게 흔들리지 않는다는 뜻이다.
+  const 거꾸로 = [...목록].reverse().sort(compareProducts).map((p) => p.name);
+  assert.deepEqual(거꾸로, 정렬);
 });

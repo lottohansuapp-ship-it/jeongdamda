@@ -77,3 +77,25 @@ export function isFiltering(filters: ShopFilters): boolean {
     filters.hideSoldOut
   );
 }
+
+/**
+ * 반찬 목록 순서.
+ *
+ * sort_order 만으로는 순서가 정해지지 않는다. 0020 에서 카테고리마다 1부터
+ * 다시 매겼기 때문에 전체 목록에는 같은 값이 여럿 있다 (1 이 다섯 개, 2 가
+ * 다섯 개…). SQL 은 동점일 때 순서를 보장하지 않고, 그 행을 **수정하면**
+ * 새 자리에 다시 쓰이면서 동점끼리 순서가 뒤바뀐다.
+ *
+ * 그래서 재고를 고치는 것만으로 그 반찬이 다른 반찬과 자리를 맞바꿨다.
+ * 사장님 눈에는 아무 이유 없이 목록이 흔들리는 것으로 보인다.
+ *
+ * 이름으로 동점을 가른다. 흔들리지 않고, 사람이 봐도 이유를 알 수 있다.
+ * queries.ts 의 .order() 도 같은 규칙이어야 한다 — 목록과 장바구니 순서가
+ * 갈리면 손님이 담은 것을 찾기 어려워진다.
+ */
+export function compareProducts(
+  a: { sort_order: number; name: string },
+  b: { sort_order: number; name: string },
+): number {
+  return a.sort_order - b.sort_order || a.name.localeCompare(b.name, "ko");
+}

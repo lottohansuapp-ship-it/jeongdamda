@@ -1,4 +1,5 @@
 import "server-only";
+import { compareProducts } from "./filter";
 import { cacheLife, cacheTag } from "next/cache";
 import { envError, publicClient } from "./supabase/public";
 import { currentUserId, serverClient } from "./supabase/server";
@@ -65,7 +66,9 @@ async function fetchShopData(): Promise<ShopData> {
       .from("products")
       .select(SELECT)
       .eq("today_available", true)
-      .order("sort_order"),
+      // 동점 기준이 없으면 재고를 고칠 때마다 순서가 뒤바뀐다 (compareProducts 참조)
+      .order("sort_order")
+      .order("name"),
   ]);
 
   if (categories.error) throw new Error(categories.error.message);
@@ -132,7 +135,11 @@ async function fetchAllProducts(): Promise<ShopData> {
   const db = await serverClient();
   const [categories, products] = await Promise.all([
     db.from("categories").select("id, name, slug, sort_order").order("sort_order"),
-    db.from("products").select(SELECT).order("sort_order"),
+    db
+      .from("products")
+      .select(SELECT)
+      .order("sort_order")
+      .order("name"),
   ]);
 
   if (categories.error) throw new Error(categories.error.message);
@@ -211,8 +218,7 @@ export async function getCart(): Promise<CartSummary> {
   const { data, error } = await db
     .from("cart_items")
     .select(`product_id, quantity, product:products(${SELECT})`)
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
+    .eq("user_id", userId);
 
   if (error || !data) return EMPTY_CART;
 
@@ -222,12 +228,23 @@ export async function getCart(): Promise<CartSummary> {
     product: ProductWithCategory | null;
   }[];
 
+  /*
+    매장 목록과 같은 순서로 둔다.
+
+    예전에는 updated_at 내림차순이었는데, cart_items 에 트리거가 걸려 있어
+    **수량을 바꾸는 것만으로 그 줄이 맨 위로 튀어 올랐다.** 손님은 방금
+    고치던 줄을 눈으로 다시 찾아야 했다.
+
+    담은 시각으로 정렬하고 싶어도 cart_items 에는 created_at 이 없다.
+    매장에서 보던 순서 그대로가 찾기도 쉽다.
+  */
   const valid = rows
     .filter((row) => row.product !== null)
     .map((row) => ({
       product: row.product as ProductWithCategory,
       quantity: row.quantity,
-    }));
+    }))
+    .sort((a, b) => compareProducts(a.product, b.product));
 
   const orphanIds = rows
     .filter((row) => row.product === null)
