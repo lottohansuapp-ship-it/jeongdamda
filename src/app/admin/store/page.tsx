@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { StoreForm } from "@/components/admin/StoreForm";
 import { getStore } from "@/lib/queries";
+import { missingPaymentConfig } from "@/lib/payments/portone";
 import { storeOpenState, toSeoulClock } from "@/lib/store";
 
 export const metadata: Metadata = {
@@ -47,7 +48,50 @@ async function StoreBody() {
   const openState = storeOpenState(settings, toSeoulClock(new Date()));
 
   return (
-    <StoreForm settings={settings} areas={areas} openState={openState} />
+    <>
+      <PaymentStatus />
+      <StoreForm settings={settings} areas={areas} openState={openState} />
+    </>
+  );
+}
+
+/**
+ * 결제 연결 상태.
+ *
+ * 결제가 안 켜지는 이유가 "주문하기 버튼이 그대로다" 하나뿐이면 다섯 군데를
+ * 다 뒤져야 한다. 무엇이 빠졌는지 여기서 보인다.
+ *
+ * **이름만 보여준다.** 값은 어디에도 렌더링하지 않는다 — 관리자 화면이라도
+ * 화면은 캡처되고 어깨너머로 보인다.
+ */
+function PaymentStatus() {
+  const missing = missingPaymentConfig();
+
+  if (missing.length === 0) {
+    return (
+      <div className="mb-2.5 rounded-card bg-white p-4 shadow-soft">
+        <p className="text-[13.5px] text-success-deep">
+          결제 연결됨 — 주문서에 결제창이 뜹니다
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-2.5 rounded-card bg-cream p-4 shadow-soft">
+      <p className="text-[13.5px]">결제 연결 전 — 주문만 접수됩니다</p>
+      <p className="pt-2 text-[12.5px] leading-relaxed text-ink-soft">
+        Vercel 환경변수 {missing.length}개가 비어 있어요. 채우고 다시
+        배포하면 켜집니다.
+      </p>
+      <ul className="pt-2 space-y-1">
+        {missing.map((name) => (
+          <li key={name} className="text-[12px] text-clay-deep">
+            {name}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

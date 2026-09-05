@@ -1,6 +1,7 @@
 import "server-only";
 import {
   isPaymentReady,
+  missingPaymentKeys,
   PORTONE_CHANNEL_KEY,
   PORTONE_STORE_ID,
 } from "./config";
@@ -31,6 +32,16 @@ export function isPortOneReady(): boolean {
   return Boolean(API_SECRET && WEBHOOK_SECRET && PAYMENT_DB_SECRET);
 }
 
+function currentKeys() {
+  return {
+    storeId: PORTONE_STORE_ID,
+    channelKey: PORTONE_CHANNEL_KEY,
+    apiSecret: API_SECRET,
+    webhookSecret: WEBHOOK_SECRET,
+    dbSecret: PAYMENT_DB_SECRET,
+  };
+}
+
 /**
  * 결제를 켜도 되는가. 서버 컴포넌트에서 불러 화면으로 내려보낸다.
  *
@@ -40,13 +51,12 @@ export function isPortOneReady(): boolean {
  * 다섯 개가 다 있을 때만 켠다.
  */
 export function isPaymentLive(): boolean {
-  return isPaymentReady({
-    storeId: PORTONE_STORE_ID,
-    channelKey: PORTONE_CHANNEL_KEY,
-    apiSecret: API_SECRET,
-    webhookSecret: WEBHOOK_SECRET,
-    dbSecret: PAYMENT_DB_SECRET,
-  });
+  return isPaymentReady(currentKeys());
+}
+
+/** 아직 안 채운 환경변수 이름. 관리자 화면이 그대로 보여준다. */
+export function missingPaymentConfig(): string[] {
+  return missingPaymentKeys(currentKeys());
 }
 
 export interface PortOnePayment {

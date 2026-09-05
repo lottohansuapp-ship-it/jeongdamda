@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { filterProducts, isFiltering, EMPTY_FILTERS } from "./filter.ts";
 import { checkNewOrders } from "./alarm.ts";
-import { isPaymentReady, type PaymentKeys } from "./payments/config.ts";
+import {
+  isPaymentReady,
+  missingPaymentKeys,
+  type PaymentKeys,
+} from "./payments/config.ts";
 import {
   availableMethods,
   pickMethod,
@@ -989,4 +993,23 @@ test("pickMethod: 고른 것이 사라지면 첫 번째로 되돌린다", () => 
   assert.equal(pickMethod(methods, "kakaopay")?.key, "card");
   assert.equal(pickMethod(methods, null)?.key, "card");
   assert.equal(pickMethod([], "card"), null);
+});
+
+test("missingPaymentKeys: 빠진 것의 이름만 돌려준다 (값은 안 나간다)", () => {
+  assert.deepEqual(missingPaymentKeys(FULL_KEYS), []);
+
+  const half = missingPaymentKeys({
+    ...FULL_KEYS,
+    channelKey: "",
+    dbSecret: "  ",
+  });
+  assert.deepEqual(half, [
+    "NEXT_PUBLIC_PORTONE_CHANNEL_KEY",
+    "PAYMENT_WEBHOOK_SECRET",
+  ]);
+
+  // 값이 섞여 나가면 관리자 화면에 시크릿이 찍힌다.
+  const all = missingPaymentKeys({ ...FULL_KEYS, apiSecret: "" }).join(" ");
+  assert.equal(all.includes(FULL_KEYS.storeId), false);
+  assert.equal(all.includes(FULL_KEYS.webhookSecret), false);
 });

@@ -54,5 +54,26 @@ export interface PaymentKeys {
 }
 
 export function isPaymentReady(keys: PaymentKeys): boolean {
-  return Object.values(keys).every((value) => value.trim() !== "");
+  return missingPaymentKeys(keys).length === 0;
+}
+
+/** 화면에 이름을 그대로 보여준다. Vercel 에서 찾을 이름과 같아야 쓸모가 있다. */
+const KEY_NAMES: Record<keyof PaymentKeys, string> = {
+  storeId: "NEXT_PUBLIC_PORTONE_STORE_ID",
+  channelKey: "NEXT_PUBLIC_PORTONE_CHANNEL_KEY",
+  apiSecret: "PORTONE_API_SECRET",
+  webhookSecret: "PORTONE_WEBHOOK_SECRET",
+  dbSecret: "PAYMENT_WEBHOOK_SECRET",
+};
+
+/**
+ * 비어 있는 값의 **이름**만 돌려준다. 값은 절대 내보내지 않는다.
+ *
+ * 다섯 개 중 뭐가 빠졌는지 모른 채로는 고칠 수가 없다. 결제가 안 켜지는
+ * 이유가 "주문하기 버튼이 그대로다" 하나뿐이면 다섯 군데를 다 뒤져야 한다.
+ */
+export function missingPaymentKeys(keys: PaymentKeys): string[] {
+  return (Object.keys(KEY_NAMES) as (keyof PaymentKeys)[])
+    .filter((key) => keys[key].trim() === "")
+    .map((key) => KEY_NAMES[key]);
 }
