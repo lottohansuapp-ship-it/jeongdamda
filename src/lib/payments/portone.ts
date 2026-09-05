@@ -1,5 +1,9 @@
 import "server-only";
-import { isPaymentConfigured } from "./config";
+import {
+  isPaymentReady,
+  PORTONE_CHANNEL_KEY,
+  PORTONE_STORE_ID,
+} from "./config";
 import {
   verifyWebhookSignature as verify,
   type WebhookHeaders,
@@ -22,8 +26,9 @@ const WEBHOOK_SECRET = process.env.PORTONE_WEBHOOK_SECRET ?? "";
 /** mark_order_paid 를 부를 권한. service_role 대신 쓰는 좁은 비밀값 (0012) */
 export const PAYMENT_DB_SECRET = process.env.PAYMENT_WEBHOOK_SECRET ?? "";
 
+/** 웹훅이 일을 할 수 있는가. 서명 검증까지 포함한다 — 셋 다 있어야 한 건을 확정한다. */
 export function isPortOneReady(): boolean {
-  return Boolean(API_SECRET && PAYMENT_DB_SECRET);
+  return Boolean(API_SECRET && WEBHOOK_SECRET && PAYMENT_DB_SECRET);
 }
 
 /**
@@ -32,10 +37,16 @@ export function isPortOneReady(): boolean {
  * 브라우저 키만 보고 결제창을 열면 안 된다. 서버 키가 빠져 있으면
  * 손님은 카드로 결제되는데 확정이 안 되고, 10분 뒤 재고만 조용히 돌아간다.
  * 돈은 나갔는데 주문은 없는 상태다 — 키를 채워 넣는 날 나는 실수라
- * 네 개가 다 있을 때만 켠다.
+ * 다섯 개가 다 있을 때만 켠다.
  */
 export function isPaymentLive(): boolean {
-  return isPaymentConfigured() && isPortOneReady();
+  return isPaymentReady({
+    storeId: PORTONE_STORE_ID,
+    channelKey: PORTONE_CHANNEL_KEY,
+    apiSecret: API_SECRET,
+    webhookSecret: WEBHOOK_SECRET,
+    dbSecret: PAYMENT_DB_SECRET,
+  });
 }
 
 export interface PortOnePayment {

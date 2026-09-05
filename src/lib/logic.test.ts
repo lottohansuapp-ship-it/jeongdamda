@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { filterProducts, isFiltering, EMPTY_FILTERS } from "./filter.ts";
 import { checkNewOrders } from "./alarm.ts";
+import { isPaymentReady, type PaymentKeys } from "./payments/config.ts";
 import { clampQuantity, lineIssue, summarizeCart } from "./cart.ts";
 import {
   decodeDraft,
@@ -903,4 +904,34 @@ test("checkNewOrders: 주문이 하나도 없다가 첫 주문이 와도 울린�
   const empty = checkNewOrders([], null);
   assert.equal(empty.count, 0);
   assert.equal(checkNewOrders([T(3)], empty.watermark).count, 1);
+});
+
+/*
+ * 결제 켜짐 판정. 반쪽만 켜지면 손님은 카드로 결제되는데 주문이 안 잡힌다.
+ * 특히 웹훅 시크릿 — PC 는 화면 쪽 확인이 살려 주지만 휴대폰은 리다이렉트라
+ * 웹훅이 유일한 경로다. 한 번 빠뜨렸던 자리라 다섯 개를 각각 확인한다.
+ */
+const FULL_KEYS: PaymentKeys = {
+  storeId: "store-test",
+  channelKey: "channel-key-test",
+  apiSecret: "api-secret",
+  webhookSecret: "whsec_test",
+  dbSecret: "db-secret",
+};
+
+test("isPaymentReady: 다섯 개가 다 있을 때만 켠다", () => {
+  assert.equal(isPaymentReady(FULL_KEYS), true);
+
+  for (const key of Object.keys(FULL_KEYS) as (keyof PaymentKeys)[]) {
+    assert.equal(
+      isPaymentReady({ ...FULL_KEYS, [key]: "" }),
+      false,
+      `${key} 가 없는데 결제가 켜졌다`,
+    );
+  }
+});
+
+test("isPaymentReady: 공백만 채운 것은 채운 게 아니다", () => {
+  // Vercel 환경변수에 실수로 스페이스가 들어가는 일이 있다.
+  assert.equal(isPaymentReady({ ...FULL_KEYS, webhookSecret: "   " }), false);
 });
