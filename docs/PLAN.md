@@ -659,12 +659,22 @@ openssl rand -base64 32
 결제 연동 → 연동 관리 → 채널 추가. **환경을 "테스트"로** 고른다.
 결제대행사는 아무거나 (KG이니시스·토스페이먼츠 테스트). 계약과 무관하다.
 
+**결제수단마다 채널을 따로 만든다.** 카카오페이는 그 자체가 결제대행사라
+카드용 채널로 부르면 거절된다. 휴대폰 결제는 보통 카드와 같은 PG 사가
+중계하지만 계약은 따로 해야 한다.
+
+주문서에는 **채널키를 넣은 수단만** 나온다. 계약하지 않은 것을 띄우면
+손님이 고른 뒤에야 결제창이 오류를 내고, 그건 손님이 가게를 의심하게 되는
+실패다. 하나뿐이면 고르는 화면 자체가 안 나온다.
+
 **(3) 값 네 개를 Vercel 환경변수에 넣는다**
 
 | 이름 | 포트원 콘솔 위치 | 성격 |
 |---|---|---|
 | `NEXT_PUBLIC_PORTONE_STORE_ID` | 결제 연동 → 연동 관리 (상점 아이디) | 공개 |
-| `NEXT_PUBLIC_PORTONE_CHANNEL_KEY` | 결제 연동 → 연동 관리 → 방금 만든 채널 | 공개 |
+| `NEXT_PUBLIC_PORTONE_CHANNEL_KEY` | 결제 연동 → 연동 관리 → 방금 만든 채널 (카드) | 공개 |
+| `NEXT_PUBLIC_PORTONE_CHANNEL_KEY_KAKAOPAY` | 카카오페이 채널 (별도로 만든다) | 공개 · 선택 |
+| `NEXT_PUBLIC_PORTONE_CHANNEL_KEY_MOBILE` | 휴대폰 결제 채널 (같은 PG면 같은 값) | 공개 · 선택 |
 | `PORTONE_API_SECRET` | 결제 연동 → 연동 관리 → 식별코드·API Keys → **V2 API** | **서버 전용** |
 | `PORTONE_WEBHOOK_SECRET` | 결제 연동 → 연동 관리 → 결제알림(Webhook) 관리 → 웹훅 시크릿 발급 (`whsec_…`) | **서버 전용** |
 
@@ -697,6 +707,8 @@ Content-Type 은 `application/json`. 이벤트는 최소 `Transaction.Paid`,
 - [ ] **휴대폰으로** 테스트 카드 결제 → 주문이 `결제 완료`, 장바구니 비워짐
       (휴대폰이 중요하다. 리다이렉트라 웹훅만이 유일한 확정 경로다)
 - [ ] 관리자 화면에 그 주문이 뜨고 **소리가 울린다**
+- [ ] 채널을 여러 개 만들었다면 **수단마다 한 번씩** 결제해 본다
+      (카드 채널키로 카카오페이를 부르면 거절된다 — 섞였는지는 이걸로만 안다)
 - [ ] `select status, payment_id, paid_amount from orders order by created_at desc limit 1;`
       — `paid_amount` 가 주문 총액과 같은지
 - [ ] 그 주문을 취소 → 승인 취소가 잡히고 **재고가 돌아온다**

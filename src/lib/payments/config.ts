@@ -14,6 +14,17 @@ export const PORTONE_STORE_ID = process.env.NEXT_PUBLIC_PORTONE_STORE_ID ?? "";
 export const PORTONE_CHANNEL_KEY =
   process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY ?? "";
 
+/*
+ * 수단마다 채널이 다르다 (methods.ts 참조). 이름을 통째로 적는 이유는
+ * Next 가 빌드할 때 process.env.NEXT_PUBLIC_… 을 글자 그대로 찾아 값으로
+ * 바꿔치기하기 때문이다. 변수로 조립하면 빈 값이 된다.
+ */
+export const PORTONE_CHANNELS = {
+  card: PORTONE_CHANNEL_KEY,
+  kakaopay: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_KAKAOPAY ?? "",
+  mobile: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_MOBILE ?? "",
+};
+
 /** 결제창을 띄울 수 있는지. 브라우저에서도 확인할 수 있다. */
 export function isPaymentConfigured(): boolean {
   return Boolean(PORTONE_STORE_ID && PORTONE_CHANNEL_KEY);

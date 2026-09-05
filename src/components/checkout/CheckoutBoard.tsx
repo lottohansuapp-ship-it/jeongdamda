@@ -6,7 +6,13 @@ import { useMemo, useState, useTransition } from "react";
 import { StoreNotice } from "@/components/shop/StoreNotice";
 import { placeOrder } from "@/lib/order-actions";
 import { confirmMyPayment } from "@/lib/payment-actions";
-import { PORTONE_CHANNEL_KEY, PORTONE_STORE_ID } from "@/lib/payments/config";
+import { PORTONE_CHANNELS, PORTONE_STORE_ID } from "@/lib/payments/config";
+import {
+  availableMethods,
+  pickMethod,
+  type PaymentMethod,
+  type PaymentMethodKey,
+} from "@/lib/payments/methods";
 import {
   clearDraft,
   saveDraft,
@@ -59,6 +65,11 @@ export function CheckoutBoard({
 }: CheckoutBoardProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+
+  // 계약한 수단만 나온다. 하나뿐이면 고를 것이 없으니 화면에 띄우지 않는다.
+  const methods = useMemo(() => availableMethods(PORTONE_CHANNELS), []);
+  const [methodKey, setMethodKey] = useState<PaymentMethodKey | null>(null);
+  const method = pickMethod(methods, methodKey);
   const [error, setError] = useState<string | null>(null);
 
   // 초기값은 서버가 정한다. 여기서 다시 고르면 하이드레이션이 어긋난다.
@@ -124,6 +135,7 @@ export function CheckoutBoard({
       }
 
       const paid = await openPaymentWindow({
+        method,
         paymentId,
         amount,
         orderName: orderNameOf(cart),
@@ -318,6 +330,40 @@ export function CheckoutBoard({
         />
       </Section>
 
+      {/* 고를 것이 하나뿐이면 묻지 않는다. 어르신 손님에게 탭 하나를 더 요구하는
+          것이고, 선택지가 하나인 선택지는 선택이 아니다. */}
+      {paymentReady && methods.length > 1 && (
+        <Section title="결제 수단">
+          <div className="space-y-2">
+            {methods.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setMethodKey(option.key)}
+                aria-pressed={method?.key === option.key}
+                className={`tap-target flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 text-left transition-colors duration-200 ${
+                  method?.key === option.key
+                    ? "border-olive bg-olive-soft"
+                    : "border-line bg-canvas hover:border-ink-faint"
+                }`}
+              >
+                <span className="py-2.5">
+                  <span className="block text-[14.5px]">{option.label}</span>
+                  <span className="block pt-0.5 text-[12px] text-ink-soft">
+                    {option.hint}
+                  </span>
+                </span>
+                {method?.key === option.key && (
+                  <span aria-hidden className="text-[15px] text-olive-deep">
+                    &#10003;
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <section className="mb-2.5 rounded-card bg-white p-4 shadow-soft">
         <div className="flex items-baseline justify-between gap-3 pb-3">
           <h2 className="text-[13px] text-ink-faint">
@@ -475,6 +521,8 @@ function orderNameOf(cart: CartSummary): string {
  * 스스로 갱신되면서 결제 완료로 바뀐다.
  */
 async function openPaymentWindow(input: {
+  /** 손님이 고른 수단. 채널키가 여기 붙어 있다. */
+  method: PaymentMethod | null;
   paymentId: string;
   amount: number;
   orderName: string;
@@ -482,12 +530,16 @@ async function openPaymentWindow(input: {
   customerPhone: string;
   redirectUrl: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.method) {
+    return { ok: false, error: "결제 수단이 연결되지 않았어요." };
+  }
+
   try {
     const PortOne = await import("@portone/browser-sdk/v2");
 
     const response = await PortOne.requestPayment({
       storeId: PORTONE_STORE_ID,
-      channelKey: PORTONE_CHANNEL_KEY,
+      channelKey: input.method.channelKey,
       paymentId: input.paymentId,
       orderName: input.orderName,
       totalAmount: input.amount,
@@ -495,7 +547,7 @@ async function openPaymentWindow(input: {
       // as never 로 덮어 두는 바람에 타입 검사도 못 잡았고, 결제창을 실제로
       // 여는 순간에야 터질 자리였다. 캐스팅을 빼서 컴파일러가 보게 둔다.
       currency: "KRW",
-      payMethod: "CARD",
+      payMethod: input.method.payMethod,
       customer: {
         fullName: input.customerName,
         phoneNumber: input.customerPhone,

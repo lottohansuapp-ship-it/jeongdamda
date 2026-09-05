@@ -3,6 +3,11 @@ import { test } from "node:test";
 import { filterProducts, isFiltering, EMPTY_FILTERS } from "./filter.ts";
 import { checkNewOrders } from "./alarm.ts";
 import { isPaymentReady, type PaymentKeys } from "./payments/config.ts";
+import {
+  availableMethods,
+  pickMethod,
+  type PaymentChannels,
+} from "./payments/methods.ts";
 import { clampQuantity, lineIssue, summarizeCart } from "./cart.ts";
 import {
   decodeDraft,
@@ -934,4 +939,54 @@ test("isPaymentReady: 다섯 개가 다 있을 때만 켠다", () => {
 test("isPaymentReady: 공백만 채운 것은 채운 게 아니다", () => {
   // Vercel 환경변수에 실수로 스페이스가 들어가는 일이 있다.
   assert.equal(isPaymentReady({ ...FULL_KEYS, webhookSecret: "   " }), false);
+});
+
+/*
+ * 결제수단. 계약하지 않은 수단이 화면에 뜨면 손님이 고른 뒤에야 결제창이
+ * 오류를 낸다 — 가게를 의심하게 되는 실패라 값으로 확인해 둔다.
+ */
+const NO_CHANNELS: PaymentChannels = { card: "", kakaopay: "", mobile: "" };
+
+test("availableMethods: 채널키가 있는 수단만 나온다", () => {
+  assert.deepEqual(availableMethods(NO_CHANNELS), []);
+
+  const cardOnly = availableMethods({ ...NO_CHANNELS, card: "ch-card" });
+  assert.deepEqual(
+    cardOnly.map((m) => m.key),
+    ["card"],
+  );
+  assert.equal(cardOnly[0].channelKey, "ch-card");
+  assert.equal(cardOnly[0].payMethod, "CARD");
+});
+
+test("availableMethods: 카카오페이는 카드와 다른 채널을 쓴다", () => {
+  const both = availableMethods({
+    ...NO_CHANNELS,
+    card: "ch-card",
+    kakaopay: "ch-kakao",
+  });
+  assert.deepEqual(
+    both.map((m) => m.key),
+    ["card", "kakaopay"],
+  );
+  // 같은 채널로 부르면 포트원이 거절한다. 섞이지 않는지 본다.
+  assert.equal(both[1].channelKey, "ch-kakao");
+  assert.equal(both[1].payMethod, "EASY_PAY");
+});
+
+test("availableMethods: 공백만 든 채널키는 없는 것으로 친다", () => {
+  assert.deepEqual(availableMethods({ ...NO_CHANNELS, mobile: "   " }), []);
+});
+
+test("pickMethod: 고른 것이 사라지면 첫 번째로 되돌린다", () => {
+  const methods = availableMethods({
+    ...NO_CHANNELS,
+    card: "ch-card",
+    mobile: "ch-mobile",
+  });
+  assert.equal(pickMethod(methods, "mobile")?.key, "mobile");
+  // 화면을 오래 열어 둔 사이 사장님이 카카오페이 계약을 내렸다면
+  assert.equal(pickMethod(methods, "kakaopay")?.key, "card");
+  assert.equal(pickMethod(methods, null)?.key, "card");
+  assert.equal(pickMethod([], "card"), null);
 });
