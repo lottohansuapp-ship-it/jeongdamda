@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { OrderDetail } from "@/components/orders/OrderDetail";
+import { isPaymentLive } from "@/lib/payments/portone";
 import { BottomNav } from "@/components/ui/BottomNav";
 import { getOrder, getProfile } from "@/lib/queries";
 
@@ -41,7 +42,7 @@ async function OrderBody({ params }: PageProps) {
   const order = await getOrder(id);
   if (!order) notFound();
 
-  return <OrderDetail order={order} />;
+  return <OrderDetail order={order} paymentReady={isPaymentLive()} />;
 }
 
 function Skeleton() {

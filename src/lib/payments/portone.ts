@@ -1,4 +1,5 @@
 import "server-only";
+import { isPaymentConfigured } from "./config";
 import {
   verifyWebhookSignature as verify,
   type WebhookHeaders,
@@ -23,6 +24,18 @@ export const PAYMENT_DB_SECRET = process.env.PAYMENT_WEBHOOK_SECRET ?? "";
 
 export function isPortOneReady(): boolean {
   return Boolean(API_SECRET && PAYMENT_DB_SECRET);
+}
+
+/**
+ * 결제를 켜도 되는가. 서버 컴포넌트에서 불러 화면으로 내려보낸다.
+ *
+ * 브라우저 키만 보고 결제창을 열면 안 된다. 서버 키가 빠져 있으면
+ * 손님은 카드로 결제되는데 확정이 안 되고, 10분 뒤 재고만 조용히 돌아간다.
+ * 돈은 나갔는데 주문은 없는 상태다 — 키를 채워 넣는 날 나는 실수라
+ * 네 개가 다 있을 때만 켠다.
+ */
+export function isPaymentLive(): boolean {
+  return isPaymentConfigured() && isPortOneReady();
 }
 
 export interface PortOnePayment {

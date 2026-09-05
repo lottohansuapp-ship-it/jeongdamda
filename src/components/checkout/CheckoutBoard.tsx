@@ -6,11 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { StoreNotice } from "@/components/shop/StoreNotice";
 import { placeOrder } from "@/lib/order-actions";
 import { confirmMyPayment } from "@/lib/payment-actions";
-import {
-  isPaymentConfigured,
-  PORTONE_CHANNEL_KEY,
-  PORTONE_STORE_ID,
-} from "@/lib/payments/config";
+import { PORTONE_CHANNEL_KEY, PORTONE_STORE_ID } from "@/lib/payments/config";
 import {
   clearDraft,
   saveDraft,
@@ -43,6 +39,11 @@ interface CheckoutBoardProps {
   openState: OpenState;
   /** 서버가 쿠키에서 되살려 지금 상황에 맞춰준 초기값 */
   draft: CheckoutDraft;
+  /**
+   * 결제를 켤 수 있는 상태인가. 서버가 판단해서 내려준다 —
+   * 브라우저는 서버 키가 있는지 볼 수 없고, 반쪽만 켜지면 손님 돈이 샌다.
+   */
+  paymentReady: boolean;
 }
 
 export function CheckoutBoard({
@@ -54,6 +55,7 @@ export function CheckoutBoard({
   slots,
   openState,
   draft,
+  paymentReady,
 }: CheckoutBoardProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -116,7 +118,7 @@ export function CheckoutBoard({
       clearDraft(); // 주문이 만들어졌으니 들고 있을 이유가 없다
 
       // 결제를 아직 켜지 않았으면 여기서 끝. 주문은 남고 화면이 안내한다.
-      if (!isPaymentConfigured()) {
+      if (!paymentReady) {
         router.replace(`/orders/${orderId}`);
         return;
       }
@@ -411,10 +413,10 @@ export function CheckoutBoard({
           >
             {pending
               ? "주문 확인 중…"
-              : `${formatPrice(total)} ${isPaymentConfigured() ? "결제하기" : "주문하기"}`}
+              : `${formatPrice(total)} ${paymentReady ? "결제하기" : "주문하기"}`}
           </button>
 
-          {!isPaymentConfigured() && (
+          {!paymentReady && (
             <p className="pt-2 text-center text-[11.5px] text-ink-faint">
               결제 연결 전이라 주문만 접수됩니다
             </p>
@@ -489,8 +491,11 @@ async function openPaymentWindow(input: {
       paymentId: input.paymentId,
       orderName: input.orderName,
       totalAmount: input.amount,
-      currency: "CURRENCY_KRW" as never,
-      payMethod: "CARD" as never,
+      // SDK 가 받는 값은 "KRW" 다. 서버 API 문서의 CURRENCY_KRW 와 다르다 —
+      // as never 로 덮어 두는 바람에 타입 검사도 못 잡았고, 결제창을 실제로
+      // 여는 순간에야 터질 자리였다. 캐스팅을 빼서 컴파일러가 보게 둔다.
+      currency: "KRW",
+      payMethod: "CARD",
       customer: {
         fullName: input.customerName,
         phoneNumber: input.customerPhone,

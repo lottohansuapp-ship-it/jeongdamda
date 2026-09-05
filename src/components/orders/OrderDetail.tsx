@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { isPaymentConfigured } from "@/lib/payments/config";
 import { ReorderButton } from "./ReorderButton";
 import { StatusPill } from "./StatusPill";
 import { cancelOrder } from "@/lib/order-actions";
@@ -21,7 +20,14 @@ import { formatPrice } from "@/lib/format";
 import { useLiveRefresh } from "@/lib/use-live-refresh";
 import type { OrderWithItems } from "@/types/database";
 
-export function OrderDetail({ order }: { order: OrderWithItems }) {
+export function OrderDetail({
+  order,
+  paymentReady,
+}: {
+  order: OrderWithItems;
+  /** 결제가 실제로 켜져 있는지. 서버만 알 수 있어 내려받는다. */
+  paymentReady: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +86,7 @@ export function OrderDetail({ order }: { order: OrderWithItems }) {
         {order.status === "pending_payment" && (
           <div className="mt-4 rounded-[12px] bg-cream p-3.5">
             <p className="text-[13px] leading-relaxed">
-              {isPaymentConfigured()
+              {paymentReady
                 ? "결제를 확인하고 있어요. 잠시만 기다려 주세요."
                 : "결제 기능은 준비 중이에요. 지금은 주문만 접수된 상태예요."}
               {deadline && (

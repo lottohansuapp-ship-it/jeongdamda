@@ -10,6 +10,7 @@ import {
 } from "@/lib/checkout-draft";
 import { getAddresses, getCart, getProfile, getStore } from "@/lib/queries";
 import { pickupSlots, storeOpenState, toSeoulClock } from "@/lib/store";
+import { isPaymentLive } from "@/lib/payments/portone";
 import { isProfileComplete } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -76,6 +77,7 @@ async function CheckoutBody() {
       slots={slots}
       openState={storeOpenState(store.settings, clock)}
       draft={draft}
+      paymentReady={isPaymentLive()}
     />
   );
 }
