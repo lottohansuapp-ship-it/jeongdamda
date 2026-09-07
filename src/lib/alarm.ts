@@ -56,18 +56,51 @@ export function checkNewOrders(
 let audio: AudioContext | null = null;
 let pending: ReturnType<typeof setTimeout>[] = [];
 
+const PREF_KEY = "jeongdamda-order-alarm";
+
 /**
- * 소리를 켠다. 반드시 사장님이 버튼을 누른 그 순간에 불러야 한다 —
- * 브라우저는 사람이 누르지 않은 소리를 막는다. 새로고침하면 다시 눌러야 한다.
+ * 켜 두셨던 설정. 새로고침·PC 재시작을 넘어 남는다.
+ *
+ * 다만 **이 값이 "소리가 난다"는 뜻은 아니다.** 브라우저는 사람이 누르지
+ * 않은 소리를 막기 때문에, 설정이 켜져 있어도 실제로 울릴 수 있는지는
+ * armAlarm() 이 해 봐야 안다. 둘을 섞으면 켜진 줄 알고 주문을 놓친다.
  */
-export function armAlarm(): boolean {
+export function alarmPreference(): boolean {
+  try {
+    return localStorage.getItem(PREF_KEY) === "on";
+  } catch {
+    // 시크릿 모드나 저장이 막힌 환경. 소리는 여전히 켤 수 있다.
+    return false;
+  }
+}
+
+export function setAlarmPreference(on: boolean): void {
+  try {
+    localStorage.setItem(PREF_KEY, on ? "on" : "off");
+  } catch {
+    // 저장 못 해도 이번 세션은 그대로 돈다.
+  }
+}
+
+/**
+ * 소리를 켠다. 실제로 울릴 수 있게 됐는지를 돌려준다.
+ *
+ * 브라우저가 막으면 AudioContext 는 만들어지지만 "suspended" 로 멈춰 있다.
+ * 만들어졌다는 것만 보고 true 를 주면 켜진 줄 알고 주문을 놓친다 —
+ * 그래서 resume() 을 기다렸다가 상태를 확인한다.
+ */
+export async function armAlarm(): Promise<boolean> {
   if (typeof window === "undefined") return false;
   if (!window.AudioContext) return false;
 
   audio ??= new AudioContext();
-  // 탭이 뒤로 갔다 오면 멈춰 있을 때가 있다.
-  void audio.resume();
-  return true;
+  try {
+    // 탭이 뒤로 갔다 오면 멈춰 있을 때가 있다.
+    await audio.resume();
+  } catch {
+    // 사람이 누른 동작 없이 부르면 여기로 온다. 아래에서 state 로 가려낸다.
+  }
+  return audio.state === "running";
 }
 
 /** 사장님이 확인을 누르면 남은 울림을 끊는다. */

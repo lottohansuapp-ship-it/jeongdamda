@@ -15,7 +15,14 @@ import {
 } from "@/lib/orders";
 import { formatPrice } from "@/lib/format";
 import { useLiveRefresh } from "@/lib/use-live-refresh";
-import { armAlarm, checkNewOrders, playOrderAlarm, stopAlarm } from "@/lib/alarm";
+import {
+  alarmPreference,
+  armAlarm,
+  checkNewOrders,
+  playOrderAlarm,
+  setAlarmPreference,
+  stopAlarm,
+} from "@/lib/alarm";
 import type { OrderWithItems } from "@/types/database";
 
 type Tab = "live" | "done" | "all";
@@ -89,9 +96,10 @@ export function OrderBoard({
   /**
    * 새 주문 소리.
    *
-   * 브라우저는 사람이 누르지 않은 소리를 막는다. 그래서 켜는 건 사장님이
-   * 직접 누르셔야 하고, 새로고침하면 풀린다 — 저장해 두고 켜진 척할 수 없다.
-   * 꺼져 있을 때 크게 보이는 이유다.
+   * 켜 두신 설정은 새로고침을 넘어 남는다 (아래 효과에서 되살린다).
+   * 다만 브라우저는 사람이 누르지 않은 소리를 막으므로, 설정이 켜져 있어도
+   * 실제로 울릴 수 있는지는 확인해 봐야 안다. 못 울리는 상태에서 켜진 척하면
+   * 사장님이 주문을 놓친다 — 그때는 주황 바가 그대로 남는다.
    */
   const [alarmOn, setAlarmOn] = useState(false);
   const [newCount, setNewCount] = useState(0);
@@ -109,16 +117,64 @@ export function OrderBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders]);
 
-  function toggleAlarm() {
+  /**
+   * 켜 두셨던 설정을 새로고침 뒤에도 되살린다.
+   *
+   * 저장해 두는 건 "켜 두셨다" 는 사실뿐이다. 실제로 소리가 나는지는 별개다 —
+   * 브라우저는 사람이 누르지 않은 소리를 막기 때문에, 새로고침 직후에는
+   * 막혀 있을 수 있다. 그래서 두 단계로 되살린다.
+   *
+   *   1. 일단 켜 본다. 이미 허용된 PC 면 바로 소리가 난다
+   *      (매장 PC 처럼 매일 쓰는 사이트는 대개 여기서 통과한다)
+   *   2. 막혔으면 **화면 아무 곳이나 처음 누르는 순간** 켠다.
+   *      버튼을 다시 찾아 누르실 필요가 없다.
+   *
+   * 켜진 척은 하지 않는다. 소리가 안 나는 상태면 주황 바가 그대로 남는다 —
+   * 켜진 줄 알고 주문을 놓치는 것보다 낫다.
+   */
+  useEffect(() => {
+    if (!alarmPreference()) return;
+
+    let alive = true;
+    const wake = () => {
+      void armAlarm().then((ready) => {
+        if (alive && ready) setAlarmOn(true);
+      });
+    };
+
+    void armAlarm().then((ready) => {
+      if (!alive) return;
+      if (ready) {
+        setAlarmOn(true);
+        return;
+      }
+      window.addEventListener("pointerdown", wake, { once: true });
+      window.addEventListener("keydown", wake, { once: true });
+    });
+
+    return () => {
+      alive = false;
+      window.removeEventListener("pointerdown", wake);
+      window.removeEventListener("keydown", wake);
+    };
+  }, []);
+
+  async function toggleAlarm() {
     if (alarmOn) {
       stopAlarm();
       setAlarmOn(false);
+      setAlarmPreference(false);
       return;
     }
+
+    // 끄고 켜는 것은 사장님 뜻이므로 먼저 기억한다. 브라우저가 막아서
+    // 소리가 안 나더라도, 다음 새로고침에서 다시 살릴 근거가 된다.
+    setAlarmPreference(true);
+    if (!(await armAlarm())) return;
+
+    setAlarmOn(true);
     // 켜는 순간 한 번 울린다. 소리가 실제로 나는지, 볼륨이 맞는지
     // 장사 시작 전에 확인하실 수 있어야 한다.
-    if (!armAlarm()) return;
-    setAlarmOn(true);
     playOrderAlarm(1);
   }
 
