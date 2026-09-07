@@ -284,7 +284,19 @@ export function CheckoutBoard({
           {slots.length === 0 ? (
             <p className="text-[13.5px] leading-relaxed text-ink-soft">
               지금은 고를 수 있는 픽업 시간이 없어요.
-              {openState.reason && ` ${CLOSED_TEXT[openState.reason]}.`}
+              {/*
+                이유를 반드시 붙인다. 영업 중인데도 슬롯이 빌 때가 있다 —
+                마감까지 준비 시간이 안 남은 경우다 (마감 20시, 준비 30분이면
+                19시 반부터 그렇다). 그때 "없어요" 만 뜨면 손님은 앱이 고장난
+                줄 알고 나간다.
+              */}
+              {openState.reason
+                ? ` ${CLOSED_TEXT[openState.reason]}.`
+                : ` 오늘 픽업은 마감됐어요.${
+                    settings.delivery_enabled
+                      ? " 배달로는 주문하실 수 있어요."
+                      : " 내일 다시 찾아 주세요."
+                  }`}
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
