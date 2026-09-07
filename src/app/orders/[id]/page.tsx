@@ -45,8 +45,12 @@ async function OrderBody({ params }: PageProps) {
 
   return (
     <>
-      {/* 휴대폰 결제에서 돌아온 경우에만 일한다. 그 외에는 아무것도 안 그린다. */}
-      <PaymentReturn orderId={id} />
+      {/* 결제 대기로 남은 주문만 확인한다. 그 외에는 아무것도 안 그린다. */}
+      <PaymentReturn
+        orderId={id}
+        status={order.status}
+        paymentId={order.payment_id}
+      />
       <OrderDetail order={order} paymentReady={isPaymentLive()} />
     </>
   );

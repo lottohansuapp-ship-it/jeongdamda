@@ -107,6 +107,8 @@ export interface Order {
   memo: string | null;
   /** 미결제 주문이 재고를 잡아두는 기한 */
   reserved_until: string | null;
+  /** 포트원 결제 건 ID. 주문을 만들 때 미리 정해 두고 결제창에 넘긴다. */
+  payment_id: string | null;
   paid_at: string | null;
   canceled_at: string | null;
   cancel_reason: string | null;
@@ -130,7 +132,7 @@ export interface OrderWithItems extends Order {
 }
 
 export const ORDER_COLUMNS =
-  "id, order_no, user_id, status, fulfillment, receiver_name, receiver_phone, address_snapshot, pickup_at, subtotal, delivery_fee, total, memo, reserved_until, paid_at, canceled_at, cancel_reason, created_at, updated_at";
+  "id, order_no, user_id, status, fulfillment, receiver_name, receiver_phone, address_snapshot, pickup_at, subtotal, delivery_fee, total, memo, reserved_until, payment_id, paid_at, canceled_at, cancel_reason, created_at, updated_at";
 
 export const ORDER_ITEM_COLUMNS =
   "id, order_id, product_id, name, unit_price, quantity, line_total";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { confirmMyPayment } from "@/lib/payment-actions";
 
 /**
@@ -19,23 +19,36 @@ import { confirmMyPayment } from "@/lib/payment-actions";
  * 주소창의 값은 어느 결제를 확인할지 가리키는 데만 쓰고, 금액도 상태도
  * 여기서 오는 값은 믿지 않는다.
  */
-export function PaymentReturn({ orderId }: { orderId: string }) {
-  const params = useSearchParams();
+export function PaymentReturn({
+  orderId,
+  status,
+  paymentId,
+}: {
+  orderId: string;
+  status: string;
+  paymentId: string | null;
+}) {
   const router = useRouter();
   const done = useRef(false);
   const [failed, setFailed] = useState(false);
 
-  const paymentId = params.get("paymentId");
-  // code 는 실패했을 때만 붙는다. 붙어 있으면 확정할 것이 없다.
-  const failure = params.get("code");
+  /*
+    주소창의 paymentId 만 보고 판단하면 안 된다. 그 값은 결제 앱에서 막
+    돌아온 그 한 번만 붙는다. 손님이 주문내역을 거쳐 들어오거나 새로고침하면
+    사라지고, 그러면 확정할 기회가 영영 없다 — 실제로 그렇게 막혔다.
 
+    주문 자체가 "결제 대기" 이고 결제 건 번호를 들고 있으면 물어본다.
+    결제창을 닫아 버린 주문도 여기로 오지만, 포트원이 "아직 결제 안 됨" 을
+    돌려주고 아무 일도 일어나지 않는다.
+  */
   useEffect(() => {
-    if (done.current || !paymentId || failure) return;
+    if (done.current) return;
+    if (status !== "pending_payment" || !paymentId) return;
     done.current = true;
 
     void confirmMyPayment(paymentId).then((result) => {
       if (result.ok) {
-        // 주소창의 결제 파라미터를 지운다. 새로고침해도 다시 돌지 않는다.
+        // 주소창에 남은 결제 파라미터도 함께 지운다.
         router.replace(`/orders/${orderId}`);
         router.refresh();
       } else {
@@ -44,9 +57,9 @@ export function PaymentReturn({ orderId }: { orderId: string }) {
         setFailed(true);
       }
     });
-  }, [paymentId, failure, orderId, router]);
+  }, [status, paymentId, orderId, router]);
 
-  if (!paymentId || failure || !failed) return null;
+  if (!failed) return null;
 
   return (
     <p
