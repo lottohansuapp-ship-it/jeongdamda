@@ -3,6 +3,7 @@ import { normalize } from "./format.ts";
 
 export const SEOUL_TZ = "Asia/Seoul";
 export const SLOT_MINUTES = 30;
+const MINUTES_PER_DAY = 24 * 60;
 
 /** 한국 시간 기준 요일과 자정으로부터의 분. 서버가 UTC 로 돌아도 흔들리지 않는다. */
 export interface SeoulClock {
@@ -206,6 +207,13 @@ export function checkDelivery(
 /**
  * 픽업 가능 시간대. 준비 시간이 지난 다음 30분 단위부터 마감까지.
  * 자정을 넘기는 영업은 슬롯을 만들지 않는다 — 반찬가게에 필요 없고, 날짜 계산만 복잡해진다.
+ *
+ * 개점과 마감이 **같으면 24시간 영업**이다. storeOpenState 도, DB 의
+ * store_is_open_now() 도 그렇게 판단하고, 매장 설정 화면에도 그렇게 적혀 있다.
+ *
+ * 예전에는 여기서만 `close <= open` 을 한 덩어리로 걸러 빈 배열을 냈다.
+ * 그래서 24시간 영업으로 켜 두면 **주문은 받는다면서 고를 픽업 시간이
+ * 하나도 없는** 상태가 됐다. 화면의 판단과 DB 의 판단이 갈리면 안 된다 (D24).
  */
 export function pickupSlots(
   settings: StoreSettings,
@@ -218,7 +226,10 @@ export function pickupSlots(
 
   const open = parseClockTime(settings.open_time);
   const close = parseClockTime(settings.close_time);
-  if (close <= open) return [];
+
+  const allDay = open === close;
+  // 자정을 넘기는 영업 (예: 10:00~02:00). 24시간과 달리 여기는 그대로 둔다.
+  if (!allDay && close < open) return [];
 
   // 아직 열기 전이면 개점 시각부터, 영업 중이면 지금부터 준비 시간을 더한다
   const earliest =
@@ -227,13 +238,14 @@ export function pickupSlots(
       : clock.minutes + settings.pickup_lead_minutes;
 
   const first = Math.ceil(earliest / SLOT_MINUTES) * SLOT_MINUTES;
-  const slots: string[] = [];
 
-  for (
-    let at = Math.max(first, open);
-    at <= close - SLOT_MINUTES;
-    at += SLOT_MINUTES
-  ) {
+  // 24시간이면 개점 시각으로 앞을 자르지 않는다 — 그 시각은 의미가 없다.
+  // 마지막 슬롯은 23:30 이라 날짜를 넘지 않는다 (pickupTimestamp 가 오늘로 만든다).
+  const start = allDay ? first : Math.max(first, open);
+  const end = allDay ? MINUTES_PER_DAY : close;
+
+  const slots: string[] = [];
+  for (let at = start; at <= end - SLOT_MINUTES; at += SLOT_MINUTES) {
     slots.push(formatClockTime(at));
   }
 

@@ -1043,3 +1043,34 @@ test("compareProducts: sort_order 가 같으면 이름으로 가른다", () => {
   const 거꾸로 = [...목록].reverse().sort(compareProducts).map((p) => p.name);
   assert.deepEqual(거꾸로, 정렬);
 });
+
+/*
+ * 24시간 영업(개점==마감). 매장 설정 화면이 "같게 두면 24시간"이라고 안내하고
+ * DB 의 store_is_open_now() 도 그렇게 판단한다. 픽업 시간만 빈 배열을 내면
+ * 주문은 받는다면서 고를 시간이 없는 상태가 된다.
+ */
+test("pickupSlots: 개점과 마감이 같으면 24시간 영업으로 슬롯을 만든다", () => {
+  const 종일 = store({ open_time: "09:00", close_time: "09:00" });
+
+  // 낮 12:00, 준비 30분 → 12:30 부터
+  const 낮 = pickupSlots(종일, { weekday: 1, minutes: 12 * 60 });
+  assert.equal(낮[0], "12:30");
+  assert.equal(낮[낮.length - 1], "23:30", "마지막 슬롯은 날짜를 넘지 않는다");
+
+  // 개점 시각(09:00)으로 앞을 자르면 안 된다 — 24시간이면 그 시각은 의미가 없다
+  const 새벽 = pickupSlots(종일, { weekday: 1, minutes: 3 * 60 });
+  assert.equal(새벽[0], "03:30");
+});
+
+test("pickupSlots: 자정을 넘기는 영업은 여전히 슬롯을 만들지 않는다", () => {
+  // 10:00~02:00 은 24시간이 아니다. 날짜 계산이 복잡해져 그대로 둔다.
+  const 심야 = store({ open_time: "10:00", close_time: "02:00" });
+  assert.deepEqual(pickupSlots(심야, { weekday: 1, minutes: 20 * 60 }), []);
+});
+
+test("pickupSlots: 보통 영업시간은 마감 30분 전까지", () => {
+  const 보통 = store({ open_time: "09:00", close_time: "20:00" });
+  const 목록 = pickupSlots(보통, { weekday: 1, minutes: 12 * 60 });
+  assert.equal(목록[0], "12:30");
+  assert.equal(목록[목록.length - 1], "19:30");
+});
