@@ -136,7 +136,6 @@ export function OrderBoard({
    */
   useEffect(() => {
     if (!alarmPreference()) return;
-    setAlarmWanted(true);
 
     let alive = true;
     const wake = () => {
@@ -147,6 +146,7 @@ export function OrderBoard({
 
     void armAlarm().then((ready) => {
       if (!alive) return;
+      setAlarmWanted(true);
       if (ready) {
         setAlarmOn(true);
         return;
