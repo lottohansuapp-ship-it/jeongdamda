@@ -930,7 +930,8 @@ const FULL_KEYS: PaymentKeys = {
   channelKey: "channel-key-test",
   apiSecret: "api-secret",
   webhookSecret: "whsec_test",
-  dbSecret: "db-secret",
+  // openssl rand -base64 32 이 주는 길이. 짧으면 없는 것으로 친다.
+  dbSecret: "0123456789abcdef0123456789abcdef0123456789ab",
 };
 
 test("isPaymentReady: 다섯 개가 다 있을 때만 켠다", () => {
