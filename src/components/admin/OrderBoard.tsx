@@ -102,6 +102,8 @@ export function OrderBoard({
    * 사장님이 주문을 놓친다 — 그때는 주황 바가 그대로 남는다.
    */
   const [alarmOn, setAlarmOn] = useState(false);
+  /** 사장님이 켜 두신 상태인가. 소리가 실제로 나는지(alarmOn)와는 다르다. */
+  const [alarmWanted, setAlarmWanted] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const watermark = useRef<number | null>(null);
 
@@ -134,6 +136,7 @@ export function OrderBoard({
    */
   useEffect(() => {
     if (!alarmPreference()) return;
+    setAlarmWanted(true);
 
     let alive = true;
     const wake = () => {
@@ -163,6 +166,7 @@ export function OrderBoard({
     if (alarmOn) {
       stopAlarm();
       setAlarmOn(false);
+      setAlarmWanted(false);
       setAlarmPreference(false);
       return;
     }
@@ -170,6 +174,7 @@ export function OrderBoard({
     // 끄고 켜는 것은 사장님 뜻이므로 먼저 기억한다. 브라우저가 막아서
     // 소리가 안 나더라도, 다음 새로고침에서 다시 살릴 근거가 된다.
     setAlarmPreference(true);
+    setAlarmWanted(true);
     if (!(await armAlarm())) return;
 
     setAlarmOn(true);
@@ -219,6 +224,7 @@ export function OrderBoard({
 
       <AlarmBar
         on={alarmOn}
+        wanted={alarmWanted}
         newCount={newCount}
         onToggle={toggleAlarm}
         onAcknowledge={acknowledge}
@@ -315,16 +321,26 @@ export function OrderBoard({
  */
 function AlarmBar({
   on,
+  wanted,
   newCount,
   onToggle,
   onAcknowledge,
 }: {
   on: boolean;
+  /** 켜 두신 상태. 다만 브라우저가 막아서 아직 소리가 안 날 수 있다. */
+  wanted: boolean;
   newCount: number;
   onToggle: () => void;
   onAcknowledge: () => void;
 }) {
   if (!on) {
+    /*
+      켜 두셨는데 아직 소리가 안 나는 상태를 따로 말한다.
+      "꺼짐" 이라고만 하면 설정이 안 남은 줄 아시고, 그렇다고 "켜짐" 이라
+      하면 안 울리는데 켜진 줄 아신다. 둘 다 주문을 놓치는 길이다.
+
+      화면 아무 곳이나 누르면 켜지므로 그렇게 안내한다.
+    */
     return (
       <button
         type="button"
@@ -332,7 +348,9 @@ function AlarmBar({
         className="mb-4 flex w-full items-center justify-center gap-2 rounded-card bg-clay px-4 py-4 text-[16px] text-white shadow-soft transition-colors duration-200 hover:bg-clay-deep"
       >
         <BellIcon />
-        주문 소리 꺼짐 — 눌러서 켜기
+        {wanted
+          ? "주문 소리 대기 중 — 아무 곳이나 누르면 켜집니다"
+          : "주문 소리 꺼짐 — 눌러서 켜기"}
       </button>
     );
   }
