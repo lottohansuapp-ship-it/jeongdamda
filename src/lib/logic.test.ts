@@ -1074,3 +1074,20 @@ test("pickupSlots: 보통 영업시간은 마감 30분 전까지", () => {
   assert.equal(목록[0], "12:30");
   assert.equal(목록[목록.length - 1], "19:30");
 });
+
+test("isPaymentReady: 짧은 DB 시크릿은 없는 것으로 친다", () => {
+  // mark_order_paid 는 anon 에게 열려 있다. 이 값이 유일한 방어선이라
+  // 짧으면 찍어서 맞힐 수 있다 — 돈 안 내고 주문이 결제완료가 된다.
+  const 짧음 = { ...FULL_KEYS, dbSecret: "1234567" };
+  assert.equal(isPaymentReady(짧음), false);
+
+  const 알림 = missingPaymentKeys(짧음);
+  assert.equal(알림.length, 1);
+  assert.equal(알림[0].startsWith("PAYMENT_WEBHOOK_SECRET"), true);
+  // 값이 메시지에 섞여 나가면 안 된다.
+  assert.equal(알림[0].includes("1234567"), false);
+
+  // openssl rand -base64 32 는 44글자다.
+  const 넉넉 = { ...FULL_KEYS, dbSecret: "a".repeat(44) };
+  assert.equal(isPaymentReady(넉넉), true);
+});

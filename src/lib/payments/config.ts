@@ -72,8 +72,37 @@ const KEY_NAMES: Record<keyof PaymentKeys, string> = {
  * 다섯 개 중 뭐가 빠졌는지 모른 채로는 고칠 수가 없다. 결제가 안 켜지는
  * 이유가 "주문하기 버튼이 그대로다" 하나뿐이면 다섯 군데를 다 뒤져야 한다.
  */
+/**
+ * dbSecret 최소 길이.
+ *
+ * 이 값은 "주문을 결제완료로 바꿔도 된다" 는 권한 그 자체다. 그리고
+ * mark_order_paid 는 anon 에게 열려 있다 — 브라우저에 공개된 키로 누구나
+ * 부를 수 있고, 막아 주는 건 이 값 하나뿐이다.
+ *
+ * 짧으면 찍어서 맞힐 수 있다. 자기 주문의 결제번호와 금액은 본인이 아니까,
+ * 남는 건 이 값을 맞히는 것뿐이고 그러면 돈을 안 내고 주문이 결제완료가 된다.
+ * 실제로 7글자가 들어가 있던 적이 있다.
+ *
+ * openssl rand -base64 32 이 44글자를 준다. 32 는 그보다 넉넉히 낮게 잡은 선이다.
+ */
+const MIN_DB_SECRET_LENGTH = 32;
+
 export function missingPaymentKeys(keys: PaymentKeys): string[] {
-  return (Object.keys(KEY_NAMES) as (keyof PaymentKeys)[])
+  const missing = (Object.keys(KEY_NAMES) as (keyof PaymentKeys)[])
     .filter((key) => keys[key].trim() === "")
     .map((key) => KEY_NAMES[key]);
+
+  /*
+    짧은 값은 없는 것보다 나쁘다. 없으면 결제가 안 켜져서 금방 알아채지만,
+    짧으면 멀쩡히 돌아가는 채로 뚫려 있다. 그래서 "없음" 과 같이 취급해
+    결제를 아예 켜지 않는다.
+  */
+  const dbSecret = keys.dbSecret.trim();
+  if (dbSecret !== "" && dbSecret.length < MIN_DB_SECRET_LENGTH) {
+    missing.push(
+      `${KEY_NAMES.dbSecret} (너무 짧아요 — ${MIN_DB_SECRET_LENGTH}자 이상, openssl rand -base64 32)`,
+    );
+  }
+
+  return missing;
 }
