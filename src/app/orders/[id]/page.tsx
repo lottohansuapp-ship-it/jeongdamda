@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { OrderDetail } from "@/components/orders/OrderDetail";
+import { PaymentReturn } from "@/components/orders/PaymentReturn";
 import { isPaymentLive } from "@/lib/payments/portone";
 import { BottomNav } from "@/components/ui/BottomNav";
 import { getOrder, getProfile } from "@/lib/queries";
@@ -42,7 +43,13 @@ async function OrderBody({ params }: PageProps) {
   const order = await getOrder(id);
   if (!order) notFound();
 
-  return <OrderDetail order={order} paymentReady={isPaymentLive()} />;
+  return (
+    <>
+      {/* 휴대폰 결제에서 돌아온 경우에만 일한다. 그 외에는 아무것도 안 그린다. */}
+      <PaymentReturn orderId={id} />
+      <OrderDetail order={order} paymentReady={isPaymentLive()} />
+    </>
+  );
 }
 
 function Skeleton() {

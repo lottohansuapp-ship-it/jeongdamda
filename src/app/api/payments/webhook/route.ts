@@ -69,15 +69,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: result.error }, { status: 500 });
   }
 
-  // applied 는 이번 호출에서 처음 확정됐다는 뜻이다. 재시도로 다시 와도 false 라
-  // 알림이 두 번 가지 않는다 — 멱등 보장이 곧 중복 발송 방지가 된다.
-  if (result.applied && result.orderId) {
-    // 매장에 새 주문을, 손님에게 "주문 완료" 를 한 통씩 보낸다.
-    // applied 가 true 인 이번 호출에서만 보내므로 웹훅이 재시도돼도 두 번 가지 않는다.
-    const { notifyNewOrder, notifyCustomer } = await import("@/lib/notify");
-    await notifyNewOrder(result.orderId);
-    await notifyCustomer(result.orderId, "order_placed");
-  }
+  // 알림은 confirmPayment 안에서 보낸다. 손님 화면이 부르는 경로와 같은
+  // 함수라 매장 알림이 어느 쪽으로 확정되든 한 번은 간다.
 
   return NextResponse.json({ applied: result.applied, status: result.status });
 }

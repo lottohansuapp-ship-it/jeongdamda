@@ -54,10 +54,29 @@ export async function confirmPayment(paymentId: string): Promise<ConfirmResult> 
     order_id?: string;
   } | null;
 
+  const applied = Boolean(result?.applied);
+  const orderId = result?.order_id ?? null;
+
+  /*
+    알림도 여기서 보낸다. 예전에는 웹훅 라우트에만 있었다.
+    그런데 휴대폰 결제는 결제 앱으로 넘어갔다가 주문 화면으로 돌아오는
+    방식이라 웹훅이 늦거나 실패하면 매장이 주문을 아예 모른다.
+    이 파일 맨 위에 적어 둔 그대로다 — 두 경로가 각자 판단하면 언젠가 갈라진다.
+
+    applied 는 이번 호출에서 처음 확정됐다는 뜻이라 여러 번 불려도 한 번만 간다.
+    알림이 실패해도 결제 확정을 되돌리지 않는다. 돈은 이미 받았고 주문도
+    확정됐다 — 알림 때문에 그걸 무를 수는 없다.
+  */
+  if (applied && orderId) {
+    const { notifyNewOrder, notifyCustomer } = await import("../notify");
+    await notifyNewOrder(orderId);
+    await notifyCustomer(orderId, "order_placed");
+  }
+
   return {
     ok: true,
-    applied: Boolean(result?.applied),
+    applied,
     status: result?.status ?? "paid",
-    orderId: result?.order_id ?? null,
+    orderId,
   };
 }
