@@ -183,6 +183,21 @@ export function OrderBoard({
     playOrderAlarm(1);
   }
 
+  /**
+   * 탭 제목으로도 알린다.
+   *
+   * 새로고침 직후에는 브라우저가 소리를 막고 있을 수 있다. 그 몇 초 사이에
+   * 주문이 들어오면 소리로는 알릴 방법이 없다. 그때도 작업표시줄의 탭 이름이
+   * 바뀌면 눈에 띈다 — 소리가 유일한 통로가 되지 않게 한다.
+   */
+  useEffect(() => {
+    const original = document.title;
+    if (newCount > 0) document.title = `[새 주문 ${newCount}건] ${original}`;
+    return () => {
+      document.title = original;
+    };
+  }, [newCount]);
+
   function acknowledge() {
     stopAlarm();
     setNewCount(0);
@@ -333,14 +348,17 @@ function AlarmBar({
   onToggle: () => void;
   onAcknowledge: () => void;
 }) {
-  if (!on) {
-    /*
-      켜 두셨는데 아직 소리가 안 나는 상태를 따로 말한다.
-      "꺼짐" 이라고만 하면 설정이 안 남은 줄 아시고, 그렇다고 "켜짐" 이라
-      하면 안 울리는데 켜진 줄 아신다. 둘 다 주문을 놓치는 길이다.
+  /*
+    큰 주황 바는 **정말로 꺼져 있을 때만** 띄운다.
 
-      화면 아무 곳이나 누르면 켜지므로 그렇게 안내한다.
-    */
+    새로고침하면 브라우저가 소리를 다시 막는다. 이건 우리가 못 바꾸는 규칙이다.
+    그때마다 큰 경고가 뜨면 사장님은 하루에도 몇 번씩 같은 버튼을 누르게 된다.
+
+    켜 두셨으면 켜진 것으로 둔다. 다만 아직 소리가 안 나는 동안에는 그 줄에
+    작게 덧붙인다 — 켜진 척은 하지 않되 하던 일을 막지도 않는다.
+    화면 어디든 한 번 누르면 그 순간 소리가 살아난다.
+  */
+  if (!wanted) {
     return (
       <button
         type="button"
@@ -348,9 +366,7 @@ function AlarmBar({
         className="mb-4 flex w-full items-center justify-center gap-2 rounded-card bg-clay px-4 py-4 text-[16px] text-white shadow-soft transition-colors duration-200 hover:bg-clay-deep"
       >
         <BellIcon />
-        {wanted
-          ? "주문 소리 대기 중 — 아무 곳이나 누르면 켜집니다"
-          : "주문 소리 꺼짐 — 눌러서 켜기"}
+        주문 소리 꺼짐 — 눌러서 켜기
       </button>
     );
   }
@@ -375,14 +391,22 @@ function AlarmBar({
 
   return (
     <div className="mb-4 flex items-center justify-between gap-3 rounded-card bg-white px-4 py-2.5 shadow-soft">
-      <span className="flex items-center gap-2 text-[13.5px] text-olive-deep">
-        <BellIcon />
-        주문 소리 켜짐
+      <span className="min-w-0">
+        <span className="flex items-center gap-2 text-[13.5px] text-olive-deep">
+          <BellIcon />
+          주문 소리 켜짐
+        </span>
+        {!on && (
+          <span className="block pt-0.5 text-[12px] leading-relaxed text-ink-faint">
+            화면을 한 번 누르면 소리가 살아나요 (새로고침하면 브라우저가 잠깐
+            막아둡니다)
+          </span>
+        )}
       </span>
       <button
         type="button"
         onClick={onToggle}
-        className="h-10 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-ink"
+        className="h-10 shrink-0 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-ink"
       >
         끄기
       </button>
