@@ -71,24 +71,79 @@ function StoreInfoNotice() {
  * 결제가 안 잡히거나 알림이 안 나가는 건 손님이 전화하기 전에 알아야 한다.
  * 개인정보는 담기지 않는다 — 어디서 났는지와 메시지뿐이다 (0016).
  */
+const SEEN_KEY = "jeongdamda-errors-seen";
+
 function ErrorNotice({ errors }: { errors: ErrorLog[] }) {
-  if (errors.length === 0) return null;
+  /**
+   * 확인한 시점. 그보다 오래된 오류는 가린다.
+   *
+   * 고쳐 놓고도 24시간 동안 빨간 경고를 계속 봐야 했다. 매일 여는 화면이라
+   * "지금 나는 문제" 와 "이미 해결한 것" 이 섞이면 결국 전부 무시하게 된다.
+   * 그러면 진짜 문제도 놓친다.
+   *
+   * **기록은 지우지 않는다.** 화면에서만 가린다 — 나중에 원인을 되짚을 때
+   * 필요하고, 지운 기록은 되살릴 수 없다.
+   *
+   * 기기마다 따로 기억한다. DB 에 컬럼을 더하는 것보다 가볍고, 사장님은
+   * 매장 PC 한 대에서 보신다. 휴대폰에서 또 한 번 누르시면 된다.
+   */
+  const [seenAt, setSeenAt] = useState<string | null>(null);
+  // 렌더가 끝난 뒤에 읽는다. 서버에는 localStorage 가 없어서, 첫 렌더에 읽으면
+  // 서버가 그린 것과 화면이 어긋난다.
+  useEffect(() => {
+    let alive = true;
+    void Promise.resolve().then(() => {
+      if (!alive) return;
+      try {
+        setSeenAt(localStorage.getItem(SEEN_KEY));
+      } catch {
+        // 저장이 막힌 환경. 매번 보이는 쪽이 안전하다.
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const fresh = errors.filter((item) => !seenAt || item.created_at > seenAt);
+  if (fresh.length === 0) return null;
+
+  function acknowledge() {
+    // 지금 보이는 것 중 가장 최근 것을 기준으로 삼는다. 그 뒤에 새로 나면 다시 뜬다.
+    const newest = fresh[0]?.created_at;
+    if (!newest) return;
+    try {
+      localStorage.setItem(SEEN_KEY, newest);
+    } catch {
+      // 저장 못 하면 다음에 또 보인다. 조용히 사라지는 것보다 낫다.
+    }
+    setSeenAt(newest);
+  }
 
   return (
     <div className="mt-3 rounded-card border border-danger/30 bg-danger/5 p-3.5">
-      <p className="text-[13px] text-danger">
-        최근 24시간에 처리하지 못한 일이 {errors.length}건 있어요
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[13px] text-danger">
+          최근 24시간에 처리하지 못한 일이 {fresh.length}건 있어요
+        </p>
+        <button
+          type="button"
+          onClick={acknowledge}
+          className="h-8 shrink-0 rounded-pill border border-danger/30 px-2.5 text-[12px] text-danger transition-colors duration-200 hover:bg-danger/10"
+        >
+          확인했어요
+        </button>
+      </div>
       <ul className="space-y-1 pt-2">
-        {errors.slice(0, 3).map((item) => (
+        {fresh.slice(0, 3).map((item) => (
           <li key={item.id} className="text-[12px] leading-relaxed text-ink-soft">
             <span className="text-ink-faint">{item.scope}</span> · {item.message}
           </li>
         ))}
       </ul>
-      {errors.length > 3 && (
+      {fresh.length > 3 && (
         <p className="pt-1.5 text-[12px] text-ink-faint">
-          외 {errors.length - 3}건
+          외 {fresh.length - 3}건
         </p>
       )}
     </div>
