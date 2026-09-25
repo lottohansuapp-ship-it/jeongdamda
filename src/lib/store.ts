@@ -142,15 +142,16 @@ export function findDeliveryArea(
   );
 }
 
-/**
- * 무료배달 기준 금액. 지역별로 다르게 둘 수 있다.
- *
- * DB 컬럼 이름은 아직 min_order_amount / min_amount 다. 예전에는 "이 금액에
- * 못 미치면 배달 불가" 였는데 지금은 "이 금액을 넘으면 배달비 무료" 로 뜻이
- * 바뀌었다 (0021). 이름을 바꾸면 마이그레이션과 배포 사이에 한쪽이 깨지는데,
- * 손님을 받는 중이라 그 몇 분을 감수할 수 없었다.
- */
+/** 무료배달 기준 금액. 지역별로 다르게 둘 수 있다. */
 export function freeDeliveryFrom(
+  settings: StoreSettings,
+  area: DeliveryArea | null,
+): number {
+  return area?.free_delivery_from ?? settings.free_delivery_from;
+}
+
+/** 배달을 받을 수 있는 최소 금액. 지역별로 다르게 둘 수 있다. */
+export function minimumFor(
   settings: StoreSettings,
   area: DeliveryArea | null,
 ): number {
@@ -180,6 +181,8 @@ export interface DeliveryQuote {
   fee: number;
   /** 이 금액부터 무료배달. 0 이면 무료배달 없음. */
   freeFrom: number;
+  /** 이 금액부터 배달 가능. 0 이면 제한 없음. */
+  minimum: number;
 }
 
 /**
@@ -197,7 +200,8 @@ export function checkDelivery(
 ): DeliveryQuote {
   const base = {
     fee: settings.delivery_fee,
-    freeFrom: settings.min_order_amount,
+    freeFrom: settings.free_delivery_from,
+    minimum: settings.min_order_amount,
   };
 
   if (!settings.delivery_enabled) {
@@ -207,7 +211,7 @@ export function checkDelivery(
     return { ...base, ok: false, reason: "배송지를 먼저 등록해 주세요." };
   }
 
-  let { fee, freeFrom } = base;
+  let { fee, freeFrom, minimum } = base;
 
   // 지역 제한이 꺼져 있으면 주소를 따지지 않는다 (0010). 켰을 때만 지역별 값으로 덮는다.
   if (settings.restrict_delivery_area) {
@@ -217,18 +221,30 @@ export function checkDelivery(
     }
     fee = area.fee;
     freeFrom = freeDeliveryFrom(settings, area);
+    minimum = minimumFor(settings, area);
   }
 
-  /*
-    금액으로 배달을 막지 않는다 (0021).
-
-    예전에는 3만원에 못 미치면 배달 자체가 안 됐다. 2만원어치를 담은 손님은
-    아무것도 못 사고 나갔다. 지금은 배달비를 받고 보내 드리고, 기준을 넘으면
-    그 배달비를 빼 준다. 같은 판단을 place_order 도 한다.
-  */
   fee = deliveryFeeFor(fee, freeFrom, subtotal);
 
-  return { fee, freeFrom, ok: true, reason: null };
+  /*
+    최소주문 (0022). 배달비를 받아도 못 가는 금액대가 있다.
+
+    이 검사는 배달비를 계산한 뒤에 한다. 막히더라도 손님에게 "지금 담긴
+    만큼이면 배달비가 얼마" 를 함께 보여줄 수 있어야 하기 때문이다.
+    같은 판단을 place_order 가 다시 한다 — 이건 안내다.
+  */
+  if (minimum > 0 && subtotal < minimum) {
+    const short = minimum - subtotal;
+    return {
+      fee,
+      freeFrom,
+      minimum,
+      ok: false,
+      reason: `${short.toLocaleString("ko-KR")}원 더 담으면 배달할 수 있어요.`,
+    };
+  }
+
+  return { fee, freeFrom, minimum, ok: true, reason: null };
 }
 
 /**

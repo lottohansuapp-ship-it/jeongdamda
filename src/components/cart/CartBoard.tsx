@@ -42,9 +42,24 @@ function deliveryGap(
   if (!settings?.delivery_enabled) return null;
   // 배달비가 0 이면 이미 무료다. 더 담으라고 할 이유가 없다.
   if (settings.delivery_fee <= 0) return null;
-  const freeFrom = settings.min_order_amount;
+  const freeFrom = settings.free_delivery_from;
   if (freeFrom <= 0 || subtotal >= freeFrom) return null;
   return { short: freeFrom - subtotal, freeFrom };
+}
+
+/**
+ * 최소주문까지 얼마 남았는지. 이건 "더 담으면 좋다" 가 아니라
+ * **"더 담아야 배달된다"** 다. 무료배달 안내보다 먼저 보여야 한다 —
+ * 배달비가 빠진다는 말을 읽고 주문하러 갔다가 막히면 헛걸음이다.
+ */
+function minimumGap(
+  settings: StoreSettings | null,
+  subtotal: number,
+): { short: number; minimum: number } | null {
+  if (!settings?.delivery_enabled) return null;
+  const minimum = settings.min_order_amount;
+  if (minimum <= 0 || subtotal >= minimum) return null;
+  return { short: minimum - subtotal, minimum };
 }
 
 /**
@@ -58,7 +73,11 @@ function deliveryFeeNow(
   subtotal: number,
 ): number {
   if (!settings) return 0;
-  return deliveryFeeFor(settings.delivery_fee, settings.min_order_amount, subtotal);
+  return deliveryFeeFor(
+    settings.delivery_fee,
+    settings.free_delivery_from,
+    subtotal,
+  );
 }
 
 /** summarizeCart 에 넣을 최소 형태. 화면에서 수량만 바꿔가며 다시 계산한다. */
@@ -124,7 +143,9 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
     );
   }
 
-  const gap = deliveryGap(settings, view.subtotal);
+  // 최소주문이 먼저다. 못 미치면 무료배달 안내를 보여줄 자리가 아니다.
+  const shortfall = minimumGap(settings, view.subtotal);
+  const gap = shortfall ? null : deliveryGap(settings, view.subtotal);
   const empty = view.lines.length === 0 && view.orphanIds.length === 0;
 
   if (empty) {
@@ -319,7 +340,36 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
             </p>
           )}
 
-          {gap ? (
+          {shortfall ? (
+            <div className="pb-3">
+              <div className="flex items-baseline justify-between pb-1.5">
+                <span className="text-[13px]">
+                  <strong className="font-normal text-clay-deep">
+                    {formatPrice(shortfall.short)}
+                  </strong>{" "}
+                  더 담아야 배달할 수 있어요
+                </span>
+                <span className="text-[11.5px] text-ink-faint">
+                  지금도 픽업은 가능해요
+                </span>
+              </div>
+              <div
+                className="h-1.5 overflow-hidden rounded-pill bg-line"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={shortfall.minimum}
+                aria-valuenow={view.subtotal}
+                aria-label="배달 최소주문까지 남은 금액"
+              >
+                <div
+                  className="h-full rounded-pill bg-clay transition-[width] duration-300"
+                  style={{
+                    width: `${Math.round((view.subtotal / shortfall.minimum) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ) : gap ? (
             <div className="pb-3">
               <div className="flex items-baseline justify-between pb-1.5">
                 <span className="text-[13px]">

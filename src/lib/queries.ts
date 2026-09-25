@@ -22,10 +22,10 @@ export const PRODUCTS_TAG = "products";
 export const STORE_TAG = "store";
 
 const STORE_COLUMNS =
-  "id, is_open, open_time, close_time, closed_weekdays, pickup_enabled, delivery_enabled, min_order_amount, delivery_fee, restrict_delivery_area, pickup_lead_minutes, notice, updated_at";
+  "id, is_open, open_time, close_time, closed_weekdays, pickup_enabled, delivery_enabled, min_order_amount, free_delivery_from, delivery_fee, restrict_delivery_area, pickup_lead_minutes, notice, updated_at";
 
 const AREA_COLUMNS =
-  "id, name, fee, min_amount, is_active, sort_order, created_at";
+  "id, name, fee, min_amount, free_delivery_from, is_active, sort_order, created_at";
 
 export interface ShopData {
   categories: Category[];

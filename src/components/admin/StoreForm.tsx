@@ -134,7 +134,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Labeled label="무료배달 기준 (원)">
+            <Labeled label="배달 최소주문 (원)">
               <input
                 type="number"
                 name="min_order_amount"
@@ -155,6 +155,23 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
               />
             </Labeled>
           </div>
+
+          <Labeled label="무료배달 기준 (원)">
+            <input
+              type="number"
+              name="free_delivery_from"
+              min={0}
+              step={1000}
+              defaultValue={settings.free_delivery_from}
+              className={FIELD}
+            />
+          </Labeled>
+          {/* 셋이 서로 다른 일을 한다. 숫자만 세 칸 있으면 헷갈린다. */}
+          <p className="text-[12px] leading-relaxed text-ink-faint">
+            최소주문보다 적으면 배달하지 않아요. 그 이상이면 배달비를 받고,
+            무료배달 기준을 넘으면 배달비가 빠집니다. 0 으로 두면 그 제한이
+            없어요.
+          </p>
 
           <Switch
             name="restrict_delivery_area"
@@ -249,7 +266,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
                       )}
                     </div>
                     <p className="pt-1 text-[13px] text-ink-soft">
-                      배달비 {formatPrice(area.fee)} · 무료기준{" "}
+                      배달비 {formatPrice(area.fee)} · 최소{" "}
                       {formatPrice(area.min_amount ?? settings.min_order_amount)}
                       {area.min_amount === null && " (기본값)"}
                     </p>
@@ -341,7 +358,7 @@ function AreaForm({
             className={FIELD}
           />
         </Labeled>
-        <Labeled label={`무료배달 기준 (비우면 ${formatPrice(defaultMinimum)})`}>
+        <Labeled label={`최소주문 (비우면 ${formatPrice(defaultMinimum)})`}>
           <input
             type="number"
             name="min_amount"

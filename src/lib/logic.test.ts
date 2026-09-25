@@ -383,6 +383,7 @@ function store(overrides: Partial<StoreSettings> = {}): StoreSettings {
     pickup_enabled: true,
     delivery_enabled: true,
     min_order_amount: 0,
+    free_delivery_from: 0,
     delivery_fee: 0,
     restrict_delivery_area: false, // DB 기본값과 같게 (0010)
     pickup_lead_minutes: 30,
@@ -396,6 +397,7 @@ function area(overrides: Partial<DeliveryArea> = {}): DeliveryArea {
   return {
     id: "a1",
     name: "정담동",
+    free_delivery_from: null,
     fee: 3000,
     min_amount: null,
     is_active: true,
@@ -499,10 +501,10 @@ test("findDeliveryArea: 중지된 지역은 매칭하지 않는다", () => {
 });
 
 test("freeDeliveryFrom: 지역별 값이 없으면 매장 기본값", () => {
-  const settings = store({ min_order_amount: 15000 });
+  const settings = store({ free_delivery_from: 15000 });
   assert.equal(freeDeliveryFrom(settings, area()), 15000);
-  assert.equal(freeDeliveryFrom(settings, area({ min_amount: 20000 })), 20000);
-  assert.equal(freeDeliveryFrom(settings, area({ min_amount: 0 })), 0);
+  assert.equal(freeDeliveryFrom(settings, area({ free_delivery_from: 20000 })), 20000);
+  assert.equal(freeDeliveryFrom(settings, area({ free_delivery_from: 0 })), 0);
 });
 
 test("checkDelivery: 배달이 꺼져 있으면 막는다", () => {
@@ -555,7 +557,7 @@ test("checkDelivery: 무료 기준에 못 미쳐도 배달은 된다 (0021)", ()
   // 예전에는 여기서 ok:false 였다. 2만원어치를 담은 손님이 아무것도 못 사고
   // 나갔다. 지금은 배달비를 받고 보내 드린다.
   const result = checkDelivery(
-    store({ min_order_amount: 20000, delivery_fee: 3000 }),
+    store({ free_delivery_from: 20000, delivery_fee: 3000 }),
     [area({ fee: 3000 })],
     "정담동 1",
     17000,
@@ -1101,7 +1103,7 @@ test("isPaymentReady: 짧은 DB 시크릿은 없는 것으로 친다", () => {
  * 돈이 걸린 계산이라 값으로 확인해 둔다.
  */
 test("checkDelivery: 기준 미만이면 배달비가 붙고, 넘으면 무료", () => {
-  const 매장 = store({ min_order_amount: 30000, delivery_fee: 3000 });
+  const 매장 = store({ free_delivery_from: 30000, delivery_fee: 3000 });
 
   const 적게 = checkDelivery(매장, [], "성북구 하월곡동", 20000);
   assert.equal(적게.ok, true, "금액이 적어도 배달은 된다");
@@ -1116,7 +1118,7 @@ test("checkDelivery: 기준 미만이면 배달비가 붙고, 넘으면 무료",
 });
 
 test("checkDelivery: 배달이 꺼졌거나 배송지가 없으면 여전히 막는다", () => {
-  const 매장 = store({ min_order_amount: 30000, delivery_fee: 3000 });
+  const 매장 = store({ free_delivery_from: 30000, delivery_fee: 3000 });
   assert.equal(checkDelivery(매장, [], null, 50000).ok, false);
   assert.equal(
     checkDelivery(store({ delivery_enabled: false }), [], "성북구", 50000).ok,
@@ -1125,7 +1127,7 @@ test("checkDelivery: 배달이 꺼졌거나 배송지가 없으면 여전히 막
 });
 
 test("checkDelivery: 무료 기준이 0 이면 배달비는 늘 붙는다", () => {
-  const 매장 = store({ min_order_amount: 0, delivery_fee: 3000 });
+  const 매장 = store({ free_delivery_from: 0, delivery_fee: 3000 });
   assert.equal(checkDelivery(매장, [], "성북구", 100000).fee, 3000);
 });
 
