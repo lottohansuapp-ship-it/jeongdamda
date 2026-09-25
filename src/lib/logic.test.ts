@@ -38,6 +38,7 @@ import {
   checkDelivery,
   findDeliveryArea,
   formatClockTime,
+  deliveryFeeFor,
   freeDeliveryFrom,
   parseClockTime,
   pickupSlots,
@@ -1126,4 +1127,15 @@ test("checkDelivery: 배달이 꺼졌거나 배송지가 없으면 여전히 막
 test("checkDelivery: 무료 기준이 0 이면 배달비는 늘 붙는다", () => {
   const 매장 = store({ min_order_amount: 0, delivery_fee: 3000 });
   assert.equal(checkDelivery(매장, [], "성북구", 100000).fee, 3000);
+});
+
+test("deliveryFeeFor: 장바구니와 주문서가 같은 규칙을 쓴다", () => {
+  // 기준 미만 -> 배달비가 붙는다
+  assert.equal(deliveryFeeFor(3000, 30000, 21000), 3000);
+  // 기준 이상 -> 무료
+  assert.equal(deliveryFeeFor(3000, 30000, 30000), 0);
+  // 무료 기준을 안 정했으면 늘 붙는다. 예전에는 여기서 "무료" 라고 거짓말했다.
+  assert.equal(deliveryFeeFor(3000, 0, 999999), 3000);
+  // 배달비 자체가 0 이면 언제나 0
+  assert.equal(deliveryFeeFor(0, 30000, 1000), 0);
 });

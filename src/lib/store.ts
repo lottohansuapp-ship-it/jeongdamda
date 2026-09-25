@@ -157,6 +157,21 @@ export function freeDeliveryFrom(
   return area?.min_amount ?? settings.min_order_amount;
 }
 
+/**
+ * 이번 주문에 실제로 붙는 배달비.
+ *
+ * 규칙이 한 곳에만 있어야 한다. 장바구니 안내와 주문서 계산이 갈리면 손님은
+ * 장바구니에서 "무료" 를 보고 주문서에서 배달비를 만난다. 그건 속은 기분이 든다.
+ * place_order 도 같은 판단을 한다 (0021).
+ */
+export function deliveryFeeFor(
+  baseFee: number,
+  freeFrom: number,
+  subtotal: number,
+): number {
+  return freeFrom > 0 && subtotal >= freeFrom ? 0 : baseFee;
+}
+
 export interface DeliveryQuote {
   ok: boolean;
   /** 막힌 이유. ok 면 null */
@@ -211,7 +226,7 @@ export function checkDelivery(
     아무것도 못 사고 나갔다. 지금은 배달비를 받고 보내 드리고, 기준을 넘으면
     그 배달비를 빼 준다. 같은 판단을 place_order 도 한다.
   */
-  if (freeFrom > 0 && subtotal >= freeFrom) fee = 0;
+  fee = deliveryFeeFor(fee, freeFrom, subtotal);
 
   return { fee, freeFrom, ok: true, reason: null };
 }

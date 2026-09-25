@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { deliveryFeeFor } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ProductPhoto } from "@/components/shop/ProductPhoto";
@@ -44,6 +45,20 @@ function deliveryGap(
   const freeFrom = settings.min_order_amount;
   if (freeFrom <= 0 || subtotal >= freeFrom) return null;
   return { short: freeFrom - subtotal, freeFrom };
+}
+
+/**
+ * 지금 담긴 만큼으로 배달하면 배달비가 얼마인지.
+ *
+ * 화면이 직접 계산하지 않고 checkDelivery 와 **같은 함수**를 쓴다. 장바구니에서
+ * "무료" 를 보고 주문서에서 배달비를 만나면 손님은 속은 기분이 든다.
+ */
+function deliveryFeeNow(
+  settings: StoreSettings | null,
+  subtotal: number,
+): number {
+  if (!settings) return 0;
+  return deliveryFeeFor(settings.delivery_fee, settings.min_order_amount, subtotal);
 }
 
 /** summarizeCart 에 넣을 최소 형태. 화면에서 수량만 바꿔가며 다시 계산한다. */
@@ -337,10 +352,12 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
             settings?.delivery_enabled &&
             view.subtotal > 0 && (
               <p className="pb-2 text-[12.5px] text-olive-deep">
-                배달 주문할 수 있어요
-                {/* gap 이 null 인데 배달이 켜져 있으면 배달비가 안 붙는 경우다 —
-                    기준을 넘었거나 애초에 배달비가 0 이거나. 둘 다 무료다. */}
-                {" · 배달비 무료"}
+                배달 주문할 수 있어요 ·{" "}
+                {/* 실제 금액을 말한다. 예전에는 여기서 무조건 "무료" 라고 했는데,
+                    무료 기준을 0 으로 두고 배달비만 받는 설정에서는 거짓말이 된다. */}
+                {deliveryFeeNow(settings, view.subtotal) === 0
+                  ? "배달비 무료"
+                  : `배달비 ${formatPrice(deliveryFeeNow(settings, view.subtotal))}`}
               </p>
             )
           )}
