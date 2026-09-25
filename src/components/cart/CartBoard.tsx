@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { deliveryFeeFor } from "@/lib/store";
+import { deliveryFeeFor, deliveryHours } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ProductPhoto } from "@/components/shop/ProductPhoto";
@@ -25,6 +25,13 @@ const ISSUE_TEXT: Record<CartIssue, string> = {
 interface CartBoardProps {
   cart: CartSummary;
   settings: StoreSettings | null;
+  /**
+   * 지금 배달 접수 시간인지. 서버 시계로 판단해서 내려온다.
+   *
+   * 장바구니에서 미리 알려 주려는 것이다. 주문서에 가서야 막히면 손님은
+   * 담고 열고 고른 뒤에 헛걸음한 셈이 된다.
+   */
+  deliveryOpen: boolean;
 }
 
 /**
@@ -87,7 +94,7 @@ function toRows(cart: CartSummary): CartRow[] {
   return cart.lines.map(({ product, quantity }) => ({ product, quantity }));
 }
 
-export function CartBoard({ cart, settings }: CartBoardProps) {
+export function CartBoard({ cart, settings, deliveryOpen }: CartBoardProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -143,9 +150,20 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
     );
   }
 
-  // 최소주문이 먼저다. 못 미치면 무료배달 안내를 보여줄 자리가 아니다.
-  const shortfall = minimumGap(settings, view.subtotal);
-  const gap = shortfall ? null : deliveryGap(settings, view.subtotal);
+  /*
+    안내 우선순위. 위에서 걸리면 아래는 안 보여준다.
+
+      1. 배달 시간이 아님   — 금액을 아무리 채워도 지금은 안 된다
+      2. 최소주문 미달      — 더 담아야 배달된다
+      3. 무료배달까지       — 더 담으면 배달비가 빠진다
+
+    거꾸로 두면 "1만원 더 담으면 배달비 무료" 를 읽고 더 담은 손님이
+    주문서에서 "배달 시간이 아니에요" 를 만난다.
+  */
+  const deliveryClosed = Boolean(settings?.delivery_enabled) && !deliveryOpen;
+  const shortfall = deliveryClosed ? null : minimumGap(settings, view.subtotal);
+  const gap =
+    deliveryClosed || shortfall ? null : deliveryGap(settings, view.subtotal);
   const empty = view.lines.length === 0 && view.orphanIds.length === 0;
 
   if (empty) {
@@ -340,7 +358,13 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
             </p>
           )}
 
-          {shortfall ? (
+          {deliveryClosed && settings ? (
+            <p className="pb-2 text-[12.5px] leading-relaxed text-clay-deep">
+              지금은 <strong className="font-normal">픽업만</strong> 가능해요 ·
+              배달은 {deliveryHours(settings).open.slice(0, 5)}~
+              {deliveryHours(settings).close.slice(0, 5)}에 받아요
+            </p>
+          ) : shortfall ? (
             <div className="pb-3">
               <div className="flex items-baseline justify-between pb-1.5">
                 <span className="text-[13px]">

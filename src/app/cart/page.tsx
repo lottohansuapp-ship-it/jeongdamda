@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CartBoard } from "@/components/cart/CartBoard";
 import { getCart, getStore } from "@/lib/queries";
+import { deliveryOpenState, toSeoulClock } from "@/lib/store";
+import { connection } from "next/server";
 
 export const metadata: Metadata = {
   title: "장바구니",
@@ -33,9 +35,33 @@ export default function CartPage() {
 }
 
 async function CartBody() {
+  // 지금이 배달 시간인지 보려면 시계를 읽어야 한다. 프리렌더 중에는 못 읽는다.
+  await connection();
+
   // 매장 설정은 캐시된 조회다 (STORE_TAG). 최소주문까지 얼마 남았는지 보여주려고 함께 읽는다.
   const [cart, store] = await Promise.all([getCart(), getStore()]);
-  return <CartBoard cart={cart} settings={store.settings} />;
+
+  /*
+    배달 가능 여부를 여기서 판단해서 내려보낸다.
+
+    예전에는 주문서에 가서야 "배달 시간이 아니에요" 를 만났다. 담고, 주문서를
+    열고, 배달을 고르고 나서야 막히는 것이다. 장바구니에서 미리 말해 주면
+    손님은 픽업으로 바로 간다.
+
+    시계는 서버 것을 쓴다. 기기 시계는 틀릴 수 있고, 실제로 주문을 받을지
+    정하는 것도 서버다 (0023 의 delivery_open_now).
+  */
+  const deliveryOpen = store.settings
+    ? deliveryOpenState(store.settings, toSeoulClock(new Date()))
+    : null;
+
+  return (
+    <CartBoard
+      cart={cart}
+      settings={store.settings}
+      deliveryOpen={deliveryOpen?.open ?? false}
+    />
+  );
 }
 
 function Skeleton() {
