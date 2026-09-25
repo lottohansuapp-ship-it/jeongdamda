@@ -9,7 +9,12 @@ import {
   reconcileDraft,
 } from "@/lib/checkout-draft";
 import { getAddresses, getCart, getProfile, getStore } from "@/lib/queries";
-import { pickupSlots, storeOpenState, toSeoulClock } from "@/lib/store";
+import {
+  deliveryOpenState,
+  pickupSlots,
+  storeOpenState,
+  toSeoulClock,
+} from "@/lib/store";
 import { isPaymentLive } from "@/lib/payments/portone";
 import { isProfileComplete } from "@/types/database";
 
@@ -51,13 +56,18 @@ async function CheckoutBody() {
   const clock = toSeoulClock(new Date());
   const slots = pickupSlots(store.settings, clock);
 
+  // 배달은 영업시간 안의 더 좁은 구간이다 (0023). 매장이 열려 있어도 닫힐 수 있다.
+  const deliveryOpen = deliveryOpenState(store.settings, clock);
+
   // "추가 주문"으로 다녀온 손님이 고르던 것을 되살린다.
   // 그 사이 배달이 꺼졌거나 배송지가 지워졌을 수 있으므로 지금 가능한 값으로 맞춘다.
   const draft = reconcileDraft(
     decodeDraft(cookieStore.get(DRAFT_COOKIE)?.value),
     {
       pickupEnabled: store.settings.pickup_enabled,
-      deliveryEnabled: store.settings.delivery_enabled,
+      // 배달 시간이 지났으면 배달을 고를 수 없다 — 배달이 꺼진 것과 같이 다룬다.
+      // 안 그러면 되살린 초안이 배달로 열리고 손님은 막힌 화면을 마주한다.
+      deliveryEnabled: store.settings.delivery_enabled && deliveryOpen.open,
       addressIds: addresses.map((address) => address.id),
       defaultAddressId:
         addresses.find((address) => address.is_default)?.id ??
@@ -76,6 +86,7 @@ async function CheckoutBody() {
       areas={store.areas}
       slots={slots}
       openState={storeOpenState(store.settings, clock)}
+      deliveryOpen={deliveryOpen}
       draft={draft}
       paymentReady={isPaymentLive()}
     />

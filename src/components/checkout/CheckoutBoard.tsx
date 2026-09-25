@@ -43,6 +43,8 @@ interface CheckoutBoardProps {
   areas: DeliveryArea[];
   slots: string[];
   openState: OpenState;
+  /** 지금 배달 접수 시간인지. 매장이 열려 있어도 배달은 닫힐 수 있다 (0023). */
+  deliveryOpen: OpenState;
   /** 서버가 쿠키에서 되살려 지금 상황에 맞춰준 초기값 */
   draft: CheckoutDraft;
   /**
@@ -60,6 +62,7 @@ export function CheckoutBoard({
   areas,
   slots,
   openState,
+  deliveryOpen,
   draft,
   paymentReady,
 }: CheckoutBoardProps) {
@@ -93,8 +96,9 @@ export function CheckoutBoard({
         areas,
         address ? fullAddress(address) : null,
         cart.subtotal,
+        deliveryOpen,
       ),
-    [settings, areas, address, cart.subtotal],
+    [settings, areas, address, cart.subtotal, deliveryOpen],
   );
 
   const isDelivery = fulfillment === "delivery";

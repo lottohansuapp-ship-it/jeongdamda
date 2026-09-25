@@ -156,6 +156,24 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
             </Labeled>
           </div>
 
+          <div className="grid grid-cols-2 gap-2.5">
+            <TimeSelect
+              name="delivery_open_time"
+              label="배달 시작"
+              value={settings.delivery_open_time ?? settings.open_time}
+            />
+            <TimeSelect
+              name="delivery_close_time"
+              label="배달 마감"
+              value={settings.delivery_close_time ?? settings.close_time}
+            />
+          </div>
+          <p className="text-[12px] leading-relaxed text-ink-faint">
+            배달만 따로 받는 시간이에요. 배달 나갔다 돌아올 시간이 필요하니
+            보통 영업 마감보다 이르게 둡니다. 영업시간과 같게 두면 영업하는
+            내내 배달을 받아요.
+          </p>
+
           <Labeled label="무료배달 기준 (원)">
             <input
               type="number"

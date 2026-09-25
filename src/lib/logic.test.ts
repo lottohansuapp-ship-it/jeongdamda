@@ -38,6 +38,8 @@ import {
   checkDelivery,
   findDeliveryArea,
   formatClockTime,
+  deliveryHours,
+  deliveryOpenState,
   deliveryFeeFor,
   freeDeliveryFrom,
   parseClockTime,
@@ -382,6 +384,8 @@ function store(overrides: Partial<StoreSettings> = {}): StoreSettings {
     closed_weekdays: [],
     pickup_enabled: true,
     delivery_enabled: true,
+    delivery_open_time: null,
+    delivery_close_time: null,
     min_order_amount: 0,
     free_delivery_from: 0,
     delivery_fee: 0,
@@ -1140,4 +1144,72 @@ test("deliveryFeeFor: 장바구니와 주문서가 같은 규칙을 쓴다", () 
   assert.equal(deliveryFeeFor(3000, 0, 999999), 3000);
   // 배달비 자체가 0 이면 언제나 0
   assert.equal(deliveryFeeFor(0, 30000, 1000), 0);
+});
+
+/*
+ * 배달 접수 시간 (0023). 매장은 열려 있는데 배달만 닫히는 구간이 생긴다.
+ * DB 의 delivery_open_now() 와 같은 규칙이어야 한다 — 갈리면 손님이 주문서에서
+ * 통과하고 결제 직전에 거절당한다.
+ */
+test("deliveryHours: 안 정했으면 매장 영업시간을 따른다", () => {
+  const 기본 = store({ open_time: "10:00:00", close_time: "17:00:00" });
+  assert.deepEqual(deliveryHours(기본), { open: "10:00:00", close: "17:00:00" });
+
+  const 따로 = store({
+    open_time: "10:00:00",
+    close_time: "17:00:00",
+    delivery_open_time: "11:00:00",
+    delivery_close_time: "15:00:00",
+  });
+  assert.deepEqual(deliveryHours(따로), { open: "11:00:00", close: "15:00:00" });
+});
+
+test("deliveryOpenState: 매장은 열려 있어도 배달은 닫힐 수 있다", () => {
+  const 매장 = store({
+    open_time: "10:00:00",
+    close_time: "17:00:00",
+    delivery_open_time: "11:00:00",
+    delivery_close_time: "15:00:00",
+  });
+
+  const 시각 = (h: number, m = 0) => ({ weekday: 1, minutes: h * 60 + m });
+
+  // 10:30 — 매장은 열렸지만 배달은 아직
+  assert.equal(storeOpenState(매장, 시각(10, 30)).open, true);
+  assert.equal(deliveryOpenState(매장, 시각(10, 30)).open, false);
+
+  // 13:00 — 둘 다 열림
+  assert.equal(deliveryOpenState(매장, 시각(13)).open, true);
+
+  // 16:00 — 매장은 아직 열려 있지만 배달은 마감
+  assert.equal(storeOpenState(매장, 시각(16)).open, true);
+  assert.equal(deliveryOpenState(매장, 시각(16)).open, false);
+});
+
+test("checkDelivery: 배달 시간이 아니면 막고 몇 시부터인지 알려준다", () => {
+  const 매장 = store({
+    open_time: "10:00:00",
+    close_time: "17:00:00",
+    delivery_open_time: "11:00:00",
+    delivery_close_time: "15:00:00",
+    delivery_fee: 3000,
+  });
+
+  const 닫힘 = checkDelivery(매장, [], "성북구 하월곡동", 50000, {
+    open: false,
+    reason: "after_close",
+  });
+  assert.equal(닫힘.ok, false);
+  assert.match(닫힘.reason ?? "", /11:00~15:00/);
+  // 픽업은 된다는 것을 같이 말해야 한다. 안 그러면 손님이 그냥 나간다.
+  assert.match(닫힘.reason ?? "", /픽업/);
+
+  // 배달 시간 안이면 평소대로
+  assert.equal(
+    checkDelivery(매장, [], "성북구 하월곡동", 50000, {
+      open: true,
+      reason: null,
+    }).ok,
+    true,
+  );
 });

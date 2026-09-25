@@ -80,6 +80,20 @@ export function formatClockTime(minutes: number): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
+/**
+ * 배달 접수 시간. 따로 안 정했으면 매장 영업시간을 따른다.
+ * DB 의 delivery_open_now() 와 같은 규칙이어야 한다 (0023).
+ */
+export function deliveryHours(settings: StoreSettings): {
+  open: string;
+  close: string;
+} {
+  return {
+    open: settings.delivery_open_time ?? settings.open_time,
+    close: settings.delivery_close_time ?? settings.close_time,
+  };
+}
+
 export type ClosedReason =
   | "holiday"
   | "weekday_off"
@@ -89,6 +103,24 @@ export type ClosedReason =
 export interface OpenState {
   open: boolean;
   reason: ClosedReason | null;
+}
+
+/**
+ * 지금 배달을 받을 수 있는지.
+ *
+ * 매장이 열려 있어도 배달 시간이 지났을 수 있다. 그래서 두 판정이 따로다 —
+ * 영업시간(storeOpenState)을 먼저 보고, 통과하면 이걸 본다.
+ * 임시휴무·휴무요일은 이미 앞에서 걸러지므로 시간대만 본다.
+ */
+export function deliveryOpenState(
+  settings: StoreSettings,
+  clock: SeoulClock,
+): OpenState {
+  const hours = deliveryHours(settings);
+  return storeOpenState(
+    { ...settings, open_time: hours.open, close_time: hours.close },
+    clock,
+  );
 }
 
 /**
@@ -197,6 +229,8 @@ export function checkDelivery(
   areas: readonly DeliveryArea[],
   address: string | null,
   subtotal: number,
+  /** 지금 배달 시간인지. 서버 시계로 판단해서 넘긴다. 안 넘기면 열린 것으로 본다. */
+  deliveryOpen: OpenState = { open: true, reason: null },
 ): DeliveryQuote {
   const base = {
     fee: settings.delivery_fee,
@@ -206,6 +240,15 @@ export function checkDelivery(
 
   if (!settings.delivery_enabled) {
     return { ...base, ok: false, reason: "지금은 배달 주문을 받지 않아요." };
+  }
+  if (!deliveryOpen.open) {
+    const { open, close } = deliveryHours(settings);
+    return {
+      ...base,
+      ok: false,
+      // 몇 시까지인지 알려준다. "안 돼요" 만 하면 손님은 언제 되는지 모른다.
+      reason: `배달은 ${open.slice(0, 5)}~${close.slice(0, 5)}에만 주문할 수 있어요. 픽업은 지금도 됩니다.`,
+    };
   }
   if (!address) {
     return { ...base, ok: false, reason: "배송지를 먼저 등록해 주세요." };

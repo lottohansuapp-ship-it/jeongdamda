@@ -38,6 +38,12 @@ export async function updateStoreSettings(
     return { ok: false, error: "영업 시각을 09:00 형태로 입력해 주세요." };
   }
 
+  const deliveryOpen = readTime(formData, "delivery_open_time");
+  const deliveryClose = readTime(formData, "delivery_close_time");
+  if (!deliveryOpen || !deliveryClose) {
+    return { ok: false, error: "배달 시각을 09:00 형태로 입력해 주세요." };
+  }
+
   const pickup = formData.get("pickup_enabled") === "on";
   const delivery = formData.get("delivery_enabled") === "on";
   if (!pickup && !delivery) {
@@ -60,6 +66,8 @@ export async function updateStoreSettings(
       is_open: formData.get("is_open") === "on",
       open_time: openTime,
       close_time: closeTime,
+      delivery_open_time: deliveryOpen,
+      delivery_close_time: deliveryClose,
       closed_weekdays: closedWeekdays,
       pickup_enabled: pickup,
       delivery_enabled: delivery,

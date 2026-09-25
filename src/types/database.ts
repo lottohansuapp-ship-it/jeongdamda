@@ -66,6 +66,12 @@ export interface StoreSettings {
   closed_weekdays: number[];
   pickup_enabled: boolean;
   delivery_enabled: boolean;
+  /**
+   * 배달 접수 시간. null 이면 매장 영업시간(open_time/close_time)을 따른다.
+   * 배달은 나갔다 돌아올 시간이 필요해서 보통 영업시간보다 짧다.
+   */
+  delivery_open_time: string | null;
+  delivery_close_time: string | null;
   /** **최소 주문 금액.** 이 금액 미만이면 배달을 받지 않는다. 0 이면 제한 없음. */
   min_order_amount: number;
   /** **무료배달 기준.** 이 금액 이상이면 배달비가 0. 0 이면 무료배달 없음. */
