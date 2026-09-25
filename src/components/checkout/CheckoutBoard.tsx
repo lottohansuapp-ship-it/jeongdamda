@@ -141,6 +141,7 @@ export function CheckoutBoard({
         orderName: orderNameOf(cart),
         customerName: profile.name ?? "",
         customerPhone: profile.phone ?? "",
+        shopUserId: profile.id,
         redirectUrl: `${window.location.origin}/orders/${orderId}`,
       });
 
@@ -540,6 +541,8 @@ async function openPaymentWindow(input: {
   orderName: string;
   customerName: string;
   customerPhone: string;
+  /** KCP 가 요구하는 가맹점 회원 식별자. 휴대폰 소액결제 한도 관리에 쓴다. */
+  shopUserId: string;
   redirectUrl: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!input.method) {
@@ -563,6 +566,18 @@ async function openPaymentWindow(input: {
       customer: {
         fullName: input.customerName,
         phoneNumber: input.customerPhone,
+      },
+      /*
+        NHN KCP 는 shop_user_id 를 요구한다. 휴대폰 소액결제와 상품권에서는
+        **필수**다 (SDK 타입에도 물음표가 없다). 없으면 결제창이 열리다 만다.
+
+        카드에는 없어도 되지만 늘 보낸다 — 수단마다 다르게 보내면 휴대폰
+        결제를 켜는 날 이 줄을 빼먹는다. 다른 PG 는 이 값을 무시한다.
+
+        손님의 회원 id 다. 개인정보가 아니라 우리가 만든 식별자다.
+      */
+      bypass: {
+        kcp_v2: { shop_user_id: input.shopUserId },
       },
       redirectUrl: input.redirectUrl,
     });
