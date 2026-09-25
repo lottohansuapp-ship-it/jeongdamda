@@ -27,18 +27,23 @@ interface CartBoardProps {
 }
 
 /**
- * 배달 최소주문까지 얼마 남았는지. 배민·쿠팡이츠가 장바구니에서 하는 그 안내다.
- * 손님이 "왜 주문이 안 되지" 하고 헤매는 대신 얼마를 더 담으면 되는지 바로 알게 한다.
- * 판정 자체는 place_order 가 다시 한다 — 이건 안내다.
+ * 무료배달까지 얼마 남았는지. 배민·쿠팡이츠가 장바구니에서 하는 그 안내다.
+ *
+ * 예전에는 이 금액에 못 미치면 배달 자체가 안 돼서 "얼마 더 담으면 배달돼요" 였다.
+ * 지금은 금액으로 막지 않는다 (0021). 덜 담아도 배달은 되고 배달비가 붙는다.
+ * 그래서 안내도 "더 담으면 배달비가 빠진다" 로 바뀐다 — 손님을 막는 말이 아니라
+ * 권하는 말이다.
  */
 function deliveryGap(
   settings: StoreSettings | null,
   subtotal: number,
-): { short: number; minimum: number } | null {
+): { short: number; freeFrom: number } | null {
   if (!settings?.delivery_enabled) return null;
-  const minimum = settings.min_order_amount;
-  if (minimum <= 0 || subtotal >= minimum) return null;
-  return { short: minimum - subtotal, minimum };
+  // 배달비가 0 이면 이미 무료다. 더 담으라고 할 이유가 없다.
+  if (settings.delivery_fee <= 0) return null;
+  const freeFrom = settings.min_order_amount;
+  if (freeFrom <= 0 || subtotal >= freeFrom) return null;
+  return { short: freeFrom - subtotal, freeFrom };
 }
 
 /** summarizeCart 에 넣을 최소 형태. 화면에서 수량만 바꿔가며 다시 계산한다. */
@@ -306,24 +311,24 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
                   <strong className="font-normal text-clay-deep">
                     {formatPrice(gap.short)}
                   </strong>{" "}
-                  더 담으면 배달돼요
+                  더 담으면 배달비가 무료예요
                 </span>
                 <span className="text-[11.5px] text-ink-faint">
-                  지금도 픽업은 가능해요
+                  지금 주문하면 배달비 {formatPrice(settings?.delivery_fee ?? 0)}
                 </span>
               </div>
               <div
                 className="h-1.5 overflow-hidden rounded-pill bg-line"
                 role="progressbar"
                 aria-valuemin={0}
-                aria-valuemax={gap.minimum}
+                aria-valuemax={gap.freeFrom}
                 aria-valuenow={view.subtotal}
-                aria-label="배달 최소주문까지 남은 금액"
+                aria-label="무료배달까지 남은 금액"
               >
                 <div
                   className="h-full rounded-pill bg-olive transition-[width] duration-300"
                   style={{
-                    width: `${Math.round((view.subtotal / gap.minimum) * 100)}%`,
+                    width: `${Math.round((view.subtotal / gap.freeFrom) * 100)}%`,
                   }}
                 />
               </div>
@@ -333,7 +338,9 @@ export function CartBoard({ cart, settings }: CartBoardProps) {
             view.subtotal > 0 && (
               <p className="pb-2 text-[12.5px] text-olive-deep">
                 배달 주문할 수 있어요
-                {settings.delivery_fee === 0 && " · 배달비 무료"}
+                {/* gap 이 null 인데 배달이 켜져 있으면 배달비가 안 붙는 경우다 —
+                    기준을 넘었거나 애초에 배달비가 0 이거나. 둘 다 무료다. */}
+                {" · 배달비 무료"}
               </p>
             )
           )}

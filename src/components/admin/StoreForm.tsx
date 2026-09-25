@@ -134,7 +134,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Labeled label="배달 최소주문 (원)">
+            <Labeled label="무료배달 기준 (원)">
               <input
                 type="number"
                 name="min_order_amount"
@@ -249,7 +249,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
                       )}
                     </div>
                     <p className="pt-1 text-[13px] text-ink-soft">
-                      배달비 {formatPrice(area.fee)} · 최소{" "}
+                      배달비 {formatPrice(area.fee)} · 무료기준{" "}
                       {formatPrice(area.min_amount ?? settings.min_order_amount)}
                       {area.min_amount === null && " (기본값)"}
                     </p>
@@ -341,7 +341,7 @@ function AreaForm({
             className={FIELD}
           />
         </Labeled>
-        <Labeled label={`최소주문 (비우면 ${formatPrice(defaultMinimum)})`}>
+        <Labeled label={`무료배달 기준 (비우면 ${formatPrice(defaultMinimum)})`}>
           <input
             type="number"
             name="min_amount"

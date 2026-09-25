@@ -66,6 +66,14 @@ export interface StoreSettings {
   closed_weekdays: number[];
   pickup_enabled: boolean;
   delivery_enabled: boolean;
+  /**
+   * **무료배달 기준 금액.** 이 금액 이상이면 배달비가 0 이 된다.
+   *
+   * 이름이 "최소 주문" 인 것은 예전 뜻이 남은 것이다 — 그때는 이 금액에
+   * 못 미치면 배달 자체를 거절했다. 0021 에서 규칙이 바뀌었고, 컬럼 이름은
+   * 바꾸지 않았다. 마이그레이션과 배포 사이에 어느 쪽이 먼저든 한쪽이
+   * 깨지는데 손님을 받는 중이라 그 몇 분을 감수할 수 없었다.
+   */
   min_order_amount: number;
   /** 지역 제한이 꺼져 있을 때 쓰는 기본 배달비 */
   delivery_fee: number;

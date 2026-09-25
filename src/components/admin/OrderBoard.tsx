@@ -19,6 +19,7 @@ import {
   alarmPreference,
   armAlarm,
   checkNewOrders,
+  playAlarmOnce,
   playOrderAlarm,
   setAlarmPreference,
   stopAlarm,
@@ -178,9 +179,9 @@ export function OrderBoard({
     if (!(await armAlarm())) return;
 
     setAlarmOn(true);
-    // 켜는 순간 한 번 울린다. 소리가 실제로 나는지, 볼륨이 맞는지
+    // 켜는 순간 한 번만 울린다. 소리가 실제로 나는지, 볼륨이 맞는지
     // 장사 시작 전에 확인하실 수 있어야 한다.
-    playOrderAlarm(1);
+    playAlarmOnce();
   }
 
   /**
@@ -197,6 +198,14 @@ export function OrderBoard({
       document.title = original;
     };
   }, [newCount]);
+
+  /*
+    주문 화면을 떠나면 울림을 멈춘다.
+
+    소리는 확인을 누를 때까지 계속 울린다. 그런데 그 확인 버튼은 이 화면에만
+    있다. 울리는 채로 다른 탭으로 넘어가면 멈출 방법이 없어진다.
+  */
+  useEffect(() => stopAlarm, []);
 
   function acknowledge() {
     stopAlarm();

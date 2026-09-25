@@ -142,7 +142,15 @@ export function findDeliveryArea(
   );
 }
 
-export function minimumFor(
+/**
+ * 무료배달 기준 금액. 지역별로 다르게 둘 수 있다.
+ *
+ * DB 컬럼 이름은 아직 min_order_amount / min_amount 다. 예전에는 "이 금액에
+ * 못 미치면 배달 불가" 였는데 지금은 "이 금액을 넘으면 배달비 무료" 로 뜻이
+ * 바뀌었다 (0021). 이름을 바꾸면 마이그레이션과 배포 사이에 한쪽이 깨지는데,
+ * 손님을 받는 중이라 그 몇 분을 감수할 수 없었다.
+ */
+export function freeDeliveryFrom(
   settings: StoreSettings,
   area: DeliveryArea | null,
 ): number {
@@ -153,8 +161,10 @@ export interface DeliveryQuote {
   ok: boolean;
   /** 막힌 이유. ok 면 null */
   reason: string | null;
+  /** 이번 주문에 실제로 붙는 배달비. 기준을 넘으면 0. */
   fee: number;
-  minimum: number;
+  /** 이 금액부터 무료배달. 0 이면 무료배달 없음. */
+  freeFrom: number;
 }
 
 /**
@@ -170,7 +180,10 @@ export function checkDelivery(
   address: string | null,
   subtotal: number,
 ): DeliveryQuote {
-  const base = { fee: settings.delivery_fee, minimum: settings.min_order_amount };
+  const base = {
+    fee: settings.delivery_fee,
+    freeFrom: settings.min_order_amount,
+  };
 
   if (!settings.delivery_enabled) {
     return { ...base, ok: false, reason: "지금은 배달 주문을 받지 않아요." };
@@ -179,7 +192,7 @@ export function checkDelivery(
     return { ...base, ok: false, reason: "배송지를 먼저 등록해 주세요." };
   }
 
-  let { fee, minimum } = base;
+  let { fee, freeFrom } = base;
 
   // 지역 제한이 꺼져 있으면 주소를 따지지 않는다 (0010). 켰을 때만 지역별 값으로 덮는다.
   if (settings.restrict_delivery_area) {
@@ -188,20 +201,19 @@ export function checkDelivery(
       return { ...base, ok: false, reason: "아직 이 지역은 배달이 어려워요." };
     }
     fee = area.fee;
-    minimum = minimumFor(settings, area);
+    freeFrom = freeDeliveryFrom(settings, area);
   }
 
-  if (subtotal < minimum) {
-    const short = minimum - subtotal;
-    return {
-      fee,
-      minimum,
-      ok: false,
-      reason: `${short.toLocaleString("ko-KR")}원 더 담으면 배달돼요.`,
-    };
-  }
+  /*
+    금액으로 배달을 막지 않는다 (0021).
 
-  return { fee, minimum, ok: true, reason: null };
+    예전에는 3만원에 못 미치면 배달 자체가 안 됐다. 2만원어치를 담은 손님은
+    아무것도 못 사고 나갔다. 지금은 배달비를 받고 보내 드리고, 기준을 넘으면
+    그 배달비를 빼 준다. 같은 판단을 place_order 도 한다.
+  */
+  if (freeFrom > 0 && subtotal >= freeFrom) fee = 0;
+
+  return { fee, freeFrom, ok: true, reason: null };
 }
 
 /**

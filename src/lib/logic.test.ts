@@ -38,7 +38,7 @@ import {
   checkDelivery,
   findDeliveryArea,
   formatClockTime,
-  minimumFor,
+  freeDeliveryFrom,
   parseClockTime,
   pickupSlots,
   pickupTimestamp,
@@ -497,11 +497,11 @@ test("findDeliveryArea: 중지된 지역은 매칭하지 않는다", () => {
   assert.equal(findDeliveryArea([area({ is_active: false })], "정담동 1"), null);
 });
 
-test("minimumFor: 지역별 값이 없으면 매장 기본값", () => {
+test("freeDeliveryFrom: 지역별 값이 없으면 매장 기본값", () => {
   const settings = store({ min_order_amount: 15000 });
-  assert.equal(minimumFor(settings, area()), 15000);
-  assert.equal(minimumFor(settings, area({ min_amount: 20000 })), 20000);
-  assert.equal(minimumFor(settings, area({ min_amount: 0 })), 0);
+  assert.equal(freeDeliveryFrom(settings, area()), 15000);
+  assert.equal(freeDeliveryFrom(settings, area({ min_amount: 20000 })), 20000);
+  assert.equal(freeDeliveryFrom(settings, area({ min_amount: 0 })), 0);
 });
 
 test("checkDelivery: 배달이 꺼져 있으면 막는다", () => {
@@ -550,15 +550,17 @@ test("checkDelivery: 지역 제한이 꺼져 있으면 매장 기본 배달비�
   );
 });
 
-test("checkDelivery: 최소주문 미달이면 부족한 금액을 알려준다", () => {
+test("checkDelivery: 무료 기준에 못 미쳐도 배달은 된다 (0021)", () => {
+  // 예전에는 여기서 ok:false 였다. 2만원어치를 담은 손님이 아무것도 못 사고
+  // 나갔다. 지금은 배달비를 받고 보내 드린다.
   const result = checkDelivery(
-    store({ min_order_amount: 20000 }),
-    [area()],
+    store({ min_order_amount: 20000, delivery_fee: 3000 }),
+    [area({ fee: 3000 })],
     "정담동 1",
     17000,
   );
-  assert.equal(result.ok, false);
-  assert.match(result.reason ?? "", /3,000원/);
+  assert.equal(result.ok, true);
+  assert.equal(result.fee, 3000);
 });
 
 test("checkDelivery: 조건을 다 만족하면 통과", () => {
@@ -1091,4 +1093,37 @@ test("isPaymentReady: 짧은 DB 시크릿은 없는 것으로 친다", () => {
   // openssl rand -base64 32 는 44글자다.
   const 넉넉 = { ...FULL_KEYS, dbSecret: "a".repeat(44) };
   assert.equal(isPaymentReady(넉넉), true);
+});
+
+/*
+ * 배달비 규칙 (0021). 금액으로 배달을 막지 않고, 기준을 넘으면 배달비가 빠진다.
+ * 돈이 걸린 계산이라 값으로 확인해 둔다.
+ */
+test("checkDelivery: 기준 미만이면 배달비가 붙고, 넘으면 무료", () => {
+  const 매장 = store({ min_order_amount: 30000, delivery_fee: 3000 });
+
+  const 적게 = checkDelivery(매장, [], "성북구 하월곡동", 20000);
+  assert.equal(적게.ok, true, "금액이 적어도 배달은 된다");
+  assert.equal(적게.fee, 3000);
+  assert.equal(적게.freeFrom, 30000);
+
+  // 딱 기준선
+  assert.equal(checkDelivery(매장, [], "성북구 하월곡동", 30000).fee, 0);
+  assert.equal(checkDelivery(매장, [], "성북구 하월곡동", 50000).fee, 0);
+  // 한 원 모자라면 아직 붙는다
+  assert.equal(checkDelivery(매장, [], "성북구 하월곡동", 29999).fee, 3000);
+});
+
+test("checkDelivery: 배달이 꺼졌거나 배송지가 없으면 여전히 막는다", () => {
+  const 매장 = store({ min_order_amount: 30000, delivery_fee: 3000 });
+  assert.equal(checkDelivery(매장, [], null, 50000).ok, false);
+  assert.equal(
+    checkDelivery(store({ delivery_enabled: false }), [], "성북구", 50000).ok,
+    false,
+  );
+});
+
+test("checkDelivery: 무료 기준이 0 이면 배달비는 늘 붙는다", () => {
+  const 매장 = store({ min_order_amount: 0, delivery_fee: 3000 });
+  assert.equal(checkDelivery(매장, [], "성북구", 100000).fee, 3000);
 });

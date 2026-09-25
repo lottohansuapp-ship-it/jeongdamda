@@ -13,9 +13,18 @@
  * 음성은 그 위에 얹는 것이다.
  */
 
-/** 몇 번 울릴지. 매장 안에서 다른 일 하다가 들어야 한다. */
+/**
+ * 한 번에 몇 번 울리고, 그 묶음을 몇 초마다 되풀이할지.
+ *
+ * 예전에는 세 번 울리고 끝났다. 매장에서 손을 쓰고 계시면 그 4초를 놓친다.
+ * 이제 **사장님이 확인을 누를 때까지 멈추지 않는다.** 주문 종이 그런 것처럼.
+ *
+ * 되풀이 간격은 6초다. 더 짧으면 시끄러워서 꺼 버리시게 되고, 더 길면
+ * 놓친 줄 알고 화면을 들여다보게 된다.
+ */
 const REPEATS = 3;
 const GAP_SEC = 1.2;
+const CYCLE_MS = 6000;
 
 /** 두 음. 한 음만 쓰면 냉장고·전자레인지 소리와 구분이 안 된다. */
 const TONES_HZ = [880, 1175];
@@ -55,6 +64,8 @@ export function checkNewOrders(
 
 let audio: AudioContext | null = null;
 let pending: ReturnType<typeof setTimeout>[] = [];
+/** 확인을 누를 때까지 도는 되풀이. null 이면 울리고 있지 않다. */
+let cycle: ReturnType<typeof setInterval> | null = null;
 
 const PREF_KEY = "jeongdamda-order-alarm";
 
@@ -103,18 +114,55 @@ export async function armAlarm(): Promise<boolean> {
   return audio.state === "running";
 }
 
-/** 사장님이 확인을 누르면 남은 울림을 끊는다. */
+/**
+ * 울림을 멈춘다. 사장님이 확인을 누르거나 소리를 끌 때.
+ *
+ * 되풀이까지 확실히 끊는다 — 이걸 빼먹으면 확인을 눌러도 계속 울린다.
+ */
 export function stopAlarm(): void {
+  if (cycle !== null) {
+    clearInterval(cycle);
+    cycle = null;
+  }
   for (const id of pending) clearTimeout(id);
   pending = [];
   window.speechSynthesis?.cancel();
 }
 
+/**
+ * 새 주문 알림. **확인을 누를 때까지 멈추지 않는다.**
+ *
+ * 한 번 울리고 마는 방식은 매장에서 안 통한다. 손에 물이 묻어 있거나
+ * 다른 손님을 보고 계시면 그 몇 초가 그냥 지나간다. 주문 종을 끄는 건
+ * 사람이지 시간이 아니다.
+ *
+ * 울리는 도중에 새 주문이 또 오면 이 함수가 다시 불린다. 그때 앞의 되풀이를
+ * 정리하고 새로 시작한다 — 두 소리가 겹치면 알아듣기 어렵다.
+ */
 export function playOrderAlarm(count = 1): void {
   if (!audio) return;
   void audio.resume();
 
   stopAlarm();
+  ring(count);
+  cycle = setInterval(() => ring(count), CYCLE_MS);
+}
+
+/**
+ * 한 번만 울린다. 소리를 켤 때 볼륨을 확인하는 용도다.
+ *
+ * playOrderAlarm 을 쓰면 안 된다 — 그건 확인을 누를 때까지 멈추지 않는데,
+ * 확인 버튼은 새 주문이 있을 때만 나온다. 멈출 방법이 없는 소리가 된다.
+ */
+export function playAlarmOnce(): void {
+  if (!audio) return;
+  void audio.resume();
+  stopAlarm();
+  ring(1);
+}
+
+function ring(count: number): void {
+  if (!audio) return;
   for (let i = 0; i < REPEATS; i += 1) {
     beep(audio.currentTime + i * GAP_SEC);
   }
@@ -147,6 +195,11 @@ function beep(at: number): void {
 function speak(count: number): void {
   const tts = window.speechSynthesis;
   if (!tts) return;
+
+  // 앞 주기에 예약해 둔 말이 남아 있으면 겹친다. 이번 것만 남긴다.
+  for (const id of pending) clearTimeout(id);
+  pending = [];
+  tts.cancel();
 
   const say = (text: string, delayMs: number) => {
     pending.push(
