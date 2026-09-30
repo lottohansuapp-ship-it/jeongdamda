@@ -42,7 +42,25 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
     .update({ name, phone })
     .eq("id", session.userId);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    /*
+      같은 번호가 이미 다른 계정에 있다 (0024 의 유니크 인덱스).
+      쿠폰을 1인 1회로 주려고 건 제약이다.
+
+      Postgres 원문("duplicate key value violates unique constraint …")을
+      그대로 보여주면 손님은 무슨 말인지 모른다. 그렇다고 "그 번호는
+      ○○님이 쓰고 있어요" 라고 할 수도 없다 — 남의 번호가 가입돼 있는지
+      알려주는 꼴이다. 무엇을 해야 하는지만 말한다.
+    */
+    if (error.code === "23505") {
+      return {
+        ok: false,
+        error:
+          "이미 가입된 휴대폰 번호예요. 예전에 만드신 계정으로 로그인해 보시거나 02-6953-8086 으로 전화 주세요.",
+      };
+    }
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath("/account");
   return { ok: true, data: undefined };
