@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { bulkUpdateProducts, createProduct, reorderProducts, uploadPhoto } from "@/lib/actions";
+import {
+  bulkUpdateProducts,
+  createCategory,
+  createProduct,
+  reorderProducts,
+  uploadPhoto,
+} from "@/lib/actions";
 import {
   EMPTY_FILTERS,
   filterProducts,
@@ -158,6 +164,8 @@ export function AdminBoard({
   const [adding, setAdding] = useState(false);
   /** 새 반찬에 붙일 사진 이름. 골랐는지 눈으로 확인시켜 준다. */
   const [photoName, setPhotoName] = useState<string | null>(null);
+  /** 카테고리를 고르는 중인가, 새로 만드는 중인가. */
+  const [newCategory, setNewCategory] = useState(false);
   const [filters, setFilters] = useState<ShopFilters>(EMPTY_FILTERS);
 
   const patch = (next: Partial<ShopFilters>) =>
@@ -256,10 +264,32 @@ export function AdminBoard({
   }
 
   async function onAdd(formData: FormData) {
+    /*
+      카테고리를 새로 만드는 중이면 그것부터 만든다. 반찬을 추가하려다
+      카테고리가 없다는 걸 아는 순간이 가장 흔하니, 그 자리에서 끝내게 한다.
+      카테고리 만들기가 실패하면 반찬도 만들지 않는다 — 엉뚱한 카테고리에
+      들어가는 것보다 낫다.
+    */
+    let categoryId = String(formData.get("category_id") ?? "");
+
+    const typed = String(formData.get("new_category") ?? "").trim();
+    if (newCategory) {
+      if (!typed) {
+        onError("카테고리 이름을 입력하세요.");
+        return;
+      }
+      const made = await createCategory(typed, categories.length + 1);
+      if (!made.ok) {
+        onError(made.error);
+        return;
+      }
+      categoryId = made.data.id;
+    }
+
     const result = await createProduct({
       name: String(formData.get("name") ?? ""),
       price: Number(formData.get("price") ?? 0),
-      category_id: String(formData.get("category_id") ?? ""),
+      category_id: categoryId,
       today_stock: Number(formData.get("today_stock") ?? 0),
       badges: ["today"],
       sort_order: order.length + 1,
@@ -297,6 +327,7 @@ export function AdminBoard({
 
     setAdding(false);
     setPhotoName(null);
+    setNewCategory(false);
     onNotice("상품이 추가되었습니다");
   }
 
@@ -344,16 +375,43 @@ export function AdminBoard({
               className={INPUT}
             />
           </div>
-          <select name="category_id" required className={INPUT} defaultValue="">
-            <option value="" disabled>
-              카테고리 선택
-            </option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+          {/* 고르기와 만들기를 한 자리에 둔다. 반찬을 추가하려다 카테고리가
+              없다는 걸 아는 순간이 가장 흔해서, 화면을 옮기지 않고 끝내게 한다. */}
+          <div className="flex gap-2">
+            {newCategory ? (
+              <input
+                name="new_category"
+                required
+                maxLength={20}
+                autoFocus
+                placeholder="새 카테고리 이름"
+                className={INPUT}
+              />
+            ) : (
+              <select
+                name="category_id"
+                required
+                className={INPUT}
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  카테고리 선택
+                </option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={() => setNewCategory((v) => !v)}
+              className="h-12 shrink-0 rounded-card border border-line px-4 text-[13.5px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
+            >
+              {newCategory ? "고르기" : "새로 만들기"}
+            </button>
+          </div>
           <label className="tap-target flex w-full cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-dashed border-line bg-canvas px-4 text-[14px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep">
             {photoName ? `사진: ${photoName}` : "사진 고르기 (선택)"}
             <input
@@ -383,6 +441,7 @@ export function AdminBoard({
               onClick={() => {
                 setAdding(false);
                 setPhotoName(null);
+                setNewCategory(false);
               }}
               className="h-12 rounded-card border border-line px-5 text-[14px] text-ink-soft"
             >

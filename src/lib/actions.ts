@@ -138,6 +138,47 @@ export async function reorderProducts(ids: string[]): Promise<ActionResult> {
   return { ok: true, data: undefined };
 }
 
+/**
+ * 카테고리 추가.
+ *
+ * slug 는 화면에서 어느 카테고리를 보고 있는지 가리키는 열쇠일 뿐 주소에는
+ * 안 나간다. 그래서 이름을 그대로 쓴다 — 공백만 정리하고 소문자로.
+ *
+ * 그렇게 두면 **유니크 제약이 중복 카테고리를 막아 준다.** 같은 이름을 두 번
+ * 만들면 DB 가 거절한다. 무작위 문자열로 만들면 이 보호가 사라진다.
+ */
+export async function createCategory(
+  name: string,
+  sortOrder: number,
+): Promise<ActionResult<{ id: string }>> {
+  const db = await authed();
+  if (!db) return { ok: false, error: "로그인이 필요합니다." };
+
+  const clean = name.trim().replace(/\s+/g, " ");
+  if (!clean) return { ok: false, error: "카테고리 이름을 입력하세요." };
+  if (clean.length > 20) {
+    return { ok: false, error: "카테고리 이름은 20자까지예요." };
+  }
+
+  const { data, error } = await db
+    .from("categories")
+    .insert({ name: clean, slug: clean.toLowerCase(), sort_order: sortOrder })
+    .select("id")
+    .single();
+
+  if (error) {
+    // 23505 = unique 위반. 사장님께는 DB 문구 대신 사람 말로 알린다.
+    const duplicate = error.code === "23505";
+    return {
+      ok: false,
+      error: duplicate ? `'${clean}' 은(는) 이미 있어요.` : error.message,
+    };
+  }
+
+  updateTag(PRODUCTS_TAG);
+  return { ok: true, data: { id: data.id } };
+}
+
 const PHOTO_BUCKET = "product-photos";
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
