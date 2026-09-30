@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CartBoard } from "@/components/cart/CartBoard";
-import { getCart, getStore } from "@/lib/queries";
+import { getCart, getMyCoupons, getStore } from "@/lib/queries";
 import { deliveryOpenState, toSeoulClock } from "@/lib/store";
 import { connection } from "next/server";
 
@@ -39,7 +39,11 @@ async function CartBody() {
   await connection();
 
   // 매장 설정은 캐시된 조회다 (STORE_TAG). 최소주문까지 얼마 남았는지 보여주려고 함께 읽는다.
-  const [cart, store] = await Promise.all([getCart(), getStore()]);
+  const [cart, store, coupons] = await Promise.all([
+    getCart(),
+    getStore(),
+    getMyCoupons(),
+  ]);
 
   /*
     배달 가능 여부를 여기서 판단해서 내려보낸다.
@@ -60,6 +64,7 @@ async function CartBody() {
       cart={cart}
       settings={store.settings}
       deliveryOpen={deliveryOpen?.open ?? false}
+      coupons={coupons}
     />
   );
 }

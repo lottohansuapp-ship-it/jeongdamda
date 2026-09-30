@@ -9,7 +9,9 @@ import {
 } from "@/lib/account";
 import { signOut } from "@/lib/auth";
 import { Wordmark } from "@/components/ui/Wordmark";
-import type { Address, Profile } from "@/types/database";
+import { formatPrice } from "@/lib/format";
+import { formatOrderTime } from "@/lib/orders";
+import type { Address, Profile, UserCoupon } from "@/types/database";
 
 const POSTCODE_SRC =
   "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
@@ -60,6 +62,8 @@ function loadPostcodeScript(): Promise<void> {
 interface AccountBoardProps {
   profile: Profile;
   addresses: Address[];
+  /** 지금 쓸 수 있는 쿠폰. 받은 줄 모르면 없는 것과 같다. */
+  coupons: UserCoupon[];
 }
 
 interface Toast {
@@ -67,7 +71,11 @@ interface Toast {
   message: string;
 }
 
-export function AccountBoard({ profile, addresses }: AccountBoardProps) {
+export function AccountBoard({
+  profile,
+  addresses,
+  coupons,
+}: AccountBoardProps) {
   const [toast, setToast] = useState<Toast | null>(null);
   const [editing, setEditing] = useState<Address | "new" | null>(null);
 
@@ -153,6 +161,44 @@ export function AccountBoard({ profile, addresses }: AccountBoardProps) {
             저장
           </button>
         </form>
+      </section>
+
+      <section
+        aria-labelledby="coupon-heading"
+        className="mt-2.5 rounded-card bg-white p-5 shadow-soft"
+      >
+        <h2 id="coupon-heading" className="pb-4 text-[16px]">
+          쿠폰
+        </h2>
+
+        {coupons.length === 0 ? (
+          <p className="text-[13.5px] leading-relaxed text-ink-soft">
+            지금 쓸 수 있는 쿠폰이 없어요.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {coupons.map((item) => (
+              <li
+                key={item.id}
+                className="rounded-[12px] border border-olive-soft bg-olive-soft/50 px-4 py-3"
+              >
+                <p className="text-[14.5px] text-olive-deep">
+                  {item.coupon.name} · {formatPrice(item.coupon.discount)} 할인
+                </p>
+                <p className="pt-1 text-[12.5px] leading-relaxed text-ink-soft">
+                  {item.coupon.min_order > 0
+                    ? `${formatPrice(item.coupon.min_order)} 이상 주문에 쓸 수 있어요 · `
+                    : ""}
+                  {formatOrderTime(item.expires_at)}까지
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="pt-3 text-[12px] leading-relaxed text-ink-faint">
+          주문서에서 고르시면 결제 금액에서 빠집니다.
+        </p>
       </section>
 
       <section className="pt-4" aria-labelledby="address-heading">

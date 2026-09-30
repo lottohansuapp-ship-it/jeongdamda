@@ -14,7 +14,7 @@ import {
   type CartSummary,
 } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
-import type { StoreSettings } from "@/types/database";
+import type { StoreSettings, UserCoupon } from "@/types/database";
 
 const ISSUE_TEXT: Record<CartIssue, string> = {
   unavailable: "오늘은 판매하지 않아요",
@@ -32,6 +32,13 @@ interface CartBoardProps {
    * 담고 열고 고른 뒤에 헛걸음한 셈이 된다.
    */
   deliveryOpen: boolean;
+  /**
+   * 지금 쓸 수 있는 쿠폰. 여기서 한 줄 알려 준다.
+   *
+   * 쿠폰을 받아도 손님은 모른다. 주문서까지 가야 보이는데, 거기까지 안 가면
+   * 쿠폰이 있는 줄도 모른 채 기한이 지난다.
+   */
+  coupons: UserCoupon[];
 }
 
 /**
@@ -94,7 +101,12 @@ function toRows(cart: CartSummary): CartRow[] {
   return cart.lines.map(({ product, quantity }) => ({ product, quantity }));
 }
 
-export function CartBoard({ cart, settings, deliveryOpen }: CartBoardProps) {
+export function CartBoard({
+  cart,
+  settings,
+  deliveryOpen,
+  coupons,
+}: CartBoardProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -355,6 +367,12 @@ export function CartBoard({ cart, settings, deliveryOpen }: CartBoardProps) {
           {view.blockingIssues > 0 && (
             <p className="pb-2 text-[12.5px] text-clay-deep">
               주문할 수 없는 상품 {view.blockingIssues}개를 먼저 정리해 주세요
+            </p>
+          )}
+
+          {coupons.length > 0 && (
+            <p className="pb-2 text-[12.5px] text-olive-deep">
+              쿠폰 {coupons.length}장 있어요 · 주문서에서 쓰실 수 있습니다
             </p>
           )}
 

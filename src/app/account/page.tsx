@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AccountBoard } from "@/components/account/AccountBoard";
 import { BottomNav } from "@/components/ui/BottomNav";
-import { getAddresses, getProfile } from "@/lib/queries";
+import { getAddresses, getMyCoupons, getProfile } from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "내 정보",
@@ -24,10 +24,16 @@ export default function AccountPage() {
 }
 
 async function AccountBody() {
-  const [profile, addresses] = await Promise.all([getProfile(), getAddresses()]);
+  const [profile, addresses, coupons] = await Promise.all([
+    getProfile(),
+    getAddresses(),
+    getMyCoupons(),
+  ]);
   if (!profile) redirect("/login?next=%2Faccount");
 
-  return <AccountBoard profile={profile} addresses={addresses} />;
+  return (
+    <AccountBoard profile={profile} addresses={addresses} coupons={coupons} />
+  );
 }
 
 function Skeleton() {
