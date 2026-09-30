@@ -58,6 +58,16 @@ export const STORE_INFO: StoreInfo = {
   dataRegion: "대한민국 (서울)",
 };
 
+/**
+ * 같은 번호가 이미 다른 계정에 있을 때 손님에게 보여 줄 말 (0024 유니크 인덱스).
+ *
+ * 가입·카카오 가입 마무리·내 정보 수정 세 곳에서 같은 벽을 만나므로 한 곳에 둔다.
+ * "그 번호는 ○○님이 쓰고 있어요" 라고 할 수는 없다 — 남의 번호가 가입돼
+ * 있는지 알려주는 꼴이다. 무엇을 해야 하는지만 말한다.
+ */
+export const PHONE_TAKEN_MESSAGE =
+  `이미 가입된 휴대폰 번호예요. 예전에 만드신 계정으로 로그인해 보시거나 ${STORE_INFO.phone} 으로 전화 주세요.`;
+
 const LABELS: Record<keyof StoreInfo, string> = {
   name: "상호",
   owner: "대표자",
