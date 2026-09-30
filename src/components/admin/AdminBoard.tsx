@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  bulkUpdateProducts,
-  createProduct,
-  reorderProducts,
-} from "@/lib/actions";
+import { bulkUpdateProducts, createProduct, reorderProducts, uploadPhoto } from "@/lib/actions";
 import {
   EMPTY_FILTERS,
   filterProducts,
@@ -16,6 +12,7 @@ import { FilterChip, FilterTab } from "@/components/ui/Filters";
 import { BADGES, hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
 import { stockStatus } from "@/lib/stock";
 import { missingStoreInfo } from "@/lib/store-info";
+import { shrinkPhoto } from "@/lib/image";
 import { AdminNav } from "./AdminNav";
 import type { ErrorLog } from "@/lib/queries";
 import type { Category, ProductWithCategory } from "@/types/database";
@@ -159,6 +156,8 @@ export function AdminBoard({
   const [synced, setSynced] = useState(products);
   const [toast, setToast] = useState<Toast | null>(null);
   const [adding, setAdding] = useState(false);
+  /** 새 반찬에 붙일 사진 이름. 골랐는지 눈으로 확인시켜 준다. */
+  const [photoName, setPhotoName] = useState<string | null>(null);
   const [filters, setFilters] = useState<ShopFilters>(EMPTY_FILTERS);
 
   const patch = (next: Partial<ShopFilters>) =>
@@ -266,12 +265,39 @@ export function AdminBoard({
       sort_order: order.length + 1,
     });
 
-    if (result.ok) {
-      setAdding(false);
-      onNotice("상품이 추가되었습니다");
-    } else {
+    if (!result.ok) {
       onError(result.error);
+      return;
     }
+
+    /*
+      사진은 상품을 만든 뒤에 올린다. 저장 경로에 상품 id 가 들어가기 때문에
+      먼저 만들어져 있어야 한다.
+
+      올리기 전에 브라우저에서 줄인다 (shrinkPhoto). 휴대폰 사진은 장당
+      3~5MB 인데 이 앱이 가장 크게 쓰는 자리가 상세 화면 720px 이다.
+      매장에서 사장님이 올리실 때 데이터도 그만큼 아낀다.
+    */
+    const photo = formData.get("photo");
+    if (photo instanceof File && photo.size > 0) {
+      onNotice("사진 올리는 중…");
+      const ready = await shrinkPhoto(photo);
+      const form = new FormData();
+      form.set("photo", ready);
+      const uploaded = await uploadPhoto(result.data.id, form);
+
+      if (!uploaded.ok) {
+        // 상품은 이미 만들어졌다. 그 사실을 감추면 사장님이 또 추가하신다.
+        setAdding(false);
+        setPhotoName(null);
+        onError(`반찬은 추가됐는데 사진만 못 올렸어요 — 수정에서 다시 올려주세요. (${uploaded.error})`);
+        return;
+      }
+    }
+
+    setAdding(false);
+    setPhotoName(null);
+    onNotice("상품이 추가되었습니다");
   }
 
   return (
@@ -328,6 +354,23 @@ export function AdminBoard({
               </option>
             ))}
           </select>
+          <label className="tap-target flex w-full cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-dashed border-line bg-canvas px-4 text-[14px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep">
+            {photoName ? `사진: ${photoName}` : "사진 고르기 (선택)"}
+            <input
+              type="file"
+              name="photo"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              className="sr-only"
+              onChange={(event) =>
+                setPhotoName(event.target.files?.[0]?.name ?? null)
+              }
+            />
+          </label>
+          <p className="text-[12px] leading-relaxed text-ink-faint">
+            휴대폰으로 찍은 사진 그대로 올리셔도 돼요. 알아서 줄여서
+            저장합니다.
+          </p>
+
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
@@ -337,7 +380,10 @@ export function AdminBoard({
             </button>
             <button
               type="button"
-              onClick={() => setAdding(false)}
+              onClick={() => {
+                setAdding(false);
+                setPhotoName(null);
+              }}
               className="h-12 rounded-card border border-line px-5 text-[14px] text-ink-soft"
             >
               취소
