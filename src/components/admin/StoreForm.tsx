@@ -133,13 +133,19 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
             />
           </div>
 
+          {/*
+            step 은 화살표 간격만 정하는 게 아니다. 브라우저는 min 에서
+            step 씩 더한 값만 유효하다고 보고 나머지를 막는다. 1000 으로
+            두면 15,500원 같은 금액을 넣을 수 없다. 100 이면 어떤 금액이든
+            통과한다 — 원 단위 가게에 500·1000 단위 제한을 둘 이유가 없다.
+          */}
           <div className="grid grid-cols-2 gap-2.5">
             <Labeled label="배달 최소주문 (원)">
               <input
                 type="number"
                 name="min_order_amount"
                 min={0}
-                step={1000}
+                step={100}
                 defaultValue={settings.min_order_amount}
                 className={FIELD}
               />
@@ -149,7 +155,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
                 type="number"
                 name="delivery_fee"
                 min={0}
-                step={500}
+                step={100}
                 defaultValue={settings.delivery_fee}
                 className={FIELD}
               />
@@ -179,7 +185,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
               type="number"
               name="free_delivery_from"
               min={0}
-              step={1000}
+              step={100}
               defaultValue={settings.free_delivery_from}
               className={FIELD}
             />
@@ -204,7 +210,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
                 type="number"
                 name="pickup_lead_minutes"
                 min={0}
-                step={10}
+                step={5}
                 defaultValue={settings.pickup_lead_minutes}
                 className={FIELD}
               />
@@ -371,7 +377,7 @@ function AreaForm({
             type="number"
             name="fee"
             min={0}
-            step={500}
+            step={100}
             defaultValue={area?.fee ?? 0}
             className={FIELD}
           />
@@ -381,7 +387,7 @@ function AreaForm({
             type="number"
             name="min_amount"
             min={0}
-            step={1000}
+            step={100}
             defaultValue={area?.min_amount ?? ""}
             placeholder="기본값 사용"
             className={FIELD}

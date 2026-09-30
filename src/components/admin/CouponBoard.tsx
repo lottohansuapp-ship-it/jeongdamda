@@ -135,13 +135,13 @@ export function CouponBoard({
               <Field
                 label="할인 (원)"
                 value={coupon.discount}
-                step={1000}
+                step={100}
                 onSave={(v) => void patch(coupon.id, { discount: v })}
               />
               <Field
                 label="최소주문 (원)"
                 value={coupon.min_order}
-                step={1000}
+                step={100}
                 onSave={(v) => void patch(coupon.id, { min_order: v })}
               />
               <Field
@@ -181,8 +181,15 @@ export function CouponBoard({
             <input
               name="discount"
               type="number"
+              /*
+                step 은 화살표가 얼마씩 움직이는가만 정하는 게 아니다.
+                브라우저는 min 에서 step 씩 더한 값만 유효하다고 본다.
+                min=100 step=1000 이면 100·1100·2100… 만 통과해서
+                5000 을 넣으면 "4100 또는 5100" 이라고 막는다.
+                100원 단위면 어떤 금액이든 통과한다.
+              */
               min={100}
-              step={1000}
+              step={100}
               required
               placeholder="할인"
               className={INPUT}
@@ -191,7 +198,7 @@ export function CouponBoard({
               name="min_order"
               type="number"
               min={0}
-              step={1000}
+              step={100}
               defaultValue={0}
               placeholder="최소주문"
               className={INPUT}
