@@ -119,6 +119,10 @@ export interface Order {
   memo: string | null;
   /** 미결제 주문이 재고를 잡아두는 기한 */
   reserved_until: string | null;
+  /** 쿠폰 할인액. 반찬 값에서만 빼고 배달비는 안 깎는다 (0025). */
+  discount: number;
+  /** 쓴 쿠폰. 주문이 취소되면 그 쿠폰이 풀린다. */
+  user_coupon_id: string | null;
   /** 포트원 결제 건 ID. 주문을 만들 때 미리 정해 두고 결제창에 넘긴다. */
   payment_id: string | null;
   paid_at: string | null;
@@ -144,7 +148,7 @@ export interface OrderWithItems extends Order {
 }
 
 export const ORDER_COLUMNS =
-  "id, order_no, user_id, status, fulfillment, receiver_name, receiver_phone, address_snapshot, pickup_at, subtotal, delivery_fee, total, memo, reserved_until, payment_id, paid_at, canceled_at, cancel_reason, created_at, updated_at";
+  "id, order_no, user_id, status, fulfillment, receiver_name, receiver_phone, address_snapshot, pickup_at, subtotal, delivery_fee, discount, total, memo, reserved_until, payment_id, user_coupon_id, paid_at, canceled_at, cancel_reason, created_at, updated_at";
 
 export const ORDER_ITEM_COLUMNS =
   "id, order_id, product_id, name, unit_price, quantity, line_total";
@@ -152,3 +156,24 @@ export const ORDER_ITEM_COLUMNS =
 export type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: string };
+
+/** 쿠폰 규칙. 사장님이 관리자에서 금액과 조건을 정한다. */
+export interface Coupon {
+  id: string;
+  name: string;
+  kind: "signup";
+  discount: number;
+  min_order: number;
+  valid_days: number;
+  is_active: boolean;
+}
+
+/** 손님이 받은 쿠폰 한 장. */
+export interface UserCoupon {
+  id: string;
+  coupon_id: string;
+  issued_at: string;
+  expires_at: string;
+  used_at: string | null;
+  coupon: Coupon;
+}

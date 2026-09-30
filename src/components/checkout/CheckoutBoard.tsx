@@ -20,13 +20,9 @@ import {
 } from "@/lib/checkout-draft-client";
 import { checkDelivery, type DeliveryQuote, type OpenState } from "@/lib/store";
 import { formatPrice } from "@/lib/format";
+import { formatOrderTime } from "@/lib/orders";
 import type { CartSummary } from "@/lib/cart";
-import type {
-  Address,
-  DeliveryArea,
-  Profile,
-  StoreSettings,
-} from "@/types/database";
+import type { Address, DeliveryArea, Profile, StoreSettings, UserCoupon } from "@/types/database";
 
 const CLOSED_TEXT: Record<string, string> = {
   holiday: "오늘은 쉬는 날이에요",
@@ -45,6 +41,8 @@ interface CheckoutBoardProps {
   openState: OpenState;
   /** 지금 배달 접수 시간인지. 매장이 열려 있어도 배달은 닫힐 수 있다 (0023). */
   deliveryOpen: OpenState;
+  /** 손님이 지금 갖고 있는 쿠폰. 아직 안 쓰고 기한이 남은 것만 내려온다. */
+  coupons: UserCoupon[];
   /** 서버가 쿠키에서 되살려 지금 상황에 맞춰준 초기값 */
   draft: CheckoutDraft;
   /**
@@ -63,6 +61,7 @@ export function CheckoutBoard({
   slots,
   openState,
   deliveryOpen,
+  coupons,
   draft,
   paymentReady,
 }: CheckoutBoardProps) {
@@ -103,7 +102,19 @@ export function CheckoutBoard({
 
   const isDelivery = fulfillment === "delivery";
   const fee = isDelivery ? quote.fee : 0;
-  const total = cart.subtotal + fee;
+
+  /*
+    쿠폰. 화면의 계산은 **안내일 뿐**이고 실제 금액은 place_order 가 다시 낸다 (0025).
+    그래도 여기서 같은 규칙으로 계산해야 손님이 결제 직전에 놀라지 않는다.
+
+    할인은 반찬 값에서만 빼고 배달비는 안 깎는다. 반찬 값보다 많이 깎이지도 않는다.
+  */
+  const [couponId, setCouponId] = useState<string | null>(null);
+  const picked = coupons.find((c) => c.id === couponId) ?? null;
+  const usable = picked !== null && cart.subtotal >= picked.coupon.min_order;
+  const discount = usable ? Math.min(picked.coupon.discount, cart.subtotal) : 0;
+
+  const total = cart.subtotal + fee - discount;
 
   const blocked = resolveBlock({
     cart,
@@ -121,6 +132,8 @@ export function CheckoutBoard({
     formData.set("address_id", addressId);
     formData.set("pickup_slot", slot);
     formData.set("memo", memo);
+    // 번호만 보낸다. 할인액은 서버가 다시 계산한다.
+    formData.set("user_coupon_id", usable && picked ? picked.id : "");
 
     startTransition(async () => {
       const result = await placeOrder(formData);
@@ -347,6 +360,48 @@ export function CheckoutBoard({
         />
       </Section>
 
+      {coupons.length > 0 && (
+        <Section title="쿠폰">
+          <div className="space-y-2">
+            {coupons.map((item) => {
+              const short = cart.subtotal < item.coupon.min_order;
+              const on = couponId === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setCouponId(on ? null : item.id)}
+                  aria-pressed={on}
+                  // 최소주문에 못 미쳐도 누를 수는 있게 둔다. 눌러 보고
+                  // "얼마 더 담으면 된다" 를 읽는 편이 감춰 두는 것보다 낫다.
+                  className={`tap-target flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 text-left transition-colors duration-200 ${
+                    on && !short
+                      ? "border-olive bg-olive-soft"
+                      : "border-line bg-canvas hover:border-ink-faint"
+                  }`}
+                >
+                  <span className="py-2.5">
+                    <span className="block text-[14.5px]">
+                      {item.coupon.name} {formatPrice(item.coupon.discount)} 할인
+                    </span>
+                    <span className="block pt-0.5 text-[12px] text-ink-soft">
+                      {short
+                        ? `${formatPrice(item.coupon.min_order - cart.subtotal)} 더 담으면 쓸 수 있어요`
+                        : `${formatOrderTime(item.expires_at)}까지`}
+                    </span>
+                  </span>
+                  {on && !short && (
+                    <span aria-hidden className="text-[15px] text-olive-deep">
+                      &#10003;
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </Section>
+      )}
+
       {/* 고를 것이 하나뿐이면 묻지 않는다. 어르신 손님에게 탭 하나를 더 요구하는
           것이고, 선택지가 하나인 선택지는 선택이 아니다. */}
       {paymentReady && methods.length > 1 && (
@@ -426,6 +481,13 @@ export function CheckoutBoard({
             <Row label="상품 금액" value={formatPrice(cart.subtotal)} />
             {isDelivery && (
               <Row label="배달비" value={fee === 0 ? "무료" : formatPrice(fee)} />
+            )}
+            {discount > 0 && (
+              <Row
+                label="쿠폰 할인"
+                value={`-${formatPrice(discount)}`}
+                tone="discount"
+              />
             )}
             <div className="flex items-baseline justify-between border-t border-line pt-2.5">
               <dt className="text-[14px]">결제 금액</dt>
@@ -662,11 +724,21 @@ function Empty({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "discount";
+}) {
+  // 깎이는 금액은 색으로 구분한다. 숫자만 보면 더해지는지 빼지는지 헷갈린다.
+  const color = tone === "discount" ? "text-olive-deep" : "";
   return (
     <div className="flex items-baseline justify-between">
-      <dt className="text-ink-soft">{label}</dt>
-      <dd className="tabular-nums">{value}</dd>
+      <dt className={`text-ink-soft ${color}`}>{label}</dt>
+      <dd className={`tabular-nums ${color}`}>{value}</dd>
     </div>
   );
 }

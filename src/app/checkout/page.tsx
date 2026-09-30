@@ -8,7 +8,13 @@ import {
   decodeDraft,
   reconcileDraft,
 } from "@/lib/checkout-draft";
-import { getAddresses, getCart, getProfile, getStore } from "@/lib/queries";
+import {
+  getAddresses,
+  getCart,
+  getMyCoupons,
+  getProfile,
+  getStore,
+} from "@/lib/queries";
 import {
   deliveryOpenState,
   pickupSlots,
@@ -38,13 +44,15 @@ export default function CheckoutPage() {
 }
 
 async function CheckoutBody() {
-  const [profile, cart, addresses, store, cookieStore] = await Promise.all([
-    getProfile(),
-    getCart(),
-    getAddresses(),
-    getStore(),
-    cookies(),
-  ]);
+  const [profile, cart, addresses, store, coupons, cookieStore] =
+    await Promise.all([
+      getProfile(),
+      getCart(),
+      getAddresses(),
+      getStore(),
+      getMyCoupons(),
+      cookies(),
+    ]);
 
   if (!profile) redirect("/login?next=%2Fcheckout");
   // 주문에는 이름과 연락처가 반드시 필요하다. place_order 도 없으면 거절한다.
@@ -87,6 +95,7 @@ async function CheckoutBody() {
       slots={slots}
       openState={storeOpenState(store.settings, clock)}
       deliveryOpen={deliveryOpen}
+      coupons={coupons}
       draft={draft}
       paymentReady={isPaymentLive()}
     />

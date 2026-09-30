@@ -75,11 +75,19 @@ export async function placeOrder(
     return { ok: false, error: "배송지를 선택해 주세요." };
   }
 
+  /*
+    쿠폰은 **번호만** 보낸다. 할인액은 보내지 않는다 — 화면이 말하는 금액을
+    믿으면 손님이 고쳐서 공짜로 가져간다. 조건도 금액도 place_order 가
+    다시 본다 (0025). 재고와 같은 규칙이다.
+  */
+  const userCouponId = String(formData.get("user_coupon_id") ?? "").trim();
+
   const { data, error } = await session.db.rpc("place_order", {
     p_fulfillment: fulfillment,
     p_address_id: fulfillment === "delivery" ? addressId : null,
     p_pickup_at: pickupAt,
     p_memo: memo || null,
+    p_user_coupon_id: userCouponId || null,
   });
 
   if (error) return { ok: false, error: rpcError(error.message) };

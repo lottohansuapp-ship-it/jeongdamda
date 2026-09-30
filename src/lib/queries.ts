@@ -6,6 +6,8 @@ import { currentUserId, serverClient } from "./supabase/server";
 import { seoulDate } from "./store";
 import { EMPTY_CART, summarizeCart, type CartSummary } from "./cart";
 import {
+  type Coupon,
+  type UserCoupon,
   ORDER_COLUMNS,
   ORDER_ITEM_COLUMNS,
   PRODUCT_COLUMNS,
@@ -478,4 +480,49 @@ export async function getRecentErrors(hours = 24): Promise<ErrorLog[]> {
 
 function toMessage(error: unknown): string {
   return error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
+}
+
+/**
+ * 손님이 지금 쓸 수 있는 쿠폰.
+ *
+ * 아직 안 썼고 기한이 남은 것만. 최소주문은 **여기서 거르지 않는다** —
+ * "1만5천원 이상부터 쓸 수 있어요" 를 보여줘야 손님이 더 담을지 정한다.
+ * 감춰 버리면 쿠폰이 있는 줄도 모른다.
+ *
+ * 캐시하지 않는다. 사용자별이고 쓰는 순간 바뀐다.
+ */
+export async function getMyCoupons(): Promise<UserCoupon[]> {
+  if (envError()) return [];
+
+  const userId = await currentUserId();
+  if (!userId) return [];
+
+  const db = await serverClient();
+  const { data } = await db
+    .from("user_coupons")
+    .select(
+      "id, coupon_id, issued_at, expires_at, used_at, coupon:coupons(id, name, kind, discount, min_order, valid_days, is_active)",
+    )
+    .eq("user_id", userId)
+    .is("used_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("expires_at");
+
+  return ((data ?? []) as unknown as UserCoupon[]).filter(
+    (row) => row.coupon?.is_active,
+  );
+}
+
+/** 신규가입 쿠폰 규칙. 주문서에 "이런 쿠폰이 있어요" 를 보여줄 때 쓴다. */
+export async function getSignupCoupon(): Promise<Coupon | null> {
+  if (envError()) return null;
+
+  const { data } = await publicClient()
+    .from("coupons")
+    .select("id, name, kind, discount, min_order, valid_days, is_active")
+    .eq("kind", "signup")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  return (data as Coupon | null) ?? null;
 }

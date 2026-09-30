@@ -62,6 +62,18 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: error.message };
   }
 
+  /*
+    번호를 넣은 그 순간 신규가입 쿠폰을 준다.
+
+    가입하자마자 주지 않는 이유는 1인 1회 때문이다. 번호가 있어야
+    "같은 사람" 을 가릴 수 있다 (0024 의 유니크 제약과 짝이다).
+
+    실패해도 프로필 저장을 되돌리지 않는다. 쿠폰은 덤이고, 못 받았다고
+    이름·연락처 저장이 취소되면 주문 자체를 못 한다. 다음에 이 화면을
+    다시 열면 또 시도한다 — 여러 번 불려도 안전하다.
+  */
+  await session.db.rpc("claim_signup_coupon");
+
   revalidatePath("/account");
   return { ok: true, data: undefined };
 }

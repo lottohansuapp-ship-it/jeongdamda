@@ -520,6 +520,11 @@ function OrderCard({
 
       <p className="pt-3 text-[16px] tabular-nums tracking-tight">
         {formatPrice(order.total)}
+        {order.discount > 0 && (
+          <span className="text-[12px] text-olive-deep">
+            (쿠폰 -{formatPrice(order.discount)})
+          </span>
+        )}
         {isDelivery && order.delivery_fee > 0 && (
           <span className="pl-1.5 text-[12.5px] text-ink-faint">
             (배달비 {formatPrice(order.delivery_fee)})
