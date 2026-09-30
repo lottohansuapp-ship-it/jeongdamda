@@ -734,7 +734,7 @@ function Row({
   tone?: "discount";
 }) {
   // 깎이는 금액은 색으로 구분한다. 숫자만 보면 더해지는지 빼지는지 헷갈린다.
-  const color = tone === "discount" ? "text-olive-deep" : "";
+  const color = tone === "discount" ? "text-clay-deep" : "";
   return (
     <div className="flex items-baseline justify-between">
       <dt className={`text-ink-soft ${color}`}>{label}</dt>

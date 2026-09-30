@@ -520,8 +520,9 @@ function OrderCard({
 
       <p className="pt-3 text-[16px] tabular-nums tracking-tight">
         {formatPrice(order.total)}
+        {/* 쿠폰은 어느 화면에서나 clay 다 — 색만 보고도 쿠폰인 줄 안다. */}
         {order.discount > 0 && (
-          <span className="text-[12px] text-olive-deep">
+          <span className="pl-1.5 text-[12.5px] text-clay-deep">
             (쿠폰 -{formatPrice(order.discount)})
           </span>
         )}

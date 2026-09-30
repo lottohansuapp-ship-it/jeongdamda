@@ -159,7 +159,7 @@ export function OrderDetail({
             />
           )}
           {order.discount > 0 && (
-            <div className="flex items-baseline justify-between text-olive-deep">
+            <div className="flex items-baseline justify-between text-clay-deep">
               <dt>쿠폰 할인</dt>
               <dd className="tabular-nums">-{formatPrice(order.discount)}</dd>
             </div>
