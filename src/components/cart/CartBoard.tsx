@@ -371,7 +371,8 @@ export function CartBoard({
           )}
 
           {coupons.length > 0 && (
-            <p className="pb-2 text-[12.5px] text-olive-deep">
+            // 쿠폰은 어느 화면에서나 clay 다. 색이 곧 "쿠폰" 이라는 표시가 된다.
+            <p className="mb-2 rounded-[10px] border-l-[4px] border-clay bg-cream px-3 py-2 text-[12.5px] text-clay-deep">
               쿠폰 {coupons.length}장 있어요 · 주문서에서 쓰실 수 있습니다
             </p>
           )}

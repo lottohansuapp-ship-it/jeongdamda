@@ -167,8 +167,14 @@ export function AccountBoard({
         aria-labelledby="coupon-heading"
         className="mt-2.5 rounded-card bg-white p-5 shadow-soft"
       >
-        <h2 id="coupon-heading" className="pb-4 text-[16px]">
+        <h2 id="coupon-heading" className="flex items-center gap-2 pb-4 text-[16px]">
           쿠폰
+          {coupons.length > 0 && (
+            /* clay 위 흰 글씨는 3.77:1 로 12px 에 모자란다. 한 단계 진한 것을 쓴다. */
+            <span className="rounded-pill bg-clay-deep px-2 py-0.5 text-[12px] leading-none text-white">
+              {coupons.length}
+            </span>
+          )}
         </h2>
 
         {coupons.length === 0 ? (
@@ -178,14 +184,29 @@ export function AccountBoard({
         ) : (
           <ul className="space-y-2">
             {coupons.map((item) => (
+              /*
+                clay(주황)를 쿠폰 전용으로 쓴다. 토큰에 Accent 로 정의돼 있는데
+                거의 안 쓰고 있어서 이 화면에서 유일한 색이 된다 —
+                olive 는 버튼과 정상 안내가, danger 는 품절이, brand 빨강은
+                상호가 이미 쓰고 있다.
+
+                왼쪽 띠와 금액 크기로 위계를 만든다. 굵게 쓰지 않는다
+                (위계는 크기·색·여백으로).
+              */
               <li
                 key={item.id}
-                className="rounded-[12px] border border-olive-soft bg-olive-soft/50 px-4 py-3"
+                className="overflow-hidden rounded-[12px] border border-clay/25 border-l-[5px] border-l-clay bg-cream px-4 py-3.5"
               >
-                <p className="text-[14.5px] text-olive-deep">
-                  {item.coupon.name} · {formatPrice(item.coupon.discount)} 할인
+                <p className="flex items-baseline gap-1.5">
+                  <span className="text-[22px] leading-none tabular-nums tracking-tight text-clay-deep">
+                    {formatPrice(item.coupon.discount)}
+                  </span>
+                  <span className="text-[13px] text-clay-deep">할인</span>
                 </p>
-                <p className="pt-1 text-[12.5px] leading-relaxed text-ink-soft">
+                <p className="pt-1.5 text-[13.5px] text-ink">
+                  {item.coupon.name}
+                </p>
+                <p className="pt-0.5 text-[12.5px] leading-relaxed text-ink-soft">
                   {item.coupon.min_order > 0
                     ? `${formatPrice(item.coupon.min_order)} 이상 주문에 쓸 수 있어요 · `
                     : ""}
