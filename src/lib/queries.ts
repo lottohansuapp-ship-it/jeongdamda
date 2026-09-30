@@ -526,3 +526,75 @@ export async function getSignupCoupon(): Promise<Coupon | null> {
 
   return (data as Coupon | null) ?? null;
 }
+
+export interface AdminCoupon extends Coupon {
+  /** 지금까지 나간 장수 */
+  issued: number;
+  /** 그중 실제로 쓴 장수 */
+  used: number;
+}
+
+/**
+ * 관리자 쿠폰 목록. 발급·사용 장수를 함께 센다.
+ *
+ * 두 수를 따로 조회하지 않고 한 번에 받아 화면에서 센다. 쿠폰 장수는
+ * 반찬가게 규모에서 수백 줄이라 이게 더 싸다. 훨씬 늘면 그때 집계로 옮긴다.
+ */
+export async function getAdminCoupons(): Promise<AdminCoupon[]> {
+  if (envError()) return [];
+
+  const db = await serverClient();
+  const [rules, issued] = await Promise.all([
+    db
+      .from("coupons")
+      .select("id, name, kind, discount, min_order, valid_days, is_active")
+      .order("kind")
+      .order("name"),
+    db.from("user_coupons").select("coupon_id, used_at"),
+  ]);
+
+  const rows = (issued.data ?? []) as { coupon_id: string; used_at: string | null }[];
+
+  return ((rules.data ?? []) as Coupon[]).map((rule) => {
+    const mine = rows.filter((row) => row.coupon_id === rule.id);
+    return {
+      ...rule,
+      issued: mine.length,
+      used: mine.filter((row) => row.used_at !== null).length,
+    };
+  });
+}
+
+export interface CustomerRow {
+  id: string;
+  name: string | null;
+  /** 전화 뒷자리만. 목록에 전체 번호를 늘어놓으면 캡처 한 장에 다 담긴다. */
+  tail: string;
+  created_at: string;
+}
+
+/**
+ * 쿠폰 보낼 회원 목록.
+ *
+ * 번호를 넣은 회원만. 번호가 없으면 주문도 못 하고, 1인 1회를 가릴 수도 없다.
+ * 이름과 뒷자리만 내보낸다 — 누구인지 알아보기에는 그것으로 충분하다.
+ */
+export async function getCustomers(): Promise<CustomerRow[]> {
+  if (envError()) return [];
+
+  const db = await serverClient();
+  const { data } = await db
+    .from("profiles")
+    .select("id, name, phone, created_at")
+    .not("phone", "is", null)
+    .order("created_at", { ascending: false });
+
+  return ((data ?? []) as { id: string; name: string | null; phone: string; created_at: string }[]).map(
+    (row) => ({
+      id: row.id,
+      name: row.name,
+      tail: row.phone.slice(-4),
+      created_at: row.created_at,
+    }),
+  );
+}

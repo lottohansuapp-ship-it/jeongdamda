@@ -22,6 +22,7 @@ const TABS = [
   { href: "/admin", label: "재고" },
   { href: "/admin/orders", label: "주문" },
   { href: "/admin/sales", label: "매출" },
+  { href: "/admin/coupons", label: "쿠폰" },
   { href: "/admin/store", label: "매장 설정" },
 ] as const;
 

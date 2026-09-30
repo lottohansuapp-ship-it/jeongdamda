@@ -161,7 +161,8 @@ export type ActionResult<T = void> =
 export interface Coupon {
   id: string;
   name: string;
-  kind: "signup";
+  /** signup = 가입하면 저절로 / manual = 사장님이 골라서 보냄 (0026) */
+  kind: "signup" | "manual";
   discount: number;
   min_order: number;
   valid_days: number;
