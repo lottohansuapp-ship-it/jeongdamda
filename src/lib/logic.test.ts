@@ -7,6 +7,7 @@ import {
   EMPTY_FILTERS,
 } from "./filter.ts";
 import { checkNewOrders } from "./alarm.ts";
+import { signUpError } from "./auth-errors.ts";
 import {
   isPaymentReady,
   missingPaymentKeys,
@@ -1212,4 +1213,43 @@ test("checkDelivery: 배달 시간이 아니면 막고 몇 시부터인지 알�
     }).ok,
     true,
   );
+});
+
+/*
+  가입 실패 안내. 한 번 틀렸던 자리다 — "already 아니면 전부 번호 탓" 으로
+  뭉개서, 메일 발송 한도에 걸린 손님에게 "이미 가입된 번호" 라고 했다.
+*/
+test("signUpError: 같은 이메일이면 로그인하라고 한다", () => {
+  const message = signUpError({ message: "User already registered", status: 422, code: "user_already_exists" });
+  assert.match(message, /이미 가입된 이메일/);
+});
+
+test("signUpError: 500 은 전화번호 중복으로 본다", () => {
+  const message = signUpError({ message: "Database error saving new user", status: 500, code: "unexpected_failure" });
+  assert.match(message, /이미 가입된 휴대폰 번호/);
+  assert.match(message, /02-6953-8086/, "막힌 손님이 전화할 곳을 알아야 한다");
+});
+
+test("signUpError: 메일 한도는 번호 탓으로 돌리지 않는다", () => {
+  for (const error of [
+    { message: "email rate limit exceeded", status: 429, code: "over_email_send_rate_limit" },
+    { message: "too many requests", status: 429, code: "over_request_rate_limit" },
+  ]) {
+    const message = signUpError(error);
+    assert.doesNotMatch(message, /휴대폰 번호/, "가입한 적 없는 손님이다");
+    assert.match(message, /다시 시도/, "이건 정말 다시 하면 된다");
+  }
+});
+
+test("signUpError: 나머지는 뭉개지 말고 입력 확인만 말한다", () => {
+  for (const error of [
+    { message: "Unable to validate email address", status: 400, code: "email_address_invalid" },
+    { message: "Signups not allowed", status: 422, code: "signup_disabled" },
+    { message: "Password should be at least 6 characters", status: 422, code: "weak_password" },
+    { message: "무슨 일인지 모르겠다" },
+  ]) {
+    const message = signUpError(error);
+    assert.doesNotMatch(message, /휴대폰 번호/);
+    assert.doesNotMatch(message, /이미 가입된 이메일/);
+  }
 });

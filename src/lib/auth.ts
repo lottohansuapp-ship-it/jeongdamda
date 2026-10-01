@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { serverClient } from "./supabase/server";
 import { normalizePhone } from "./format";
 import { PHONE_TAKEN_MESSAGE } from "./store-info";
+import { signUpError } from "./auth-errors";
 
 export interface AuthState {
   error: string | null;
@@ -90,24 +91,7 @@ export async function signUp(
     },
   });
 
-  if (error) {
-    if (error.message.toLowerCase().includes("already")) {
-      return { error: "이미 가입된 이메일입니다. 로그인해 주세요.", notice: null };
-    }
-    /*
-      여기 오는 건 사실상 "같은 번호로 이미 가입했다" 하나다.
-
-      프로필을 만드는 트리거(handle_new_user)가 전화번호 유니크 인덱스(0024)에
-      걸리면 auth.users 삽입까지 같은 트랜잭션에서 되돌아간다 — 계정은 아예
-      생기지 않는다. 그런데 Supabase 는 원인을 감춘 채 "Database error saving
-      new user" 만 돌려주므로 코드에서 번호 탓인지 구분할 수 없다. 그 트리거에서
-      깨질 수 있는 제약이 전화번호 하나뿐이라 이렇게 안내한다.
-
-      예전에는 "잠시 후 다시 시도해 주세요" 였다. 다시 시도해도 영원히 같은
-      결과라 손님이 갇혔다. 드물게 정말 다른 장애일 때를 위해 전화번호를 같이 준다.
-    */
-    return { error: PHONE_TAKEN_MESSAGE, notice: null };
-  }
+  if (error) return { error: signUpError(error), notice: null };
 
   // 이메일 확인이 켜져 있으면 세션 없이 돌아온다
   if (!data.session) {
