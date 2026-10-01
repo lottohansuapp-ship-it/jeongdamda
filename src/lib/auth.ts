@@ -117,6 +117,9 @@ export async function signUp(
     };
   }
 
+  // 이메일 확인이 꺼져 있으면 /auth/callback 을 지나지 않는다. 그 경로의
+  // 손님도 쿠폰을 받게 여기서도 부른다 — 여러 번 불려도 안전하다.
+  await db.rpc("claim_signup_coupon");
   redirect(next);
 }
 
@@ -191,6 +194,10 @@ export async function savePhone(
     }
     return { error: "저장하지 못했습니다. 다시 시도해 주세요.", notice: null };
   }
+
+  // 번호가 들어온 그 순간이 쿠폰을 줄 수 있는 첫 순간이다. 실패해도
+  // 되돌리지 않는다 — 쿠폰은 덤이고, 못 받았다고 가입이 막히면 안 된다.
+  await db.rpc("claim_signup_coupon");
 
   redirect(next);
 }

@@ -45,6 +45,14 @@ export async function GET(request: NextRequest) {
 
   const complete = Boolean(profile?.name?.trim() && profile?.phone?.trim());
 
+  /*
+    신규가입 쿠폰은 번호가 있어야 준다 (1인 1회를 번호로 가리기 때문 — 0024).
+    이메일 확인 링크로 처음 들어오는 손님이 여기를 지난다. 예전에는 「내 정보」
+    에서 저장을 눌러야만 발급돼서, 그럴 이유가 없는 손님은 영영 못 받았다.
+    여러 번 불려도 안전한 함수다.
+  */
+  if (complete) await db.rpc("claim_signup_coupon");
+
   return NextResponse.redirect(
     complete
       ? `${origin}${next}`
