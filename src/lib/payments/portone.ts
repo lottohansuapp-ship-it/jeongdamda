@@ -21,9 +21,14 @@ export type { WebhookHeaders };
  */
 const API_BASE = "https://api.portone.io";
 
-const API_SECRET = process.env.PORTONE_API_SECRET ?? "";
+/*
+  앞뒤 공백을 지운다. 콘솔에서 복사해 Vercel 에 붙이면 끝에 줄바꿈이 딸려
+  오기 쉽고, 그러면 화면에서는 같아 보이는데 서명이 전부 틀린다 — 포트원
+  「호출 테스트」 가 400 만 내고 이유는 안 보인다. 실연동 전환 때 겪었다.
+*/
+const API_SECRET = (process.env.PORTONE_API_SECRET ?? "").trim();
 /** 포트원이 웹훅에 서명할 때 쓰는 값 (whsec_… 형태) */
-const WEBHOOK_SECRET = process.env.PORTONE_WEBHOOK_SECRET ?? "";
+const WEBHOOK_SECRET = (process.env.PORTONE_WEBHOOK_SECRET ?? "").trim();
 /** mark_order_paid 를 부를 권한. service_role 대신 쓰는 좁은 비밀값 (0012) */
 export const PAYMENT_DB_SECRET = process.env.PAYMENT_WEBHOOK_SECRET ?? "";
 
