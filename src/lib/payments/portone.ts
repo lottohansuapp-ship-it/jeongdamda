@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import {
   isPaymentReady,
   missingPaymentKeys,
@@ -35,6 +36,18 @@ export const PAYMENT_DB_SECRET = process.env.PAYMENT_WEBHOOK_SECRET ?? "";
 /** 웹훅이 일을 할 수 있는가. 서명 검증까지 포함한다 — 셋 다 있어야 한 건을 확정한다. */
 export function isPortOneReady(): boolean {
   return Boolean(API_SECRET && WEBHOOK_SECRET && PAYMENT_DB_SECRET);
+}
+
+/**
+ * 비밀값의 지문 — SHA-256 앞 8자리. 원래 값은 알아낼 수 없다.
+ *
+ * 「호출 테스트」 가 400 만 낼 때 콘솔 값과 Vercel 값이 같은지 가릴 방법이
+ * 없었다. scripts/secret-fingerprint.mjs 로 콘솔 값의 지문을 뽑아 맞춰 본다.
+ */
+export function secretFingerprints(): { apiSecret: string | null; webhookSecret: string | null } {
+  const print = (value: string) =>
+    value ? createHash("sha256").update(value).digest("hex").slice(0, 8) : null;
+  return { apiSecret: print(API_SECRET), webhookSecret: print(WEBHOOK_SECRET) };
 }
 
 function currentKeys() {

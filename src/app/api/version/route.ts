@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { PORTONE_CHANNELS } from "@/lib/payments/config";
-import { missingPaymentConfig } from "@/lib/payments/portone";
+import { missingPaymentConfig, secretFingerprints } from "@/lib/payments/portone";
 
 /**
  * 지금 배포된 코드가 어느 커밋인지, 결제가 어느 채널로 붙어 있는지.
@@ -15,7 +15,8 @@ import { missingPaymentConfig } from "@/lib/payments/portone";
  *     포트원 콘솔의 실연동 채널 키와 맞춰 보게 한다.
  *   · 휴대폰·카카오페이는 켜졌는지만. 예전 테스트 키가 남으면 그 수단만
  *     테스트로 결제돼 밤에 자동 취소된다 — 그걸 잡으려는 것이다.
- *   · 서버 비밀값은 **빠진 이름**만. 값이나 길이, 일부도 내보내지 않는다.
+ *   · 서버 비밀값은 빠진 이름과 **지문**(SHA-256 앞 8자리)만. 지문으로는 값을
+ *     되살릴 수 없고, 콘솔 값과 같은지만 가릴 수 있다.
  */
 export async function GET() {
   const tail = (key: string) => (key ? `…${key.slice(-6)}` : null);
@@ -28,6 +29,8 @@ export async function GET() {
       mobile: tail(PORTONE_CHANNELS.mobile),
       kakaopay: tail(PORTONE_CHANNELS.kakaopay),
       missing: missingPaymentConfig(),
+      // 값이 아니라 SHA-256 앞 8자리. scripts/secret-fingerprint.mjs 와 맞춰 본다.
+      fingerprint: secretFingerprints(),
     },
   });
 }
