@@ -8,6 +8,7 @@ import {
 } from "./filter.ts";
 import { checkNewOrders } from "./alarm.ts";
 import { signUpError } from "./auth-errors.ts";
+import { friendlyDbError, NOT_ADMIN_MESSAGE } from "./db-error.ts";
 import {
   keyHealthFromStatus,
   isPaymentReady,
@@ -1273,4 +1274,17 @@ test("keyHealthFromStatus: 포트원 장애는 키 탓으로 단정하지 않는
   for (const status of [500, 502, 503, 429]) {
     assert.equal(keyHealthFromStatus(status), "unknown", String(status));
   }
+});
+
+/*
+  관리자 권한 오류. 관리자가 아닌 계정으로 반찬을 추가하면 Postgres 원문이
+  영어로 그대로 떠서 사장님이 무슨 뜻인지 알 수 없었다.
+*/
+test("friendlyDbError: 권한 오류는 무엇을 해야 하는지 말한다", () => {
+  assert.equal(friendlyDbError({ code: "42501", message: "new row violates row-level security policy for table \"products\"" }), NOT_ADMIN_MESSAGE);
+  assert.equal(friendlyDbError({ message: "new row violates row-level security policy" }), NOT_ADMIN_MESSAGE, "Storage 는 코드 없이 온다");
+});
+
+test("friendlyDbError: 다른 오류는 원문을 둔다", () => {
+  assert.equal(friendlyDbError({ code: "23505", message: "duplicate key" }), "duplicate key");
 });

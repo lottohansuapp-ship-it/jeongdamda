@@ -1,5 +1,6 @@
 "use server";
 
+import { friendlyDbError } from "./db-error";
 import { currentUserId, serverClient } from "./supabase/server";
 import type { ActionResult } from "@/types/database";
 
@@ -42,7 +43,7 @@ export async function createCoupon(formData: FormData): Promise<ActionResult> {
     is_active: false,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return { ok: true, data: undefined };
 }
 
@@ -54,7 +55,7 @@ export async function updateCoupon(
   if (!db) return { ok: false, error: "로그인이 필요합니다." };
 
   const { error } = await db.from("coupons").update(patch).eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return { ok: true, data: undefined };
 }
 
@@ -79,7 +80,7 @@ export async function setCouponActive(
           "가입 쿠폰은 한 번에 하나만 켤 수 있어요. 쓰던 것을 먼저 끄세요.",
       };
     }
-    return { ok: false, error: error.message };
+    return { ok: false, error: friendlyDbError(error) };
   }
   return { ok: true, data: undefined };
 }
@@ -105,7 +106,7 @@ export async function grantCoupon(
     p_user_ids: userIds,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   const result = data as { granted?: number } | null;
   return { ok: true, data: { granted: result?.granted ?? 0 } };
