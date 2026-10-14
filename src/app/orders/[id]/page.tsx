@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { OrderDetail } from "@/components/orders/OrderDetail";
+import { PaymentFailNotice } from "@/components/orders/PaymentFailNotice";
 import { PaymentReturn } from "@/components/orders/PaymentReturn";
 import { isPaymentLive } from "@/lib/payments/portone";
 import { BottomNav } from "@/components/ui/BottomNav";
@@ -45,6 +46,8 @@ async function OrderBody({ params }: PageProps) {
 
   return (
     <>
+      {/* 결제창이 실패했으면 그 이유를 보여준다. 주문서에서 넘겨받는다. */}
+      <PaymentFailNotice orderId={id} status={order.status} />
       {/* 결제 대기로 남은 주문만 확인한다. 그 외에는 아무것도 안 그린다. */}
       <PaymentReturn
         orderId={id}

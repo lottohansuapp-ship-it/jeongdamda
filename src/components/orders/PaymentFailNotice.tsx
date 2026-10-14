@@ -1,0 +1,64 @@
+"use client";
+
+import { useState, useSyncExternalStore } from "react";
+
+export const PAY_ERROR_KEY = (orderId: string) => `jeongdamda-pay-error:${orderId}`;
+
+const noop = () => () => {};
+
+/**
+ * 결제창이 열리지 않았거나 실패했을 때, 그 이유를 주문 화면에 보여준다.
+ *
+ * 주문서는 결제가 실패하면 곧바로 이 화면으로 넘어온다. 예전엔 실패 문구를
+ * 주문서에 띄운 채 넘어와서 문구가 그대로 사라졌다 — 손님은 "아무 화면도 안
+ * 나왔다" 고만 느꼈고, 우리는 포트원이 왜 거절했는지 알 길이 없었다.
+ *
+ * 주소창이 아니라 sessionStorage 로 넘긴다. 주소에 문구를 실으면 남이 가짜
+ * 안내문을 담은 링크를 만들어 보낼 수 있다.
+ */
+export function PaymentFailNotice({ orderId, status }: { orderId: string; status: string }) {
+  const key = PAY_ERROR_KEY(orderId);
+  const [dismissed, setDismissed] = useState(false);
+
+  const message = useSyncExternalStore(
+    noop,
+    () => {
+      try {
+        return sessionStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    () => null,
+  );
+
+  // 결제가 결국 확정됐으면(웹훅이 늦게 처리한 경우) 실패 안내는 틀린 말이다
+  if (!message || dismissed || status !== "pending_payment") return null;
+
+  function dismiss() {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      // 지우지 못해도 이번 화면에서는 닫힌다
+    }
+    setDismissed(true);
+  }
+
+  return (
+    <div role="alert" className="mb-2.5 rounded-card border border-danger/30 bg-danger/5 p-4">
+      <p className="text-[14px] text-danger">결제가 진행되지 않았어요</p>
+      <p className="pt-1.5 text-[12.5px] leading-relaxed text-ink-soft">
+        {message}
+        <br />
+        돈은 빠져나가지 않았어요. 이 주문은 10분 뒤 자동으로 취소됩니다.
+      </p>
+      <button
+        type="button"
+        onClick={dismiss}
+        className="mt-2.5 h-9 rounded-pill border border-danger/30 px-3 text-[12.5px] text-danger transition-colors duration-200 hover:bg-danger/10"
+      >
+        확인했어요
+      </button>
+    </div>
+  );
+}
