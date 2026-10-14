@@ -204,6 +204,25 @@ export async function isIdentityVerified(): Promise<boolean> {
   return Boolean(data);
 }
 
+/**
+ * 지금 로그인한 계정이 관리자인지. 관리자 화면 입구에서 쓴다.
+ *
+ * 화면을 막는 건 안내일 뿐이다. 실제로 막는 건 쓰기마다 걸리는 RLS(is_admin)다.
+ * 예전엔 로그인만 하면 관리자 화면이 열려서, 손님 계정으로 들어온 사장님이
+ * 반찬을 추가하다 영어 권한 오류를 보고 막혔다.
+ */
+export async function getAdminAccess(): Promise<{ admin: boolean; email: string | null }> {
+  if (envError()) return { admin: false, email: null };
+
+  const db = await serverClient();
+  const [{ data: auth }, { data: admin }] = await Promise.all([
+    db.auth.getUser(),
+    db.rpc("is_admin"),
+  ]);
+
+  return { admin: admin === true, email: auth.user?.email ?? null };
+}
+
 export async function getAddresses(): Promise<Address[]> {
   if (envError()) return [];
 

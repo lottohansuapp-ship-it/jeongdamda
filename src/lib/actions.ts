@@ -1,5 +1,6 @@
 "use server";
 
+import { friendlyDbError } from "./db-error";
 import { updateTag } from "next/cache";
 import { currentUserId, serverClient } from "./supabase/server";
 import { PRODUCTS_TAG } from "./queries";
@@ -44,7 +45,7 @@ export async function updateProduct(
   }
 
   const { error } = await db.from("products").update(patch).eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   updateTag(PRODUCTS_TAG);
   return { ok: true, data: undefined };
@@ -65,7 +66,7 @@ export async function createProduct(
     .select("id")
     .single();
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   updateTag(PRODUCTS_TAG);
   return { ok: true, data: { id: data.id as string } };
@@ -103,7 +104,7 @@ export async function bulkUpdateProducts(
     .in("id", ids)
     .select("id");
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   if (!data || data.length === 0) {
     return { ok: false, error: "권한이 없거나 대상이 없어요." };
   }
@@ -117,7 +118,7 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
   if (!db) return { ok: false, error: "로그인이 필요합니다." };
 
   const { error } = await db.from("products").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   updateTag(PRODUCTS_TAG);
   return { ok: true, data: undefined };
@@ -132,7 +133,7 @@ export async function reorderProducts(ids: string[]): Promise<ActionResult> {
   if (!db) return { ok: false, error: "로그인이 필요합니다." };
 
   const { error } = await db.rpc("reorder_products", { ids });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   updateTag(PRODUCTS_TAG);
   return { ok: true, data: undefined };
@@ -217,14 +218,14 @@ export async function uploadPhoto(
     .from(PHOTO_BUCKET)
     .upload(path, file, { contentType: file.type, upsert: true });
 
-  if (upload.error) return { ok: false, error: upload.error.message };
+  if (upload.error) return { ok: false, error: friendlyDbError(upload.error) };
 
   const { error } = await db
     .from("products")
     .update({ photo_path: path })
     .eq("id", productId);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   // 새 사진이 확실히 자리를 잡은 뒤에 지운다. 먼저 지웠다가 업로드가 실패하면
   // 사진이 아예 없어진다. 지우기가 실패해도 알리지 않는다 — 손님에게도

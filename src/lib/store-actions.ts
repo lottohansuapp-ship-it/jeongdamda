@@ -1,5 +1,6 @@
 "use server";
 
+import { friendlyDbError } from "./db-error";
 import { updateTag } from "next/cache";
 import { currentUserId, serverClient } from "./supabase/server";
 import { STORE_TAG } from "./queries";
@@ -80,7 +81,7 @@ export async function updateStoreSettings(
     })
     .eq("id", 1);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   updateTag(STORE_TAG);
   return { ok: true, data: undefined };
@@ -111,7 +112,7 @@ export async function saveDeliveryArea(
     ? await db.from("delivery_areas").update(row).eq("id", id)
     : await db.from("delivery_areas").insert(row);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   updateTag(STORE_TAG);
   return { ok: true, data: undefined };
@@ -122,7 +123,7 @@ export async function deleteDeliveryArea(id: string): Promise<ActionResult> {
   if (!db) return { ok: false, error: "로그인이 필요합니다." };
 
   const { error } = await db.from("delivery_areas").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   updateTag(STORE_TAG);
   return { ok: true, data: undefined };

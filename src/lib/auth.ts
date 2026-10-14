@@ -256,6 +256,13 @@ export async function updatePassword(
   redirect("/account?changed=1");
 }
 
+/** 관리자가 아닌 계정으로 관리자 화면에 들어왔을 때 — 로그아웃하고 바로 로그인 화면으로. */
+export async function switchToAdminLogin(): Promise<void> {
+  const db = await serverClient();
+  await db.auth.signOut();
+  redirect("/login?next=%2Fadmin");
+}
+
 export async function signOut(): Promise<void> {
   const db = await serverClient();
   await db.auth.signOut();
