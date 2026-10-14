@@ -30,7 +30,8 @@ async function record(
   error?: string,
 ) {
   try {
-    await publicClient().rpc("log_notification", {
+    // rpc 는 실패해도 던지지 않는다. 결과의 error 를 봐야 안다.
+    const result = await publicClient().rpc("log_notification", {
       p_order_id: orderId,
       p_kind: kind,
       p_channel: channel,
@@ -38,9 +39,10 @@ async function record(
       p_status: status,
       p_error: error ?? null,
     });
-  } catch {
-    // 기록조차 실패했다. 여기서 더 할 수 있는 일이 없고,
-    // 이것 때문에 주문 처리를 멈출 수는 없다.
+    if (result.error) console.error("[notify] 발송 기록 실패:", result.error.message);
+  } catch (thrown) {
+    // 기록조차 실패했다. 이것 때문에 주문 처리를 멈출 수는 없다 — 콘솔에만 남긴다.
+    console.error("[notify] 발송 기록 실패:", thrown);
   }
 }
 
@@ -76,14 +78,11 @@ async function deliver(
       await reportError("notify", result.error, kind);
     }
   } catch (error) {
-    await record(
-      orderId,
-      kind,
-      "alimtalk",
-      phone,
-      "failed",
-      error instanceof Error ? error.message : "알 수 없는 오류",
-    );
+    const message = error instanceof Error ? error.message : "알 수 없는 오류";
+    await record(orderId, kind, "alimtalk", phone, "failed", message);
+    // 위의 !result.ok 와 같은 이유다 — 기록만으로는 아무도 안 본다.
+    const { reportError } = await import("../report");
+    await reportError("notify", message, kind);
   }
 }
 

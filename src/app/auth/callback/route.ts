@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { serverClient } from "@/lib/supabase/server";
+import { safeNextPath } from "@/lib/safe-next";
 
 /**
  * 카카오 OAuth 와 이메일 인증 링크가 모두 여기로 돌아온다.
@@ -9,8 +10,8 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
 
-  const raw = searchParams.get("next") ?? "/";
-  const next = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  // 아래에서 origin 을 앞에 붙여서 밖으로 새지는 않지만, 판정은 한 곳에서 한다.
+  const next = safeNextPath(searchParams.get("next") ?? "/");
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`);

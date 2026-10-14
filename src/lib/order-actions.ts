@@ -183,48 +183,71 @@ async function attemptCancel(
     needs_refund: boolean;
   };
 
-  let refunded: number | null = null;
-
   if (needs_refund && payment_id) {
-    // 결제를 켜지 않았으면 이 모듈도 불러올 일이 없다
-    const { cancelPayment } = await import("./payments/portone");
-    const result = await cancelPayment(
-      payment_id,
-      reason?.trim() || "주문 취소",
-    );
-
-    if (!result.ok) {
-      // 돈이 걸린 실패다. 반드시 남긴다 — 취소는 걸려 있고 환불은 안 나간 상태로
-      // 주문이 멈춰 있으므로 누군가 이어서 처리해야 한다.
-      const { reportError } = await import("./report");
-      await reportError("refund", result.error, payment_id ?? orderId);
-
-      return {
-        ok: false,
-        error: `환불을 처리하지 못했어요. 매장에 연락해 주세요. (${result.error})`,
-        retryable: false,
-      };
-    }
-    refunded = total;
+    const refund = await refundAndRecord(payment_id, total, reason);
+    if (!refund.ok) return { ok: false, error: refund.error, retryable: false };
   }
 
   const { error } = await session.db.rpc("cancel_order", {
     p_order_id: orderId,
     p_reason: reason?.trim() || null,
-    p_refunded: refunded,
   });
 
   if (error) {
-    return {
-      ok: false,
-      error: rpcError(error.message),
-      // 55000 = 결제됐는데 환불 기록이 없다. 다시 돌리면 이번엔 환불부터 한다.
-      retryable: error.code === "55000",
-    };
+    // 55000 = 결제됐는데 환불 기록이 없다. 다시 돌리면 이번엔 환불부터 한다.
+    const retryable = error.code === "55000";
+    if (needs_refund && !retryable) {
+      // 돈은 이미 돌려줬는데 주문은 그대로다(그 사이 사장님이 완료를 눌렀거나 DB 오류).
+      // 사장님이 그 주문을 그대로 내보내지 않게 화면 맨 위 알림에 남긴다.
+      const { reportError } = await import("./report");
+      await reportError(
+        "refund",
+        `환불은 나갔는데 주문 취소 처리에 실패했어요: ${error.message}`,
+        payment_id ?? orderId,
+      );
+    }
+    return { ok: false, error: rpcError(error.message), retryable };
   }
 
   updateTag(PRODUCTS_TAG); // 재고가 돌아왔다
   await notify(orderId, "canceled");
+  return { ok: true };
+}
+
+/**
+ * 포트원 환불 → 환불 기록 (0028). 둘 중 어디서 실패해도 사장님 화면에 남긴다.
+ *
+ * 기록에서 실패하면 주문은 결제됨으로 남고 cancel_requested_at 이 걸려 있다.
+ * 다시 취소를 누르면 포트원이 "이미 취소됨" 으로 답하고(성공으로 본다) 기록부터 이어 간다.
+ */
+async function refundAndRecord(
+  paymentId: string,
+  total: number,
+  reason?: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  // 결제를 켜지 않았으면 이 모듈들도 불러올 일이 없다
+  const { cancelPayment } = await import("./payments/portone");
+  const { recordRefund } = await import("./payments/confirm");
+  const { reportError } = await import("./report");
+
+  const result = await cancelPayment(paymentId, reason?.trim() || "주문 취소");
+  if (!result.ok) {
+    // 돈이 걸린 실패다. 취소는 걸려 있고 환불은 안 나간 상태로 멈춰 있다.
+    await reportError("refund", result.error, paymentId);
+    return {
+      ok: false,
+      error: `환불을 처리하지 못했어요. 매장에 연락해 주세요. (${result.error})`,
+    };
+  }
+
+  const recorded = await recordRefund(paymentId, total);
+  if (!recorded.ok) {
+    await reportError("refund", `환불은 나갔는데 기록을 남기지 못했어요: ${recorded.error}`, paymentId);
+    return {
+      ok: false,
+      error: "환불은 처리됐지만 주문 정리가 끝나지 않았어요. 잠시 뒤 다시 취소를 눌러 주세요.",
+    };
+  }
   return { ok: true };
 }
 

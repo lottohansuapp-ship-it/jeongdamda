@@ -30,6 +30,18 @@ const CYCLE_MS = 6000;
 const TONES_HZ = [880, 1175];
 const TONE_SEC = 0.18;
 
+/**
+ * 이 주문이 사장님 목록에 "나타난" 시각. 새 주문인지 가리는 기준이다.
+ *
+ * 주문 시각(created_at)을 쓰면 안 된다. 관리자 목록에는 결제가 끝나야 나타나는데,
+ * 결제창을 오래 붙들고 있던 손님의 주문은 주문 시각이 더 이른 다른 주문보다 늦게
+ * 나타난다. 그러면 기준 시각보다 과거라서 소리 없이 목록에만 끼어든다.
+ * 결제 시각이 없는 주문(결제 도입 전 옛 주문)만 주문 시각으로 본다.
+ */
+export function alarmTime(order: { created_at: string; paid_at: string | null }): string {
+  return order.paid_at ?? order.created_at;
+}
+
 export interface AlarmCheck {
   /** 이번에 새로 들어온 주문 수. 0 이면 소리를 내지 않는다. */
   count: number;

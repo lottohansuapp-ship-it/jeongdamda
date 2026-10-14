@@ -16,6 +16,26 @@ import { cancelPayment, getPayment, PAYMENT_DB_SECRET } from "./portone";
  *
  * 여러 번 불려도 안전하다. 이미 처리됐으면 applied=false 로 조용히 끝난다.
  */
+/**
+ * 포트원 환불이 **성공한 뒤에만** 부른다. 주문에 refunded_at·refund_amount 를 남긴다 (0028).
+ *
+ * 비밀값으로만 부를 수 있다. 예전에는 cancel_order 가 환불 금액을 인자로 받아서
+ * 손님이 직접 "환불됨" 을 넣어 보낼 수 있었다. 여러 번 불러도 한 번만 남는다.
+ */
+export async function recordRefund(
+  paymentId: string,
+  amount: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!PAYMENT_DB_SECRET) return { ok: false, error: "결제가 아직 연결되지 않았습니다." };
+
+  const { error } = await publicClient().rpc("record_refund", {
+    p_payment_id: paymentId,
+    p_amount: amount,
+    p_secret: PAYMENT_DB_SECRET,
+  });
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
 export type ConfirmResult =
   | { ok: true; applied: boolean; status: string; orderId: string | null }
   | { ok: false; error: string };
@@ -74,6 +94,11 @@ export async function confirmPayment(paymentId: string): Promise<ConfirmResult> 
     }
     if (!refund.data.alreadyCancelled) {
       await reportError("payment-refund", "취소된 주문에 결제가 들어와 자동으로 환불했어요", paymentId);
+    }
+    // 돈이 오갔다는 흔적을 주문에 남긴다. error_logs 는 90일 뒤 지워진다.
+    const recorded = await recordRefund(paymentId, payment.data.amount);
+    if (!recorded.ok) {
+      await reportError("payment-refund", `자동 환불은 됐는데 기록을 남기지 못했어요: ${recorded.error}`, paymentId);
     }
     return { ok: true, applied: false, status: "canceled", orderId };
   }

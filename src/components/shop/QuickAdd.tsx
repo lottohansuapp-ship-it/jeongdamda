@@ -41,7 +41,11 @@ export function QuickAdd({
     if (state === "sending") return;
 
     setState("sending");
-    const result = await addToCart(productId, 1);
+    // 연결이 끊기면 서버 액션은 결과 대신 예외를 던진다 — 받아서 같은 길로 보낸다.
+    const result = await addToCart(productId, 1).catch(() => ({
+      ok: false as const,
+      error: "담지 못했어요. 인터넷 연결을 확인해 주세요.",
+    }));
 
     if (result.ok) {
       setState("done");

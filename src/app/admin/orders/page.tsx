@@ -44,9 +44,16 @@ async function OrdersBody({ searchParams }: PageProps) {
 
   const { range } = await searchParams;
   const picked = RANGES.find((r) => r.key === range) ?? RANGES[0];
-  const { orders, truncated } = await getAdminOrders(picked.days);
+  const { orders, truncated, error } = await getAdminOrders(picked.days);
 
-  return <OrderBoard orders={orders} truncated={truncated} range={picked.key} />;
+  return (
+    <OrderBoard
+      orders={orders}
+      truncated={truncated}
+      loadError={error}
+      range={picked.key}
+    />
+  );
 }
 
 function Skeleton() {

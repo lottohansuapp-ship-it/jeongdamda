@@ -51,6 +51,8 @@ export async function sendAlimtalk(
         text,
       }),
       cache: "no-store",
+      // 결제 확인 안에서 기다리는 호출이다. 대행사가 멈추면 손님 화면도 같이 멈춘다.
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!response.ok) {

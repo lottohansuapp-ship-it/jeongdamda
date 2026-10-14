@@ -22,12 +22,16 @@ export async function reportError(
   console.error(`[${scope}]`, detail ?? "", message);
 
   try {
-    await publicClient().rpc("log_error", {
+    // supabase-js 의 rpc 는 실패해도 던지지 않고 { error } 를 돌려준다.
+    // 예전엔 그걸 안 봐서 기록이 실패해도 아무 흔적이 없었다.
+    const { error } = await publicClient().rpc("log_error", {
       p_scope: scope,
       p_message: message,
       p_detail: detail ?? null,
     });
-  } catch {
-    // 기록조차 실패했다. 여기서 더 할 수 있는 일이 없다.
+    if (error) console.error("[report] 오류 기록 실패:", error.message);
+  } catch (error) {
+    // 기록조차 실패했다. 여기서 더 할 수 있는 일이 없다 — 콘솔에만 남긴다.
+    console.error("[report] 오류 기록 실패:", error);
   }
 }

@@ -6,8 +6,10 @@ import {
   isFiltering,
   EMPTY_FILTERS,
 } from "./filter.ts";
-import { checkNewOrders } from "./alarm.ts";
+import { alarmTime, checkNewOrders } from "./alarm.ts";
 import { signUpError } from "./auth-errors.ts";
+import { safeNextPath } from "./safe-next.ts";
+import { isAlreadyCancelled } from "./payments/config.ts";
 import { friendlyDbError, NOT_ADMIN_MESSAGE } from "./db-error.ts";
 import {
   keyHealthFromStatus,
@@ -925,6 +927,38 @@ test("checkNewOrders: 한 번에 두 건이 들어와도 기준은 가장 늦은
   assert.equal(next.count, 2);
   // 같은 주문으로 두 번 울리면 안 된다.
   assert.equal(checkNewOrders([T(9), T(7), T(5)], next.watermark).count, 0);
+});
+
+test("safeNextPath: 우리 사이트 경로만 통과시킨다", () => {
+  assert.equal(safeNextPath("/checkout"), "/checkout");
+  assert.equal(safeNextPath("/orders/abc?x=1"), "/orders/abc?x=1");
+  assert.equal(safeNextPath("https://evil.com"), "/");
+  assert.equal(safeNextPath("//evil.com"), "/");
+  // 브라우저는 \ 를 / 로 읽는다 → //evil.com
+  assert.equal(safeNextPath("/\\evil.com"), "/");
+  assert.equal(safeNextPath("/\tevil.com"), "/");
+  assert.equal(safeNextPath(null), "/");
+});
+
+test("isAlreadyCancelled: 오류 종류가 있으면 그것만 본다", () => {
+  assert.equal(isAlreadyCancelled("PAYMENT_ALREADY_CANCELLED", "x"), true);
+  // 다른 종류인데 문장에 already 가 섞여도 환불됨으로 보지 않는다
+  assert.equal(isAlreadyCancelled("CANCEL_AMOUNT_EXCEEDS_CANCELLABLE_AMOUNT", "already partially cancelled"), false);
+  assert.equal(isAlreadyCancelled(undefined, "이미 취소된 결제입니다"), true);
+  assert.equal(isAlreadyCancelled(undefined, "결제 서버에 연결하지 못했습니다."), false);
+});
+
+test("alarmTime: 늦게 결제된 주문도 새 주문으로 울린다", () => {
+  // A 가 10:00 에 주문서를 넣고 결제창을 붙들고 있는 사이 B 가 10:01 주문·10:02 결제.
+  // A 가 10:03 에 결제를 마치면 목록에 새로 나타난다 — 소리가 나야 한다.
+  const b = { created_at: T(1), paid_at: T(2) };
+  const a = { created_at: T(0), paid_at: T(3) };
+  const base = checkNewOrders([b].map(alarmTime), null).watermark;
+  assert.equal(checkNewOrders([a, b].map(alarmTime), base).count, 1);
+});
+
+test("alarmTime: 결제 시각이 없는 옛 주문은 주문 시각으로", () => {
+  assert.equal(alarmTime({ created_at: T(4), paid_at: null }), T(4));
 });
 
 test("checkNewOrders: 주문이 하나도 없다가 첫 주문이 와도 울린다", () => {

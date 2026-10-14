@@ -144,7 +144,12 @@ export function CartBoard({
     setPending(true);
     setRows(next);
 
-    const result = await action();
+    // 연결이 끊기면 서버 액션은 던진다. 받아 주지 않으면 pending 이 남아
+    // 장바구니의 모든 버튼이 잠긴다.
+    const result = await action().catch(() => ({
+      ok: false,
+      error: "서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.",
+    }));
     setPending(false);
 
     if (result.ok) {

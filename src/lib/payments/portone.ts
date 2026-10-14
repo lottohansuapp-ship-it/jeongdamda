@@ -2,6 +2,7 @@ import "server-only";
 import { cacheLife } from "next/cache";
 import { createHash } from "node:crypto";
 import {
+  isAlreadyCancelled,
   isPaymentReady,
   keyHealthFromStatus,
   missingPaymentKeys,
@@ -33,8 +34,18 @@ const API_BASE = "https://api.portone.io";
 const API_SECRET = (process.env.PORTONE_API_SECRET ?? "").trim();
 /** 포트원이 웹훅에 서명할 때 쓰는 값 (whsec_… 형태) */
 const WEBHOOK_SECRET = (process.env.PORTONE_WEBHOOK_SECRET ?? "").trim();
-/** mark_order_paid 를 부를 권한. service_role 대신 쓰는 좁은 비밀값 (0012) */
-export const PAYMENT_DB_SECRET = process.env.PAYMENT_WEBHOOK_SECRET ?? "";
+/**
+ * mark_order_paid 를 부를 권한. service_role 대신 쓰는 좁은 비밀값 (0012).
+ * config.ts 는 길이를 잴 때 trim 하는데 여기서 안 하면, 끝에 줄바꿈이 붙은 값이
+ * "준비됨" 검사는 통과하고 DB 대조에서 전부 28000 으로 떨어진다.
+ */
+export const PAYMENT_DB_SECRET = (process.env.PAYMENT_WEBHOOK_SECRET ?? "").trim();
+
+/**
+ * 포트원이 답을 안 주면 손님의 「결제 확인」 과 웹훅이 플랫폼 제한 시간까지
+ * 매달린다. 그 전에 끊고 실패로 돌려준다 — 웹훅은 포트원이 다시 보낸다.
+ */
+const CALL_TIMEOUT_MS = 10_000;
 
 /** 웹훅이 일을 할 수 있는가. 서명 검증까지 포함한다 — 셋 다 있어야 한 건을 확정한다. */
 export function isPortOneReady(): boolean {
@@ -91,7 +102,8 @@ export interface PortOnePayment {
 
 export type PortOneResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  /** code 는 포트원이 준 오류 종류 (예: PAYMENT_ALREADY_CANCELLED). 문장보다 믿을 만하다. */
+  | { ok: false; error: string; code?: string };
 
 async function call(
   path: string,
@@ -110,16 +122,18 @@ async function call(
         ...init?.headers,
       },
       cache: "no-store",
+      signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
     });
 
-    const body = await response.json().catch(() => null);
+    const body = (await response.json().catch(() => null)) as {
+      message?: string;
+      type?: string;
+    } | null;
 
     if (!response.ok) {
       // 포트원이 준 메시지를 쓰되 없으면 상태 코드만. 우리 시크릿은 섞이지 않는다.
-      const message =
-        (body as { message?: string } | null)?.message ??
-        `포트원 응답 오류 (${response.status})`;
-      return { ok: false, error: message };
+      const message = body?.message ?? `포트원 응답 오류 (${response.status})`;
+      return { ok: false, error: message, code: body?.type };
     }
 
     return { ok: true, data: body };
@@ -193,11 +207,9 @@ export async function cancelPayment(
   });
 
   if (result.ok) return { ok: true, data: { alreadyCancelled: false } };
-
-  if (/already|이미.*취소|CANCELLED/i.test(result.error)) {
-    return { ok: true, data: { alreadyCancelled: true } };
-  }
-  return { ok: false, error: result.error };
+  return isAlreadyCancelled(result.code, result.error)
+    ? { ok: true, data: { alreadyCancelled: true } }
+    : result;
 }
 
 /** 검증 로직은 signature.ts 에 있다 (테스트 가능하도록). 여기서는 시크릿만 붙인다. */

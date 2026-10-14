@@ -71,6 +71,7 @@ export function RetryPayment({ order }: { order: OrderWithItems }) {
     // 그때 결제창을 또 열면 포트원이 거절하고 손님만 헷갈린다.
     const before = await confirmMyPayment(paymentId).catch(() => null);
     if (before?.ok && before.data.status === "paid") {
+      setBusy(false);
       router.refresh();
       return;
     }
@@ -95,7 +96,17 @@ export function RetryPayment({ order }: { order: OrderWithItems }) {
       return;
     }
 
-    await confirmMyPayment(paymentId).catch(() => null);
+    // 결제창은 성공이라는데 우리 쪽 확인이 아직이다(포트원 지연·연결 끊김).
+    // 예전엔 여기서 버튼이 「여는 중…」 에 멈춘 채 아무 말이 없었다.
+    // 웹훅이 곧 이어서 처리하므로 다시 결제하라고 하지 않는다 — 다시 누르면
+    // 맨 위의 확인이 먼저 돌아 이미 결제된 걸 알아챈다.
+    const after = await confirmMyPayment(paymentId).catch(() => null);
+    setBusy(false);
+    if (!after?.ok || after.data.status !== "paid") {
+      setError(
+        "결제 확인이 늦어지고 있어요. 잠시 뒤 화면을 새로고침해 주세요. 돈은 한 번만 빠집니다.",
+      );
+    }
     router.refresh();
   }
 

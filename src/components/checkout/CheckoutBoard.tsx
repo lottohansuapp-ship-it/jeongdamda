@@ -13,7 +13,6 @@ import {
   availableMethods,
   KCP_EXTRAS,
   pickMethod,
-  type PaymentMethod,
   type PaymentMethodKey,
 } from "@/lib/payments/methods";
 import {

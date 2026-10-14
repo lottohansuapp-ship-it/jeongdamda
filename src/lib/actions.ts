@@ -1,6 +1,6 @@
 "use server";
 
-import { friendlyDbError } from "./db-error";
+import { friendlyDbError, NOT_ADMIN_MESSAGE } from "./db-error";
 import { updateTag } from "next/cache";
 import { currentUserId, serverClient } from "./supabase/server";
 import { PRODUCTS_TAG } from "./queries";
@@ -44,11 +44,43 @@ export async function updateProduct(
     return { ok: false, error: "가격은 0보다 작을 수 없습니다." };
   }
 
-  const { error } = await db.from("products").update(patch).eq("id", id);
+  const { data, error } = await db
+    .from("products")
+    .update(patch)
+    .eq("id", id)
+    .select("id");
   if (error) return { ok: false, error: friendlyDbError(error) };
+  if (!data || data.length === 0) return { ok: false, error: NOT_ADMIN_MESSAGE };
 
   updateTag(PRODUCTS_TAG);
   return { ok: true, data: undefined };
+}
+
+/**
+ * 재고 +/- 버튼. 화면 숫자를 덮어쓰지 않고 DB 값에 더한다 (adjust_stock, 0028).
+ *
+ * 예전에는 "화면에 보이는 10 + 1 = 11" 을 저장했다. 그 사이 손님이 3개를
+ * 사서 DB 가 7 이었으면, 팔린 3개가 되살아나 만든 것보다 많이 팔렸다.
+ * 돌려주는 값은 DB 가 계산한 실제 재고다 — 화면은 그것으로 맞춘다.
+ */
+export async function adjustStock(
+  id: string,
+  delta: number,
+): Promise<ActionResult<{ stock: number }>> {
+  const db = await authed();
+  if (!db) return { ok: false, error: "로그인이 필요합니다." };
+  if (!Number.isInteger(delta) || delta === 0) {
+    return { ok: false, error: "재고 변경량이 올바르지 않아요." };
+  }
+
+  const { data, error } = await db.rpc("adjust_stock", {
+    p_product_id: id,
+    p_delta: delta,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+
+  updateTag(PRODUCTS_TAG);
+  return { ok: true, data: { stock: Number(data) } };
 }
 
 export async function createProduct(
@@ -117,8 +149,9 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
   const db = await authed();
   if (!db) return { ok: false, error: "로그인이 필요합니다." };
 
-  const { error } = await db.from("products").delete().eq("id", id);
+  const { data, error } = await db.from("products").delete().eq("id", id).select("id");
   if (error) return { ok: false, error: friendlyDbError(error) };
+  if (!data || data.length === 0) return { ok: false, error: NOT_ADMIN_MESSAGE };
 
   updateTag(PRODUCTS_TAG);
   return { ok: true, data: undefined };
@@ -220,12 +253,14 @@ export async function uploadPhoto(
 
   if (upload.error) return { ok: false, error: friendlyDbError(upload.error) };
 
-  const { error } = await db
+  const { data: changed, error } = await db
     .from("products")
     .update({ photo_path: path })
-    .eq("id", productId);
+    .eq("id", productId)
+    .select("id");
 
   if (error) return { ok: false, error: friendlyDbError(error) };
+  if (!changed || changed.length === 0) return { ok: false, error: NOT_ADMIN_MESSAGE };
 
   // 새 사진이 확실히 자리를 잡은 뒤에 지운다. 먼저 지웠다가 업로드가 실패하면
   // 사진이 아예 없어진다. 지우기가 실패해도 알리지 않는다 — 손님에게도

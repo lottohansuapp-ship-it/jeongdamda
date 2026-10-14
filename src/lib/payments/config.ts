@@ -55,6 +55,19 @@ export function needsRefund(paymentStatus: string, orderStatus: string | undefin
   return paymentStatus === "PAID" && orderStatus === "canceled";
 }
 
+/**
+ * 환불 요청이 "이미 취소된 결제" 라서 거절됐는가 — 그렇다면 성공으로 본다.
+ *
+ * 포트원이 오류 종류(type)를 주면 그것만 본다. 예전에는 문장에 already 가
+ * 들어 있는지로 판단해서, 다른 실패(부분 취소 진행 중 등)의 문장에 그 단어가
+ * 섞이면 환불이 안 나갔는데 "환불됨" 으로 처리될 수 있었다.
+ * 종류를 못 받았을 때(네트워크 너머 프록시 오류 등)만 문장으로 추정한다.
+ */
+export function isAlreadyCancelled(code: string | undefined, message: string): boolean {
+  if (code) return code === "PAYMENT_ALREADY_CANCELLED";
+  return /이미\s*취소|already\s+cancel/i.test(message);
+}
+
 /** 결제창을 띄울 수 있는지. 브라우저에서도 확인할 수 있다. */
 export function isPaymentConfigured(): boolean {
   return Boolean(PORTONE_STORE_ID && PORTONE_CHANNEL_KEY);

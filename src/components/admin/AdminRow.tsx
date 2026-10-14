@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { deleteProduct, updateProduct, uploadPhoto } from "@/lib/actions";
+import { adjustStock, deleteProduct, updateProduct, uploadPhoto } from "@/lib/actions";
 import { shrinkPhoto } from "@/lib/image";
 import { BADGES, canAddBadge, toggleBadge } from "@/lib/badges";
 import { formatPrice } from "@/lib/format";
@@ -10,6 +10,24 @@ import type { Category, ProductWithCategory } from "@/types/database";
 import { ProductPhoto } from "@/components/shop/ProductPhoto";
 
 const COMMIT_DELAY_MS = 500;
+/** adjust_stock(0028) 도 999 에서 자른다. 입력칸 max 와 같은 값이다. */
+const MAX_STOCK = 999;
+
+type PendingStock =
+  | { kind: "set"; value: number }
+  | { kind: "add"; delta: number };
+
+async function saveStock(
+  id: string,
+  next: PendingStock,
+): Promise<{ ok: true; stock: number } | { ok: false; error: string }> {
+  if (next.kind === "set") {
+    const result = await updateProduct(id, { today_stock: next.value });
+    return result.ok ? { ok: true, stock: next.value } : result;
+  }
+  const result = await adjustStock(id, next.delta);
+  return result.ok ? { ok: true, stock: result.data.stock } : result;
+}
 
 const TONE = {
   out: "text-danger",
@@ -46,8 +64,13 @@ export function AdminRow({
   const settled = useRef(product.today_stock);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** 아직 서버에 못 보낸 값. null 이면 보낼 것이 없다. */
-  const waiting = useRef<number | null>(null);
+  /**
+   * 아직 서버에 못 보낸 변경. null 이면 보낼 것이 없다.
+   *
+   * 두 가지를 구분한다. 숫자를 직접 고치면 "이 값으로"(set), +/− 는 "이만큼"(add).
+   * +/− 까지 화면 숫자로 덮어쓰면, 화면을 보는 사이 손님이 산 수량이 되살아난다.
+   */
+  const waiting = useRef<PendingStock | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "done">("idle");
 
   /**
@@ -94,8 +117,8 @@ export function AdminRow({
    * 그 변경이 조용히 사라졌다. 아무 표시가 없어서 저장된 줄 아신다.
    * PC 에서는 그 0.5초 안에 떠날 일이 드물어 안 드러났던 것이다.
    */
-  function commitStock(next: number) {
-    setStock(next);
+  function commitStock(shown: number, next: PendingStock) {
+    setStock(shown);
     waiting.current = next;
 
     if (timer.current) clearTimeout(timer.current);
@@ -108,26 +131,49 @@ export function AdminRow({
    * 매 렌더 뒤에 갈아 끼운다 (의존성 배열 없음).
    */
   const flushRef = useRef<() => Promise<void>>(async () => {});
+  /**
+   * 저장은 줄을 세워 하나씩 보낸다. 앞의 저장이 끝나기 전에 또 누르면
+   * 두 요청이 동시에 날아가서, 먼저 온 응답이 화면 숫자를 잠깐 되돌리거나
+   * (직접 입력한 값이면) 늦게 온 옛 값이 마지막에 저장될 수 있었다.
+   */
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const inFlight = useRef(0);
   useEffect(() => {
-    flushRef.current = async () => {
+    flushRef.current = () => {
       if (timer.current) {
         clearTimeout(timer.current);
         timer.current = null;
       }
       const next = waiting.current;
-      if (next === null) return;
+      if (next === null) return queue.current;
       waiting.current = null;
+      if (next.kind === "add" && next.delta === 0) return queue.current;
 
+      inFlight.current += 1;
       setSaveState("saving");
-      const result = await updateProduct(product.id, { today_stock: next });
-      if (result.ok) {
-        settled.current = next;
-        setSaveState("done");
-      } else {
-        setStock(settled.current);
-        setSaveState("idle");
-        onError(result.error);
-      }
+      queue.current = queue.current.then(async () => {
+        // 연결이 끊기면 서버 액션은 던진다. 그대로 두면 「저장 중…」 에 멈춘다.
+        const result = await saveStock(product.id, next).catch(() => ({
+          ok: false as const,
+          error: "재고를 저장하지 못했어요. 인터넷 연결을 확인해 주세요.",
+        }));
+        inFlight.current -= 1;
+        // 뒤에 줄 선 저장이 있거나 아직 안 보낸 변경이 있으면 화면은 그 값을 먼저 보여
+        // 주고 있다. 마지막 응답일 때만 DB 가 계산한 실제 재고로 맞춘다.
+        const last = inFlight.current === 0 && waiting.current === null;
+        if (result.ok) {
+          settled.current = result.stock;
+          if (last) {
+            setStock(result.stock);
+            setSaveState("done");
+          }
+        } else {
+          if (last) setStock(settled.current);
+          setSaveState("idle");
+          onError(result.error);
+        }
+      });
+      return queue.current;
     };
   });
 
@@ -160,7 +206,16 @@ export function AdminRow({
   }, [saveState]);
 
   function bump(delta: number) {
-    commitStock(Math.max(0, stock + delta));
+    const shown = Math.min(MAX_STOCK, Math.max(0, stock + delta));
+    const pending = waiting.current;
+    // 직접 고친 값이 아직 안 나갔으면 그 값에 이어 붙인다(여전히 "이 값으로").
+    // 0 에서 − 를 눌러도 실제로 바뀐 건 없으니 차이(shown - stock)만 더한다.
+    commitStock(
+      shown,
+      pending?.kind === "set"
+        ? { kind: "set", value: shown }
+        : { kind: "add", delta: (pending?.delta ?? 0) + (shown - stock) },
+    );
   }
 
   async function patch(
@@ -286,7 +341,8 @@ export function AdminRow({
 
                   const value = Number(raw);
                   if (!Number.isFinite(value)) return;
-                  commitStock(Math.min(999, Math.max(0, Math.round(value))));
+                  const typed = Math.min(MAX_STOCK, Math.max(0, Math.round(value)));
+                  commitStock(typed, { kind: "set", value: typed });
                 }}
                 // 지운 채로 떠나면 고치기 전 값으로 되돌린다. 빈 칸은 0 이 아니다.
                 onBlur={() => setDraft(null)}

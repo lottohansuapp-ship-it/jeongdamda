@@ -7,7 +7,12 @@ import { getShopData, getStore } from "@/lib/queries";
 
 export default async function HomePage() {
   // 둘 다 'use cache' 라 홈은 계속 정적으로 프리렌더된다. 왕복이 늘지 않는다.
-  const [result, store] = await Promise.all([getShopData(), getStore()]);
+  // 매장 설정(공지)은 못 읽어도 반찬 목록은 보여야 한다. 홈은 빌드 때 미리 그려지므로
+  // 여기서 던지면 배포가 깨진다. 주문서·장바구니는 같은 실패를 오류 화면으로 알린다.
+  const [result, store] = await Promise.all([
+    getShopData(),
+    getStore().catch(() => ({ settings: null, areas: [] })),
+  ]);
 
   return (
     <>

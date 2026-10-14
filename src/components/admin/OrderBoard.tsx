@@ -17,6 +17,7 @@ import { formatPrice } from "@/lib/format";
 import { useLiveRefresh } from "@/lib/use-live-refresh";
 import {
   alarmPreference,
+  alarmTime,
   armAlarm,
   checkNewOrders,
   playAlarmOnce,
@@ -54,11 +55,14 @@ const RANGE_LABEL: Record<string, string> = {
 export function OrderBoard({
   orders,
   truncated,
+  loadError,
   range,
 }: {
   orders: OrderWithItems[];
   /** 상한에 걸려 잘렸는지. 조용히 자르면 사장님이 주문을 놓친다. */
   truncated: boolean;
+  /** 목록을 못 읽었으면 그 이유. 있으면 "0건" 대신 이걸 크게 보여 준다. */
+  loadError: string | null;
   range: string;
 }) {
   const [tab, setTab] = useState<Tab>("live");
@@ -78,12 +82,6 @@ export function OrderBoard({
     setSeen(orders);
     setRows(orders);
   }
-
-  useEffect(() => {
-    if (!error) return;
-    const id = setTimeout(() => setError(null), 3000);
-    return () => clearTimeout(id);
-  }, [error]);
 
   /**
    * 새 주문이 들어오면 목록에 나타난다. 사장님이 화면을 켜두고 기다리는 자리다.
@@ -109,8 +107,12 @@ export function OrderBoard({
   const watermark = useRef<number | null>(null);
 
   useEffect(() => {
-    const at = orders.map((order) => order.created_at);
-    const result = checkNewOrders(at, watermark.current);
+    // 못 읽은 빈 목록을 기준으로 삼으면, 다시 읽히는 순간 오늘 주문 전부가 "새 주문" 으로 울린다.
+    if (loadError) return;
+    // 취소된 주문은 새 주문이 아니다. 늦은 결제를 자동 환불한 주문은 그때 결제 시각이
+    // 새로 찍혀서(0028 record_refund) 걸러 내지 않으면 "새 주문" 으로 울린다.
+    const live = orders.filter((order) => order.status !== "canceled");
+    const result = checkNewOrders(live.map(alarmTime), watermark.current);
     watermark.current = result.watermark;
 
     if (result.count === 0) return;
@@ -118,7 +120,7 @@ export function OrderBoard({
     if (alarmOn) playOrderAlarm(result.count);
     // alarmOn 은 일부러 뺐다. 소리를 켠 것만으로 지난 주문이 울리면 안 된다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders]);
+  }, [orders, loadError]);
 
   /**
    * 켜 두셨던 설정을 새로고침 뒤에도 되살린다.
@@ -234,7 +236,12 @@ export function OrderBoard({
     setBusyId(order.id);
     patch(order.id, status);
 
-    const result = await action();
+    // 연결이 끊기면 서버 액션은 결과 대신 예외를 던진다. 그대로 두면 busyId 가
+    // 남아 실시간 갱신(useLiveRefresh)이 꺼진 채 멈춘다 — 새 주문이 안 뜬다.
+    const result = await action().catch(() => ({
+      ok: false,
+      error: "서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.",
+    }));
     setBusyId(null);
     if (!result.ok) {
       patch(order.id, previous);
@@ -303,16 +310,41 @@ export function OrderBoard({
         </div>
       </div>
 
+      {/* 저절로 사라지지 않는다. 환불 실패 같은 문장을 3초 만에 지우면
+          사장님이 못 보고 지나간다 — 직접 닫으셔야 한다. */}
       {error && (
-        <p
+        <div
           role="alert"
-          className="mb-2.5 rounded-card bg-white p-3.5 text-[13px] text-danger shadow-soft"
+          className="mb-2.5 flex items-start gap-2 rounded-card bg-white p-3.5 pr-1.5 shadow-soft"
         >
-          {error}
-        </p>
+          <p className="flex-1 pt-3 text-[13px] leading-relaxed text-danger">{error}</p>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="tap-target shrink-0 rounded-[10px] text-[13px] text-ink-soft transition-colors duration-200 hover:bg-canvas"
+          >
+            닫기
+          </button>
+        </div>
       )}
 
-      {visible.length === 0 ? (
+      {loadError ? (
+        <div role="alert" className="mt-6 rounded-card bg-white p-5 shadow-soft">
+          <p className="text-[15px] text-danger">주문 목록을 불러오지 못했어요</p>
+          <p className="pt-2 text-[13px] leading-relaxed text-ink-soft">
+            주문이 없는 게 아니라 못 읽은 거예요. 잠시 뒤 다시 불러오고, 계속 이러면
+            로그아웃한 뒤 관리자 계정으로 다시 로그인해 주세요.
+          </p>
+          <p className="pt-2 text-[12px] text-ink-faint">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-4 h-12 w-full rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep"
+          >
+            다시 불러오기
+          </button>
+        </div>
+      ) : visible.length === 0 ? (
         <p className="pt-20 text-center text-[14px] text-ink-soft">
           {tab === "live" ? "진행 중인 주문이 없어요" : "표시할 주문이 없어요"}
         </p>

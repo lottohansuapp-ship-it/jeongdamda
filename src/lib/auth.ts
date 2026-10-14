@@ -6,6 +6,7 @@ import { serverClient } from "./supabase/server";
 import { normalizePhone } from "./format";
 import { PHONE_TAKEN_MESSAGE } from "./store-info";
 import { signUpError } from "./auth-errors";
+import { safeNextPath } from "./safe-next";
 
 export interface AuthState {
   error: string | null;
@@ -13,9 +14,7 @@ export interface AuthState {
 }
 
 function safeNext(value: FormDataEntryValue | null): string {
-  const next = String(value ?? "/");
-  // 오픈 리다이렉트 방지 — 외부 URL 이나 //evil.com 형태를 막는다
-  return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  return safeNextPath(value ?? "/");
 }
 
 async function origin(): Promise<string> {

@@ -52,14 +52,16 @@ const SELECT = `${PRODUCT_COLUMNS}, category:categories!inner(id, name, slug)`;
  * 손님 화면에는 회색 자리만 계속 보였다. 오류가 안 나서 아무도 모른다.
  * 배포해도 안 풀린다. Vercel 의 데이터 캐시는 배포를 넘어 살아남는다.
  *
- * 'hours' 는 한 시간마다 뒤에서 다시 가져온다. 조회 하나가 시간당 한 번 더 도는
- * 값으로 "영영 틀린 화면" 이라는 실패 방식을 없앤다.
+ * 'minutes' 로 둔다(CLAUDE.md 캐싱 규칙). 한때 'hours' 였는데, 앱을 거치지 않고
+ * DB 에서 바뀌는 재고가 생겼다 — 1분마다 도는 만료 정리(0028)가 결제를 포기한
+ * 주문의 재고를 돌려준다. 'hours' 면 그 반찬이 최대 한 시간 「품절」 로 보이고
+ * 담기 버튼도 막힌다. 조회는 분당 많아야 한 번 더 돈다.
  * 손님이 기다리는 시간은 그대로다 — 낡은 값을 먼저 주고 뒤에서 갱신한다.
  */
 async function fetchShopData(): Promise<ShopData> {
   "use cache";
   cacheTag(PRODUCTS_TAG);
-  cacheLife("hours");
+  cacheLife("minutes");
 
   const db = publicClient();
   const [categories, products] = await Promise.all([
@@ -97,11 +99,11 @@ export async function getShopData(): Promise<ShopResult> {
   }
 }
 
-/** 상세도 목록과 같은 이유로 'hours' 다. 위 fetchShopData 주석 참고. */
+/** 상세도 목록과 같은 이유로 'minutes' 다. 위 fetchShopData 주석 참고. */
 async function fetchProduct(id: string): Promise<ProductWithCategory | null> {
   "use cache";
   cacheTag(PRODUCTS_TAG);
-  cacheLife("hours");
+  cacheLife("minutes");
 
   const { data, error } = await publicClient()
     .from("products")
@@ -175,12 +177,15 @@ export async function getProfile(): Promise<Profile | null> {
   if (!userId) return null;
 
   const db = await serverClient();
-  const { data } = await db
+  const { data, error } = await db
     .from("profiles")
     .select("id, name, phone, created_at, updated_at")
     .eq("id", userId)
     .maybeSingle();
 
+  // null 은 "로그인 안 함" 이라 로그인 화면으로 보낸다. DB 오류를 null 로 돌려주면
+  // 로그인한 손님이 영문도 모른 채 로그인 화면으로 쫓겨난다. 던져서 error.tsx 로.
+  if (error) throw new Error(error.message);
   return (data as Profile) ?? null;
 }
 
@@ -210,7 +215,7 @@ export async function getAddresses(): Promise<Address[]> {
   if (!userId) return [];
 
   const db = await serverClient();
-  const { data } = await db
+  const { data, error } = await db
     .from("addresses")
     .select(
       "id, user_id, label, postcode, address1, address2, is_default, created_at",
@@ -219,6 +224,7 @@ export async function getAddresses(): Promise<Address[]> {
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: false });
 
+  if (error) throw new Error(error.message);
   return (data as Address[]) ?? [];
 }
 
@@ -241,7 +247,10 @@ export async function getCart(): Promise<CartSummary> {
     .select(`product_id, quantity, product:products(${SELECT})`)
     .eq("user_id", userId);
 
-  if (error || !data) return EMPTY_CART;
+  // 빈 장바구니로 보여 주면 손님은 담은 게 사라진 줄 알고, 주문서는 장바구니로
+  // 튕겨 낸다. 못 읽은 건 못 읽었다고 말한다 (error.tsx).
+  if (error) throw new Error(error.message);
+  if (!data) return EMPTY_CART;
 
   const rows = data as unknown as {
     product_id: string;
@@ -307,11 +316,9 @@ export async function getStore(): Promise<{
 }> {
   if (envError()) return { settings: null, areas: [] };
 
-  try {
-    return await fetchStore();
-  } catch {
-    return { settings: null, areas: [] };
-  }
+  // 예전엔 실패를 "설정 없음" 으로 바꿔 돌려줘서, 문을 연 가게가 손님에게
+  // "배달 마감" 으로 보이고 주문서에서 튕겨 났다. 이제 던진다 — 받는 쪽이 정한다.
+  return fetchStore();
 }
 
 /**
@@ -356,7 +363,10 @@ export async function getOrders(before?: string): Promise<CustomerOrders> {
 
   if (before) query = query.lt("created_at", before);
 
-  const rows = ((await query).data ?? []) as unknown as OrderWithItems[];
+  const { data, error } = await query;
+  // "주문 없음" 으로 보이면 손님은 주문이 사라진 줄 안다.
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as unknown as OrderWithItems[];
   const hasMore = rows.length > ORDER_PAGE_SIZE;
   const orders = rows.slice(0, ORDER_PAGE_SIZE);
 
@@ -370,12 +380,14 @@ export async function getOrder(id: string): Promise<OrderWithItems | null> {
   if (envError()) return null;
 
   const db = await serverClient();
-  const { data } = await db
+  const { data, error } = await db
     .from("orders")
     .select(ORDER_SELECT)
     .eq("id", id)
     .maybeSingle();
 
+  // null 은 "없는 주문"(404) 이다. DB 오류까지 404 로 보이면 안 된다.
+  if (error) throw new Error(error.message);
   return (data as unknown as OrderWithItems) ?? null;
 }
 
@@ -386,6 +398,11 @@ export interface AdminOrders {
   orders: OrderWithItems[];
   /** 상한에 걸려 잘렸는지. 조용히 자르면 사장님이 주문을 놓친다. */
   truncated: boolean;
+  /**
+   * 불러오지 못했으면 그 이유. 예전에는 버려서, DB 가 잠깐 끊기면
+   * 결제된 주문이 있어도 「진행 중 0건」 으로 보였다.
+   */
+  error: string | null;
 }
 
 /**
@@ -402,28 +419,35 @@ export interface AdminOrders {
  * 잘렸다고 알려 사장님이 기간을 줄이도록 안내한다.
  */
 export async function getAdminOrders(days: number): Promise<AdminOrders> {
-  if (envError()) return { orders: [], truncated: false };
+  const missing = envError();
+  if (missing) return { orders: [], truncated: false, error: missing };
 
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - Math.max(0, days - 1));
   const from = `${seoulDate(since)}T00:00:00+09:00`;
 
   const db = await serverClient();
-  const { data } = await db
+  const { data, error } = await db
     .from("orders")
     .select(ORDER_SELECT)
     .gte("created_at", from)
     // 결제 전 주문은 뺀다. 재고만 잡아둔 상태라 매장이 할 일이 없고
     // 10분 뒤 알아서 사라진다.
     .neq("status", "pending_payment")
+    // 결제된 적 없이 취소된 주문(결제 포기·새 주문으로 대체)도 뺀다. 매장이 할 일이
+    // 없고, 1분마다 도는 만료 정리 때문에 수가 많다. 새 주문 알림도 잘못 울린다.
+    .or("status.neq.canceled,paid_at.not.is.null")
     .order("created_at", { ascending: false })
     .limit(ADMIN_ORDER_LIMIT + 1);
+
+  if (error) return { orders: [], truncated: false, error: error.message };
 
   const rows = (data ?? []) as unknown as OrderWithItems[];
 
   return {
     orders: rows.slice(0, ADMIN_ORDER_LIMIT),
     truncated: rows.length > ADMIN_ORDER_LIMIT,
+    error: null,
   };
 }
 
@@ -487,12 +511,26 @@ export async function getRecentErrors(hours = 24): Promise<ErrorLog[]> {
 
   const since = new Date(Date.now() - hours * 3600_000).toISOString();
   const db = await serverClient();
-  const { data } = await db
+  const { data, error } = await db
     .from("error_logs")
     .select("id, scope, message, detail, created_at")
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(20);
+
+  // 이 목록이 사장님이 실패를 아는 유일한 창이다. 못 읽었다고 비워 버리면
+  // DB 가 흔들릴 때(=실패가 가장 많이 날 때) 알림이 사라진다. 못 읽은 것 자체를 띄운다.
+  if (error) {
+    return [
+      {
+        id: "load-failed",
+        scope: "admin",
+        message: `처리하지 못한 일 목록을 불러오지 못했어요: ${error.message}`,
+        detail: null,
+        created_at: new Date().toISOString(),
+      },
+    ];
+  }
 
   return (data ?? []) as ErrorLog[];
 }
