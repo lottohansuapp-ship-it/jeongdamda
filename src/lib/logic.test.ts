@@ -9,6 +9,7 @@ import {
 import { checkNewOrders } from "./alarm.ts";
 import { signUpError } from "./auth-errors.ts";
 import {
+  keyHealthFromStatus,
   isPaymentReady,
   missingPaymentKeys,
   type PaymentKeys,
@@ -1251,5 +1252,25 @@ test("signUpError: 나머지는 뭉개지 말고 입력 확인만 말한다", ()
     const message = signUpError(error);
     assert.doesNotMatch(message, /휴대폰 번호/);
     assert.doesNotMatch(message, /이미 가입된 이메일/);
+  }
+});
+
+/*
+  결제 키 상태. 30일짜리 시크릿이 조용히 만료돼 결제 확인·환불이 막혔던 일이 있다.
+  확실한 거절만 빨간 알림으로 올리고, 장애는 키 탓으로 돌리지 않는다.
+*/
+test("keyHealthFromStatus: 401·403 만 키 거절로 본다", () => {
+  assert.equal(keyHealthFromStatus(401), "rejected");
+  assert.equal(keyHealthFromStatus(403), "rejected");
+});
+
+test("keyHealthFromStatus: 없는 결제(404)는 키가 살아 있다는 뜻이다", () => {
+  assert.equal(keyHealthFromStatus(404), "ok");
+  assert.equal(keyHealthFromStatus(200), "ok");
+});
+
+test("keyHealthFromStatus: 포트원 장애는 키 탓으로 단정하지 않는다", () => {
+  for (const status of [500, 502, 503, 429]) {
+    assert.equal(keyHealthFromStatus(status), "unknown", String(status));
   }
 });

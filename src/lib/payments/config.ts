@@ -25,6 +25,24 @@ export const PORTONE_CHANNELS = {
   mobile: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_MOBILE ?? "",
 };
 
+/**
+ * 포트원이 우리 API 시크릿을 받아주는지 — 응답 코드로 판단한다.
+ *
+ * 30일짜리로 발급된 시크릿이 조용히 만료돼서, 결제 확인과 환불이 모두
+ * 401 로 막힌 채 며칠을 지낸 적이 있다. 화면에는 아무 표시도 없었다.
+ *
+ * 없는 결제번호를 일부러 조회한다. 키가 맞으면 "그런 결제 없음(404)",
+ * 틀리거나 만료됐으면 401/403 이 온다. 그 외(장애·타임아웃)는 키 탓이라고
+ * 단정하지 않는다 — 괜히 빨간 알림을 띄우면 아무도 알림을 믿지 않게 된다.
+ */
+export type ApiKeyHealth = "ok" | "rejected" | "unknown";
+
+export function keyHealthFromStatus(status: number): ApiKeyHealth {
+  if (status === 401 || status === 403) return "rejected";
+  if (status === 404 || (status >= 200 && status < 300)) return "ok";
+  return "unknown";
+}
+
 /** 결제창을 띄울 수 있는지. 브라우저에서도 확인할 수 있다. */
 export function isPaymentConfigured(): boolean {
   return Boolean(PORTONE_STORE_ID && PORTONE_CHANNEL_KEY);

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { OrderBoard } from "@/components/admin/OrderBoard";
+import { PaymentKeyAlert } from "@/components/admin/PaymentKeyAlert";
 import { getAdminOrders } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -26,6 +27,10 @@ const RANGES = [
 export default function AdminOrdersPage({ searchParams }: PageProps) {
   return (
     <main className="mx-auto w-full max-w-[560px] flex-1 px-5">
+      {/* 매장 PC 가 하루 종일 켜 두는 화면이다. 결제 키가 죽으면 여기서 먼저 안다 */}
+      <Suspense fallback={null}>
+        <PaymentKeyAlert />
+      </Suspense>
       <Suspense fallback={<Skeleton />}>
         <OrdersBody searchParams={searchParams} />
       </Suspense>

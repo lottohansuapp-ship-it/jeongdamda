@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { PORTONE_CHANNELS } from "@/lib/payments/config";
-import { missingPaymentConfig, secretFingerprints } from "@/lib/payments/portone";
+import {
+  missingPaymentConfig,
+  portOneKeyHealth,
+  secretFingerprints,
+} from "@/lib/payments/portone";
 
 /**
  * 지금 배포된 코드가 어느 커밋인지, 결제가 어느 채널로 붙어 있는지.
@@ -31,6 +35,8 @@ export async function GET() {
       missing: missingPaymentConfig(),
       // 값이 아니라 SHA-256 앞 8자리. scripts/secret-fingerprint.mjs 와 맞춰 본다.
       fingerprint: secretFingerprints(),
+      // 포트원이 API 시크릿을 받아주는지. ok / rejected(만료·오류) / unknown
+      apiKey: await portOneKeyHealth(),
     },
   });
 }

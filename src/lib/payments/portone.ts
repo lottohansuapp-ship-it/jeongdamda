@@ -1,8 +1,11 @@
 import "server-only";
+import { cacheLife } from "next/cache";
 import { createHash } from "node:crypto";
 import {
   isPaymentReady,
+  keyHealthFromStatus,
   missingPaymentKeys,
+  type ApiKeyHealth,
   PORTONE_CHANNEL_KEY,
   PORTONE_STORE_ID,
 } from "./config";
@@ -122,6 +125,31 @@ async function call(
     return { ok: true, data: body };
   } catch {
     return { ok: false, error: "결제 서버에 연결하지 못했습니다." };
+  }
+}
+
+/**
+ * API 시크릿이 아직 살아 있는지. 관리자 화면 맨 위 알림이 쓴다.
+ *
+ * 한 시간 정도 기억해 둔다. 관리자 화면을 열 때마다 포트원을 부르지 않게,
+ * 그리고 누가 확인 주소를 계속 두드려도 포트원으로 요청이 불어나지 않게.
+ * 키를 고치면 재배포가 필요하고, 재배포하면 이 기억도 새로 시작한다.
+ */
+export async function portOneKeyHealth(): Promise<ApiKeyHealth> {
+  "use cache";
+  cacheLife("hours");
+
+  // 비어 있는 경우는 missingPaymentConfig 가 따로 알린다
+  if (!API_SECRET) return "unknown";
+
+  try {
+    const response = await fetch(`${API_BASE}/payments/health-check-not-a-real-payment`, {
+      headers: { Authorization: `PortOne ${API_SECRET}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    return keyHealthFromStatus(response.status);
+  } catch {
+    return "unknown";
   }
 }
 

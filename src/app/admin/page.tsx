@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AdminBoard } from "@/components/admin/AdminBoard";
+import { PaymentKeyAlert } from "@/components/admin/PaymentKeyAlert";
 import { getAdminData, getRecentErrors } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -12,6 +13,10 @@ export const metadata: Metadata = {
 export default function AdminPage() {
   return (
     <main className="mx-auto w-full max-w-[720px] flex-1 px-5">
+      {/* 결제 키 확인은 포트원을 부르므로 따로 기다린다 — 재고 목록을 붙잡지 않게 */}
+      <Suspense fallback={null}>
+        <PaymentKeyAlert />
+      </Suspense>
       <Suspense fallback={<Skeleton />}>
         <Board />
       </Suspense>
