@@ -9,6 +9,7 @@ import { confirmMyPayment } from "@/lib/payment-actions";
 import { PORTONE_CHANNELS, PORTONE_STORE_ID } from "@/lib/payments/config";
 import {
   availableMethods,
+  KCP_EXTRAS,
   pickMethod,
   type PaymentMethod,
   type PaymentMethodKey,
@@ -69,7 +70,7 @@ export function CheckoutBoard({
   const [pending, startTransition] = useTransition();
 
   // 계약한 수단만 나온다. 하나뿐이면 고를 것이 없으니 화면에 띄우지 않는다.
-  const methods = useMemo(() => availableMethods(PORTONE_CHANNELS), []);
+  const methods = useMemo(() => availableMethods(PORTONE_CHANNELS, KCP_EXTRAS), []);
   const [methodKey, setMethodKey] = useState<PaymentMethodKey | null>(null);
   const method = pickMethod(methods, methodKey);
   const [error, setError] = useState<string | null>(null);
@@ -629,6 +630,15 @@ async function openPaymentWindow(input: {
       // 여는 순간에야 터질 자리였다. 캐스팅을 빼서 컴파일러가 보게 둔다.
       currency: "KRW",
       payMethod: input.method.payMethod,
+      /*
+        간편결제는 어느 앱을 열지 알려 준다. 안 알려 주면 KCP 가 간편결제 고르는
+        화면을 한 번 더 띄운다 — 손님은 방금 「카카오페이」 를 눌렀는데 또 묻는 셈이다.
+        계좌이체는 KCP 결제창이 은행을 고르게 하므로 더 넘길 값이 없다.
+      */
+      ...(input.method.easyPayProvider
+        ? { easyPay: { easyPayProvider: input.method.easyPayProvider } }
+        : {}),
+      ...(input.method.payMethod === "TRANSFER" ? { transfer: {} } : {}),
       customer: {
         fullName: input.customerName,
         phoneNumber: input.customerPhone,
