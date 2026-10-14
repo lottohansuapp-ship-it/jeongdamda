@@ -22,6 +22,12 @@ import { browserClient } from "./supabase/client";
  */
 const FAST_MS = 15000; // 구독이 없을 때
 const SLOW_MS = 60000; // 구독이 붙어 있을 때의 안전망
+/**
+ * 주문 하나에 변경이 몰려 온다 — 결제 확정, 장바구니 비우기와 함께 오는 갱신,
+ * 1분마다 도는 만료 정리. 올 때마다 다시 받으면 같은 화면을 연달아 서너 번 받는다.
+ * 잠깐 모았다가 한 번만 받는다. 0.8초는 사장님이 느끼지 못하는 지연이다.
+ */
+const DEBOUNCE_MS = 800;
 
 interface Options {
   enabled: boolean;
@@ -58,6 +64,8 @@ export function useLiveRefresh({
     const supabase = browserClient();
     if (!supabase) return;
 
+    let pending: ReturnType<typeof setTimeout> | null = null;
+
     const channel = supabase
       .channel(`orders:${filter ?? "all"}`)
       .on(
@@ -66,14 +74,18 @@ export function useLiveRefresh({
         () => {
           // 페이로드는 쓰지 않는다. 무엇이 바뀌었는지는 서버에 다시 묻는다 —
           // 그래야 RLS·조인·표시 규칙이 한 곳에만 있다.
-          if (evenWhenHidden || document.visibilityState === "visible") {
+          if (!evenWhenHidden && document.visibilityState !== "visible") return;
+          if (pending) clearTimeout(pending);
+          pending = setTimeout(() => {
+            pending = null;
             router.refresh();
-          }
+          }, DEBOUNCE_MS);
         },
       )
       .subscribe((status: string) => setSubscribed(status === "SUBSCRIBED"));
 
     return () => {
+      if (pending) clearTimeout(pending);
       setSubscribed(false);
       supabase.removeChannel(channel);
     };

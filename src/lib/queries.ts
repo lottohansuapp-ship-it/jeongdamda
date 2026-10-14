@@ -199,13 +199,17 @@ export async function getProfile(): Promise<Profile | null> {
 export async function getAdminAccess(): Promise<{ admin: boolean; email: string | null }> {
   if (envError()) return { admin: false, email: null };
 
+  // getUser() 는 Auth 서버까지 왕복한다. 이 입구는 주문 화면이 새로 그려질 때마다
+  // (실시간 갱신·폴링) 다시 도는 자리라, 서명만 로컬에서 보는 getClaims() 로 충분하다.
+  // 진짜 판단은 is_admin() 이 같은 JWT 로 DB 에서 다시 한다 — 죽은 토큰이면 거기서 false.
   const db = await serverClient();
-  const [{ data: auth }, { data: admin }] = await Promise.all([
-    db.auth.getUser(),
+  const [{ data: claims }, { data: admin }] = await Promise.all([
+    db.auth.getClaims(),
     db.rpc("is_admin"),
   ]);
 
-  return { admin: admin === true, email: auth.user?.email ?? null };
+  const email = claims?.claims.email;
+  return { admin: admin === true, email: typeof email === "string" ? email : null };
 }
 
 export async function getAddresses(): Promise<Address[]> {
@@ -601,25 +605,30 @@ export async function getAdminCoupons(): Promise<AdminCoupon[]> {
   if (envError()) return [];
 
   const db = await serverClient();
-  const [rules, issued] = await Promise.all([
+  const [rules, usage] = await Promise.all([
     db
       .from("coupons")
       .select("id, name, kind, discount, min_order, valid_days, is_active")
       .order("kind")
       .order("name"),
-    db.from("user_coupons").select("coupon_id, used_at"),
+    // 발급 쿠폰을 전부 받아 세지 않는다. DB 가 쿠폰별로 세어 준다 (coupon_usage, 0028).
+    db.rpc("coupon_usage"),
   ]);
 
-  const rows = (issued.data ?? []) as { coupon_id: string; used_at: string | null }[];
+  if (rules.error) throw new Error(rules.error.message);
+  if (usage.error) throw new Error(usage.error.message);
 
-  return ((rules.data ?? []) as Coupon[]).map((rule) => {
-    const mine = rows.filter((row) => row.coupon_id === rule.id);
-    return {
-      ...rule,
-      issued: mine.length,
-      used: mine.filter((row) => row.used_at !== null).length,
-    };
-  });
+  const counts = new Map(
+    ((usage.data ?? []) as { coupon_id: string; issued: number; used: number }[]).map(
+      (row) => [row.coupon_id, row],
+    ),
+  );
+
+  return ((rules.data ?? []) as Coupon[]).map((rule) => ({
+    ...rule,
+    issued: Number(counts.get(rule.id)?.issued ?? 0),
+    used: Number(counts.get(rule.id)?.used ?? 0),
+  }));
 }
 
 export interface CustomerRow {

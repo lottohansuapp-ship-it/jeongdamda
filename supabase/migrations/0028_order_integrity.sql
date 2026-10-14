@@ -18,6 +18,7 @@
 --      한산한 날엔 포기한 결제의 재고가 품절로 묶여 있었다.
 --   5. adjust_stock — 관리자 +/- 버튼이 "화면에 보이는 숫자" 를 덮어쓰지 않고
 --      DB 값에 더하고 뺀다. 그 사이 팔린 수량이 되살아나지 않는다.
+--   6. coupon_usage — 쿠폰별 발급·사용 수를 DB 에서 센다(관리자 쿠폰 화면).
 
 
 ---------------------------------------------------------------------------
@@ -650,6 +651,29 @@ grant execute on function public.adjust_stock(uuid, int) to authenticated;
 
 
 ---------------------------------------------------------------------------
+-- 4'. 쿠폰별 발급·사용 수 (관리자 쿠폰 화면)
+--
+-- 예전엔 user_coupons 를 전부 받아 화면에서 셌다. 회원이 늘면 받는 양이 끝없이
+-- 늘고, PostgREST 한도(1,000행)를 넘으면 숫자가 조용히 틀린다. 여기서 센다.
+-- security invoker — user_coupons_admin_read 정책이 그대로 걸린다(관리자가 아니면 0).
+---------------------------------------------------------------------------
+create or replace function public.coupon_usage()
+returns table (coupon_id uuid, issued bigint, used bigint)
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coupon_id, count(*), count(used_at)
+    from public.user_coupons
+   group by coupon_id;
+$$;
+
+revoke all on function public.coupon_usage() from public, anon;
+grant execute on function public.coupon_usage() to authenticated;
+
+
+---------------------------------------------------------------------------
 -- 5. 만료 정리를 1분마다
 --
 -- 0017 과 같은 방식이다. pg_cron 을 못 쓰면 이 블록만 건너뛰고 안내를 띄운다.
@@ -681,8 +705,8 @@ select
     as "1분 정리 예약 가능",
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
-      and p.proname in ('record_refund', 'adjust_stock', 'release_pending_orders'))
-    as "새 함수 (3이면 정상)",
+      and p.proname in ('record_refund', 'adjust_stock', 'release_pending_orders', 'coupon_usage'))
+    as "새 함수 (4이면 정상)",
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname = 'cancel_order')
     as "cancel_order (1이면 정상)";

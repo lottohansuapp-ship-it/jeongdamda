@@ -2,10 +2,10 @@
 
 import { updateTag } from "next/cache";
 import { currentUserId, serverClient } from "./supabase/server";
-import { PRODUCTS_TAG } from "./queries";
+import { getStore, PRODUCTS_TAG } from "./queries";
 import { canTransition } from "./orders";
 import { pickupSlots, pickupTimestamp, toSeoulClock } from "./store";
-import type { ActionResult, StoreSettings } from "@/types/database";
+import type { ActionResult } from "@/types/database";
 
 export interface PlacedOrder {
   orderId: string;
@@ -58,11 +58,12 @@ export async function placeOrder(
   if (fulfillment === "pickup") {
     // 손님이 보낸 시각을 믿지 않는다. 지금 다시 슬롯을 만들어 그 안에 있는지 본다.
     // place_order 는 null 인지만 보므로 지나간 시간도 통과시킨다.
-    const { data: settings } = await session.db
-      .from("store_settings")
-      .select("*")
-      .eq("id", 1)
-      .maybeSingle<StoreSettings>();
+    // 캐시된 매장 설정을 쓴다(getStore, STORE_TAG). 사장님이 바꾸면 즉시 만료되고,
+    // 주문마다 같은 한 줄을 DB 에서 다시 읽을 이유가 없다. 영업 여부의 최종 판단은
+    // place_order 가 DB 에서 다시 한다 — 여기는 픽업 시간이 고를 수 있는 값인지만 본다.
+    const settings = await getStore()
+      .then((store) => store.settings)
+      .catch(() => null);
 
     if (!settings) return { ok: false, error: "매장 설정을 읽지 못했어요." };
 
