@@ -6,6 +6,9 @@ import { serverClient } from "./supabase/server";
 import { normalizePhone } from "./format";
 import { PHONE_TAKEN_MESSAGE } from "./store-info";
 import { signUpError } from "./auth-errors";
+import { identityEnabled } from "./identity";
+import { PORTONE_IDENTITY_CHANNEL_KEY } from "./payments/config";
+import { getStore } from "./queries";
 
 export interface AuthState {
   error: string | null;
@@ -70,8 +73,16 @@ export async function signUp(
 
   if (!name) return { error: "이름을 입력해 주세요.", notice: null };
 
-  const phone = normalizePhone(rawPhone);
-  if (!phone) {
+  /*
+    본인인증이 켜져 있으면 번호를 받지 않는다. 가입 직후 본인인증에서 통신사가
+    확인한 번호가 들어간다. 화면에서 칸을 숨긴 것만으로는 안 된다 — 요청은
+    위조되므로 여기서도 버린다. 남의 번호를 먼저 적어 두는 길을 막는 것이다.
+  */
+  const { settings } = await getStore();
+  const identityOn = identityEnabled(settings?.require_identity, PORTONE_IDENTITY_CHANNEL_KEY);
+
+  const phone = identityOn ? null : normalizePhone(rawPhone);
+  if (!identityOn && !phone) {
     return { error: "휴대폰 번호를 다시 확인해 주세요.", notice: null };
   }
   if (!email || !password) {
@@ -86,7 +97,7 @@ export async function signUp(
     email,
     password,
     options: {
-      data: { name, phone },
+      data: phone ? { name, phone } : { name },
       emailRedirectTo: `${await origin()}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
@@ -100,6 +111,9 @@ export async function signUp(
       notice: `${email} 으로 확인 메일을 보냈어요. 메일함에서 인증을 마쳐 주세요.`,
     };
   }
+
+  // 본인인증을 거쳐야 가입이 끝난다. 쿠폰도 거기서 준다.
+  if (identityOn) redirect(`/signup/phone?next=${encodeURIComponent(next)}`);
 
   // 이메일 확인이 꺼져 있으면 /auth/callback 을 지나지 않는다. 그 경로의
   // 손님도 쿠폰을 받게 여기서도 부른다 — 여러 번 불려도 안전하다.

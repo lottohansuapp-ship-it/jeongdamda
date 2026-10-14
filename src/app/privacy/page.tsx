@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Article, Bullets, PolicyPage } from "@/components/ui/PolicyPage";
+import { identityEnabled } from "@/lib/identity";
+import { PORTONE_IDENTITY_CHANNEL_KEY } from "@/lib/payments/config";
+import { getStore } from "@/lib/queries";
 import { STORE_INFO } from "@/lib/store-info";
 
 export const metadata: Metadata = {
@@ -29,7 +32,14 @@ const TRUSTEES: [string, string][] = [
  * 템플릿을 그대로 붙여 하지도 않는 처리를 적어두면 심사에서도 걸리고,
  * 나중에 사고가 났을 때 방침과 실제가 다른 것이 더 큰 문제가 된다.
  */
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  /*
+    본인인증은 켜졌을 때만 적는다. 하지도 않는 수집을 적어 두면 위의 원칙과
+    어긋나고, 켰는데 안 적으면 고지 의무를 어긴다. 스위치 하나로 같이 움직인다.
+  */
+  const { settings } = await getStore();
+  const identityOn = identityEnabled(settings?.require_identity, PORTONE_IDENTITY_CHANNEL_KEY);
+
   return (
     <PolicyPage title="개인정보처리방침" effectiveFrom="2026년 8월 4일">
       <Article heading="1. 수집하는 개인정보 항목">
@@ -38,6 +48,11 @@ export default function PrivacyPage() {
           items={[
             "회원가입(이메일) — 이메일 주소, 비밀번호, 이름, 휴대폰번호",
             "회원가입(카카오) — 카카오 계정 이메일, 이름, 휴대폰번호",
+            ...(identityOn
+              ? [
+                  "휴대폰 본인인증 — 이름, 휴대폰번호, 연계정보(CI)를 되돌릴 수 없게 변환한 값. 중복 가입 확인에만 쓰며 주민등록번호와 CI 원본은 받거나 보관하지 않습니다",
+                ]
+              : []),
             "주문 — 받는 분 이름과 연락처, 배송지(우편번호·주소·상세주소), 요청사항",
             "결제 — 결제 수단 종류, 결제 금액, 결제 식별번호",
             "자동 수집 — 접속 일시, 접속 기기 정보, 서비스 이용 기록",
@@ -99,7 +114,12 @@ export default function PrivacyPage() {
               </tr>
             </thead>
             <tbody>
-              {TRUSTEES.map(([who, what]) => (
+              {[
+                ...TRUSTEES,
+                ...(identityOn
+                  ? ([["NHN KCP (본인확인기관)", "휴대폰 본인확인"]] as [string, string][])
+                  : []),
+              ].map(([who, what]) => (
                 <tr key={who} className="border-b border-line align-top">
                   <td className="whitespace-nowrap py-2 pr-3 text-ink">{who}</td>
                   <td className="py-2">{what}</td>

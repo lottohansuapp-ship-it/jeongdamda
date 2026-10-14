@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Wordmark } from "@/components/ui/Wordmark";
+import { identityEnabled } from "@/lib/identity";
+import { PORTONE_IDENTITY_CHANNEL_KEY } from "@/lib/payments/config";
+import { getStore } from "@/lib/queries";
 import { serverClient } from "@/lib/supabase/server";
 import { LoginForm } from "./LoginForm";
 
@@ -36,6 +39,9 @@ async function LoginBody({ searchParams }: PageProps) {
 
   if (user) redirect(target);
 
+  const { settings } = await getStore();
+  const identityOn = identityEnabled(settings?.require_identity, PORTONE_IDENTITY_CHANNEL_KEY);
+
   const forAdmin = target.startsWith("/admin");
 
   return (
@@ -64,6 +70,7 @@ async function LoginBody({ searchParams }: PageProps) {
         next={target}
         initialMode={mode === "signup" ? "signup" : "login"}
         kakaoEnabled={process.env.NEXT_PUBLIC_KAKAO_LOGIN_ENABLED === "1"}
+        identityOn={identityOn}
       />
     </>
   );

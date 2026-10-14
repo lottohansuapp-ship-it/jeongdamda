@@ -32,9 +32,19 @@ interface LoginFormProps {
   next: string;
   initialMode: Mode;
   kakaoEnabled: boolean;
+  /**
+   * 본인인증이 켜져 있으면 가입 때 번호를 받지 않는다. 가입 직후 본인인증에서
+   * 통신사가 확인한 번호를 쓴다 — 여기서 받으면 남의 번호를 먼저 적어 둘 수 있다.
+   */
+  identityOn: boolean;
 }
 
-export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
+export function LoginForm({
+  next,
+  initialMode,
+  kakaoEnabled,
+  identityOn,
+}: LoginFormProps) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [loginState, loginAction, loginPending] = useActionState(signIn, EMPTY);
   const [signupState, signupAction, signupPending] = useActionState(
@@ -113,6 +123,7 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
                 className={FIELD}
               />
             </label>
+            {!identityOn && (
             <label className="block">
               <span className={LABEL}>휴대폰 번호</span>
               <input
@@ -125,6 +136,7 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
                 className={FIELD}
               />
             </label>
+            )}
           </>
         )}
 

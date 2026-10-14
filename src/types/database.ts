@@ -82,6 +82,11 @@ export interface StoreSettings {
   restrict_delivery_area: boolean;
   pickup_lead_minutes: number;
   notice: string | null;
+  /**
+   * 휴대폰 본인인증 스위치 (0027). 켜면 신규가입·쿠폰에 인증이 필요하다.
+   * 채널 키가 없으면 켜져 있어도 끈 것으로 본다 — identityEnabled().
+   */
+  require_identity: boolean;
   updated_at: string;
 }
 

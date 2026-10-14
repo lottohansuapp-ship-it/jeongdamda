@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { PORTONE_CHANNELS } from "@/lib/payments/config";
+import {
+  PORTONE_CHANNELS,
+  PORTONE_IDENTITY_CHANNEL_KEY,
+} from "@/lib/payments/config";
+import { getStore } from "@/lib/queries";
 import {
   missingPaymentConfig,
   portOneKeyHealth,
@@ -24,6 +28,7 @@ import {
  */
 export async function GET() {
   const tail = (key: string) => (key ? `…${key.slice(-6)}` : null);
+  const { settings } = await getStore();
 
   return NextResponse.json({
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
@@ -37,6 +42,11 @@ export async function GET() {
       fingerprint: secretFingerprints(),
       // 포트원이 API 시크릿을 받아주는지. ok / rejected(만료·오류) / unknown
       apiKey: await portOneKeyHealth(),
+    },
+    // 본인인증: DB 스위치와 채널 키가 둘 다 있어야 실제로 켜진다 (identity.ts)
+    identity: {
+      channel: tail(PORTONE_IDENTITY_CHANNEL_KEY),
+      required: settings?.require_identity ?? null,
     },
   });
 }

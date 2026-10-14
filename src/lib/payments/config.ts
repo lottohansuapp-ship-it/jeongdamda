@@ -26,6 +26,13 @@ export const PORTONE_CHANNELS = {
 };
 
 /**
+ * 휴대폰 본인인증 채널. 결제 채널과 **따로** 만든다 — 결제 채널의 속성을
+ * 바꾸면 결제가 멈출 수 있어서다. 비어 있으면 본인인증은 꺼진다 (identity.ts).
+ */
+export const PORTONE_IDENTITY_CHANNEL_KEY =
+  process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_IDENTITY ?? "";
+
+/**
  * 포트원이 우리 API 시크릿을 받아주는지 — 응답 코드로 판단한다.
  *
  * 30일짜리로 발급된 시크릿이 조용히 만료돼서, 결제 확인과 환불이 모두

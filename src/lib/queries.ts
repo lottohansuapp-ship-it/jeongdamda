@@ -24,7 +24,7 @@ export const PRODUCTS_TAG = "products";
 export const STORE_TAG = "store";
 
 const STORE_COLUMNS =
-  "id, is_open, open_time, close_time, closed_weekdays, pickup_enabled, delivery_enabled, delivery_open_time, delivery_close_time, min_order_amount, free_delivery_from, delivery_fee, restrict_delivery_area, pickup_lead_minutes, notice, updated_at";
+  "id, is_open, open_time, close_time, closed_weekdays, pickup_enabled, delivery_enabled, delivery_open_time, delivery_close_time, min_order_amount, free_delivery_from, delivery_fee, restrict_delivery_area, pickup_lead_minutes, notice, require_identity, updated_at";
 
 const AREA_COLUMNS =
   "id, name, fee, min_amount, free_delivery_from, is_active, sort_order, created_at";
@@ -182,6 +182,26 @@ export async function getProfile(): Promise<Profile | null> {
     .maybeSingle();
 
   return (data as Profile) ?? null;
+}
+
+/**
+ * 이 계정이 휴대폰 본인인증을 마쳤는지. 캐시하지 않는다.
+ * 인증 기록은 손님이 쓸 수 없는 별도 테이블에 있다 (0027).
+ */
+export async function isIdentityVerified(): Promise<boolean> {
+  if (envError()) return false;
+
+  const userId = await currentUserId();
+  if (!userId) return false;
+
+  const db = await serverClient();
+  const { data } = await db
+    .from("identity_verifications")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return Boolean(data);
 }
 
 export async function getAddresses(): Promise<Address[]> {

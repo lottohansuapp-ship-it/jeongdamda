@@ -8,6 +8,7 @@ import {
 } from "./filter.ts";
 import { checkNewOrders } from "./alarm.ts";
 import { signUpError } from "./auth-errors.ts";
+import { checkVerification, identityEnabled } from "./identity.ts";
 import {
   keyHealthFromStatus,
   isPaymentReady,
@@ -388,6 +389,7 @@ function store(overrides: Partial<StoreSettings> = {}): StoreSettings {
     delivery_enabled: true,
     delivery_open_time: null,
     delivery_close_time: null,
+    require_identity: false,
     min_order_amount: 0,
     free_delivery_from: 0,
     delivery_fee: 0,
@@ -1253,6 +1255,59 @@ test("signUpError: 나머지는 뭉개지 말고 입력 확인만 말한다", ()
     assert.doesNotMatch(message, /휴대폰 번호/);
     assert.doesNotMatch(message, /이미 가입된 이메일/);
   }
+});
+
+/*
+  본인인증 결과 판단. KCP 본인확인 계약 전이라 실제로 해 볼 수 없어서,
+  이 테스트가 유일한 확인이다.
+*/
+const ME = "user-me";
+const verified = (customer = {}, extra = {}) => ({
+  status: "VERIFIED",
+  customData: ME,
+  verifiedCustomer: { name: " 홍길동 ", phoneNumber: "01012345678", ci: "CI-A", di: "DI-A", ...customer },
+  ...extra,
+});
+
+test("checkVerification: 정상 인증은 CI 와 정리된 번호를 돌려준다", () => {
+  assert.deepEqual(checkVerification(verified(), ME), {
+    ok: true, key: "CI-A", phone: "010-1234-5678", name: "홍길동",
+  });
+});
+
+test("checkVerification: 끝나지 않은 인증은 받지 않는다", () => {
+  for (const status of ["READY", "FAILED", undefined]) {
+    assert.deepEqual(checkVerification(verified({}, { status }), ME), { ok: false, reason: "not_verified" });
+  }
+  assert.deepEqual(checkVerification(null, ME), { ok: false, reason: "not_verified" });
+});
+
+test("checkVerification: 남의 계정으로 시작한 인증은 받지 않는다", () => {
+  assert.deepEqual(checkVerification(verified({}, { customData: "someone-else" }), ME),
+    { ok: false, reason: "wrong_user" });
+  assert.deepEqual(checkVerification(verified({}, { customData: undefined }), ME),
+    { ok: false, reason: "wrong_user" }, "customData 가 없어도 거절");
+});
+
+test("checkVerification: CI 가 없으면 DI 로, 둘 다 없으면 거절", () => {
+  const diOnly = checkVerification(verified({ ci: undefined }), ME);
+  assert.equal(diOnly.ok && diOnly.key, "DI-A");
+  assert.deepEqual(checkVerification(verified({ ci: undefined, di: undefined }), ME),
+    { ok: false, reason: "no_key" }, "번호로 대신하지 않는다");
+  assert.deepEqual(checkVerification(verified({ ci: "  ", di: undefined }), ME),
+    { ok: false, reason: "no_key" }, "빈 문자열도 없는 것");
+});
+
+test("checkVerification: 번호가 없거나 휴대폰이 아니면 거절", () => {
+  assert.deepEqual(checkVerification(verified({ phoneNumber: undefined }), ME), { ok: false, reason: "no_phone" });
+  assert.deepEqual(checkVerification(verified({ phoneNumber: "0212345678" }), ME), { ok: false, reason: "no_phone" });
+});
+
+test("identityEnabled: DB 스위치와 채널 키가 둘 다 있어야 켠다", () => {
+  assert.equal(identityEnabled(true, "channel-key-x"), true);
+  assert.equal(identityEnabled(true, ""), false, "키 없이 켜면 주문이 막힌다 — 끈 것으로 본다");
+  assert.equal(identityEnabled(false, "channel-key-x"), false);
+  assert.equal(identityEnabled(undefined, "channel-key-x"), false, "마이그레이션 전 설정에는 칸이 없다");
 });
 
 /*

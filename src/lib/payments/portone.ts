@@ -129,6 +129,17 @@ async function call(
 }
 
 /**
+ * 본인인증 건을 다시 조회한다. 브라우저가 "인증 끝났다" 고 해도 믿지 않는다.
+ * 원본을 그대로 돌려주고 판단은 identity.ts 가 한다 (테스트하려고 나눴다).
+ * CI·생년월일이 들어 있으니 이 결과를 로그에 남기지 않는다.
+ */
+export async function getIdentityVerification(
+  identityVerificationId: string,
+): Promise<PortOneResult<unknown>> {
+  return call(`/identity-verifications/${encodeURIComponent(identityVerificationId)}`);
+}
+
+/**
  * API 시크릿이 아직 살아 있는지. 관리자 화면 맨 위 알림이 쓴다.
  *
  * 한 시간 정도 기억해 둔다. 관리자 화면을 열 때마다 포트원을 부르지 않게,

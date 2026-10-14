@@ -14,7 +14,10 @@ import {
   getMyCoupons,
   getProfile,
   getStore,
+  isIdentityVerified,
 } from "@/lib/queries";
+import { identityEnabled } from "@/lib/identity";
+import { PORTONE_IDENTITY_CHANNEL_KEY } from "@/lib/payments/config";
 import {
   deliveryOpenState,
   pickupSlots,
@@ -57,6 +60,17 @@ async function CheckoutBody() {
   if (!profile) redirect("/login?next=%2Fcheckout");
   // 주문에는 이름과 연락처가 반드시 필요하다. place_order 도 없으면 거절한다.
   if (!isProfileComplete(profile)) redirect("/signup/phone?next=%2Fcheckout");
+  /*
+    본인인증을 켰으면 인증한 손님만 주문한다 — 1인 1계정의 마지막 관문이다.
+    꺼져 있으면 조회 자체를 하지 않는다 (주문서마다 쿼리 하나가 늘지 않게).
+    채널 키 없이 스위치만 켜진 경우도 꺼진 것으로 본다. 그때 막으면 장사가 멈춘다.
+  */
+  if (
+    identityEnabled(store.settings?.require_identity, PORTONE_IDENTITY_CHANNEL_KEY) &&
+    !(await isIdentityVerified())
+  ) {
+    redirect("/signup/phone?next=%2Fcheckout");
+  }
   if (cart.lines.length === 0 && cart.orphanIds.length === 0) redirect("/cart");
   if (!store.settings) redirect("/cart");
 
