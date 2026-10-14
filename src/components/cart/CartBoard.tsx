@@ -97,6 +97,15 @@ function deliveryFeeNow(
 /** summarizeCart 에 넣을 최소 형태. 화면에서 수량만 바꿔가며 다시 계산한다. */
 type CartRow = { product: CartLine["product"]; quantity: number };
 
+/**
+ * 진행 막대의 채움 비율(0~1). 막대는 width 대신 scaleX 로 늘인다 —
+ * width 를 움직이면 매 프레임 레이아웃을 다시 계산한다 (디자인 규칙: transform 만).
+ */
+function progress(value: number, goal: number): number {
+  if (goal <= 0) return 1;
+  return Math.min(1, Math.max(0, value / goal));
+}
+
 function toRows(cart: CartSummary): CartRow[] {
   return cart.lines.map(({ product, quantity }) => ({ product, quantity }));
 }
@@ -201,7 +210,7 @@ export function CartBoard({
   }
 
   return (
-    <div className="pb-40">
+    <div>
       <ul className="space-y-2.5">
         {view.lines.map((line) => {
           const blocked = line.issue !== null;
@@ -356,13 +365,16 @@ export function CartBoard({
             if (!confirm("장바구니를 비울까요?")) return;
             run([], clearCart);
           }}
-          className="h-10 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-ink-soft"
+          className="h-12 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-ink-soft"
         >
           장바구니 비우기
         </button>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
+      {/* fixed 가 아니라 sticky 다. fixed 는 자리를 차지하지 않아서 아래에 바 높이만큼
+          여백(pb-40)을 어림잡아 뒀는데, 쿠폰·배달 안내가 붙으면 바가 그보다 커져
+          「장바구니 비우기」 가 바 밑에 깔렸다. sticky 는 자기 높이만큼 자리를 차지한다. */}
+      <div className="sticky bottom-0 z-40 -mx-5 mt-6 border-t border-line bg-white/95 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
         <div className="mx-auto max-w-[560px]">
           {error && (
             <p role="alert" className="pb-2 text-[13px] text-danger">
@@ -410,10 +422,8 @@ export function CartBoard({
                 aria-label="배달 최소주문까지 남은 금액"
               >
                 <div
-                  className="h-full rounded-pill bg-clay transition-[width] duration-300"
-                  style={{
-                    width: `${Math.round((view.subtotal / shortfall.minimum) * 100)}%`,
-                  }}
+                  className="h-full w-full origin-left bg-clay transition-transform duration-300"
+                  style={{ transform: `scaleX(${progress(view.subtotal, shortfall.minimum)})` }}
                 />
               </div>
             </div>
@@ -439,10 +449,8 @@ export function CartBoard({
                 aria-label="무료배달까지 남은 금액"
               >
                 <div
-                  className="h-full rounded-pill bg-olive transition-[width] duration-300"
-                  style={{
-                    width: `${Math.round((view.subtotal / gap.freeFrom) * 100)}%`,
-                  }}
+                  className="h-full w-full origin-left bg-olive transition-transform duration-300"
+                  style={{ transform: `scaleX(${progress(view.subtotal, gap.freeFrom)})` }}
                 />
               </div>
             </div>
@@ -537,7 +545,7 @@ function Step({
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="grid h-11 w-11 place-items-center rounded-full text-[19px] leading-none text-ink transition-[background-color,transform] duration-150 hover:bg-olive-soft active:scale-95 disabled:opacity-30"
+      className="grid h-12 w-12 place-items-center rounded-full text-[19px] leading-none text-ink transition-[background-color,transform] duration-150 hover:bg-olive-soft active:scale-95 disabled:opacity-30"
     >
       {children}
     </button>

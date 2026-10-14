@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Toast } from "@/components/ui/Toast";
 import {
   deleteDeliveryArea,
   saveDeliveryArea,
@@ -299,7 +300,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
                     <button
                       type="button"
                       onClick={() => setEditing(area)}
-                      className="h-9 rounded-pill border border-line px-3 text-[13px] text-ink-soft"
+                      className="h-12 rounded-pill border border-line px-3 text-[13px] text-ink-soft"
                     >
                       수정
                     </button>
@@ -312,7 +313,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
                         if (result.ok) notice("배달 지역을 삭제했어요");
                         else fail(result.error);
                       }}
-                      className="h-9 rounded-pill border border-line px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:border-danger hover:text-danger"
+                      className="h-12 rounded-pill border border-line px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:border-danger hover:text-danger"
                     >
                       삭제
                     </button>
@@ -324,15 +325,7 @@ export function StoreForm({ settings, areas, openState }: StoreFormProps) {
         )}
       </section>
 
-      {toast && (
-        <div
-          role="status"
-          className="fixed inset-x-4 bottom-6 z-50 mx-auto max-w-[420px] rounded-card px-4 py-3.5 text-[13.5px] leading-relaxed text-white shadow-lift"
-          style={{ background: toast.tone === "error" ? "#c9302c" : "#2f3330" }}
-        >
-          {toast.text}
-        </div>
-      )}
+      {toast && <Toast message={toast.text} tone={toast.tone} />}
     </div>
   );
 }

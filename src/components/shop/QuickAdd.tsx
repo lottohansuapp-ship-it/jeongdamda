@@ -70,7 +70,7 @@ export function QuickAdd({
         type="button"
         onClick={add}
         aria-label={`${productName} 장바구니에 담기`}
-        className={`grid h-11 w-11 place-items-center rounded-full shadow-lift transition-[background-color,transform] duration-200 active:scale-90 ${
+        className={`grid h-12 w-12 place-items-center rounded-full shadow-lift transition-[background-color,transform] duration-200 active:scale-90 ${
           state === "done" ? "bg-olive-deep text-white" : "bg-white/95 text-ink"
         }`}
       >

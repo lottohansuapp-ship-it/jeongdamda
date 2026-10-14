@@ -122,14 +122,16 @@ export function Carousel({ children, label }: CarouselProps) {
                 aria-label={`${index + 1}번째 반찬 보기`}
                 aria-current={index === active}
                 // 점은 작아도 누르는 자리는 24px 이상이어야 한다 (WCAG 2.2).
-                // 6px 점 + 상하 10px 패딩 = 26px.
-                className="group -my-2.5 p-2.5"
+                // 20px 자리 + 좌우 2px = 24px, 상하 10px 패딩.
+                className="group -my-2.5 px-0.5 py-2.5"
               >
+                {/* 길이를 width 로 바꾸면 매 프레임 레이아웃을 다시 잰다. 자리는 20px 로
+                    고정하고 가로로만 줄인다(scale-x) — 디자인 규칙: transform·opacity 만. */}
                 <span
-                  className={`block h-1.5 rounded-pill transition-[width,background-color] duration-300 ${
+                  className={`block h-1.5 w-5 rounded-pill transition-[scale,background-color] duration-300 ${
                     index === active
-                      ? "w-5 bg-olive"
-                      : "w-1.5 bg-line group-hover:bg-ink-faint"
+                      ? "bg-olive"
+                      : "scale-x-30 bg-line group-hover:bg-ink-faint"
                   }`}
                 />
               </button>
@@ -157,7 +159,7 @@ function Arrow({
       onClick={onClick}
       disabled={disabled}
       aria-label={side === "left" ? "이전 반찬" : "다음 반찬"}
-      className={`absolute top-[31%] hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-ink shadow-lift transition-opacity duration-200 disabled:pointer-events-none disabled:opacity-0 [@media(hover:hover)and(pointer:fine)]:grid ${
+      className={`absolute top-[31%] hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-ink shadow-lift transition-opacity duration-200 disabled:pointer-events-none disabled:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:grid ${
         side === "left" ? "-left-1" : "-right-1"
       }`}
     >

@@ -397,7 +397,7 @@ export function AdminRow({
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="ml-auto h-9 rounded-pill border border-line px-3 text-[13px] text-ink-soft transition-colors duration-200 hover:border-ink-faint"
+          className="ml-auto h-12 rounded-pill border border-line px-3 text-[13px] text-ink-soft transition-colors duration-200 hover:border-ink-faint"
         >
           {open ? "접기" : "수정"}
         </button>
@@ -491,7 +491,7 @@ export function AdminRow({
           <button
             type="button"
             onClick={onDelete}
-            className="h-9 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
+            className="h-12 rounded-pill px-3 text-[13px] text-ink-faint transition-colors duration-200 hover:text-danger"
           >
             삭제
           </button>
@@ -583,7 +583,7 @@ function Flag({
       disabled={disabled}
       aria-pressed={active}
       title={disabled ? "뱃지는 2개까지 달 수 있어요" : undefined}
-      className={`h-9 rounded-pill px-3 text-[13px] transition-colors duration-200 disabled:opacity-30 ${
+      className={`h-12 rounded-pill px-3 text-[13px] transition-colors duration-200 disabled:opacity-30 ${
         active
           ? "bg-olive-soft text-olive-deep"
           : "border border-line text-ink-faint hover:text-ink-soft"

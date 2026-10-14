@@ -18,7 +18,7 @@ export function PolicyPage({
   return (
     <main className="mx-auto w-full max-w-[720px] flex-1 px-5 pb-16">
       <header className="pb-6 pt-10">
-        <Link href="/" className="text-[13px] text-ink-soft">
+        <Link href="/" className="-mb-1 inline-flex min-h-12 items-center text-[13px] text-ink-soft">
           ← 반찬 보러가기
         </Link>
         <h1 className="pt-3 text-[26px] leading-tight">{title}</h1>

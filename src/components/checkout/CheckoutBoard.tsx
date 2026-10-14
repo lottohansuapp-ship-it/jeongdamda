@@ -186,7 +186,7 @@ export function CheckoutBoard({
   }
 
   return (
-    <div className="pb-48">
+    <div>
       {/* 결제 직전이 "오늘 배달이 늦어요" 같은 공지를 볼 마지막 자리다.
           settings 는 이미 받고 있어서 조회가 늘지 않는다. */}
       {settings.notice && (
@@ -335,7 +335,7 @@ export function CheckoutBoard({
                     remember({ slot: value });
                   }}
                   aria-pressed={value === slot}
-                  className={`h-11 rounded-pill px-4 text-[14px] tabular-nums transition-colors duration-200 ${
+                  className={`h-12 rounded-pill px-4 text-[14px] tabular-nums transition-colors duration-200 ${
                     value === slot
                       ? "bg-olive text-white"
                       : "border border-line text-ink-soft hover:bg-olive-soft"
@@ -358,13 +358,15 @@ export function CheckoutBoard({
           }}
           maxLength={200}
           rows={2}
+          // 이름이 자리표시 글자뿐이라 스크린리더가 "문 앞에 놓아주세요" 로 읽었다.
+          aria-label="요청사항"
           // 배달에만 예시를 둔다. 문 앞에 두는 것처럼 손님이 실제로 자주 부탁하는
           // 일이 있어서다. 픽업은 매장에서 직접 받아가므로 그런 부탁이 없고,
           // 없는 예시를 띄우면 오히려 뭘 써야 하나 헷갈린다.
           placeholder={
             isDelivery ? "문 앞에 놓아주세요" : "매장에 전할 말을 적어주세요"
           }
-          className="w-full resize-none rounded-[12px] border border-line bg-canvas p-3 text-[14px] leading-relaxed outline-none transition-colors duration-200 placeholder:text-ink-faint focus:border-olive"
+          className="w-full resize-none rounded-[12px] border border-line bg-canvas p-3 text-[14px] leading-relaxed outline-none transition-colors duration-200 placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
         />
       </Section>
 
@@ -452,7 +454,7 @@ export function CheckoutBoard({
           {/* 주문서에서 메뉴를 더 담고 싶을 때. 여기서 나가도 담아둔 것은 그대로 남는다. */}
           <Link
             href="/"
-            className="shrink-0 text-[13px] text-clay-deep underline underline-offset-4"
+            className="inline-flex min-h-12 shrink-0 items-center text-[13px] text-clay-deep underline underline-offset-4"
           >
             추가 주문
           </Link>
@@ -477,13 +479,14 @@ export function CheckoutBoard({
 
         <Link
           href="/cart"
-          className="mt-3 inline-flex text-[13px] text-ink-faint underline underline-offset-4"
+          className="mt-1 inline-flex min-h-12 items-center text-[13px] text-ink-faint underline underline-offset-4"
         >
           수량 변경하기
         </Link>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur-md">
+      {/* sticky — 바가 자기 높이만큼 자리를 차지해 마지막 줄이 가려지지 않는다 (CartBoard 참조). */}
+      <div className="sticky bottom-0 z-40 -mx-5 mt-6 border-t border-line bg-white/95 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur-md">
         <div className="mx-auto max-w-[560px]">
           <dl className="space-y-1.5 pb-3 text-[13.5px]">
             <Row label="상품 금액" value={formatPrice(cart.subtotal)} />

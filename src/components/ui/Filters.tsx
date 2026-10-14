@@ -35,7 +35,8 @@ export function FilterTab({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className="group shrink-0 py-[7px]"
+      // 누르는 자리 48×48 이상. 「전체」 처럼 두 글자는 배경이 36px 라 폭을 따로 받친다.
+      className="group flex min-w-12 shrink-0 justify-center py-[9px]"
     >
       <span
         className={`block rounded-[10px] px-1.5 py-2 text-[14px] leading-none transition-colors duration-200 ${
@@ -79,7 +80,7 @@ export function FilterChip({
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
-      className="group shrink-0 py-[9px] disabled:opacity-40"
+      className="group shrink-0 py-[11px] disabled:opacity-40"
     >
       <span
         className={`flex items-center gap-1 rounded-pill border px-2.5 py-1.5 text-[12.5px] leading-none transition-colors duration-200 ${

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminNav } from "./AdminNav";
 import {
@@ -316,12 +316,40 @@ function SendSheet({
   const allPicked =
     visible.length > 0 && visible.every((row) => picked.includes(row.id));
 
+  /*
+    화면 전체를 덮는 창이다. 대화상자라고 알리고, Esc 로 닫히고, 닫으면 누르던
+    버튼으로 돌아가야 한다. 예전엔 셋 다 없어서 키보드·스크린리더로는 뒤에 깔린
+    쿠폰 목록을 계속 헤매게 됐다.
+  */
+  // onClose 는 부모가 그릴 때마다 새로 만든다. 그걸 의존성에 넣으면 회원을 고를
+  // 때마다 효과가 다시 돌아 포커스가 창 뒤 버튼으로 튄다. 열릴 때 한 번만 건다.
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      opener?.focus();
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas">
-      <header className="border-b border-line px-5 pb-3 pt-6">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="send-sheet-title"
+      className="fixed inset-0 z-50 flex flex-col bg-canvas"
+    >
+      <header className="border-b border-line px-5 pb-3 pt-[max(1.5rem,env(safe-area-inset-top))]">
         <div className="mx-auto flex max-w-[560px] items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-[16px]">{coupon.name}</p>
+            <p id="send-sheet-title" className="truncate text-[16px]">{coupon.name}</p>
             <p className="pt-0.5 text-[12.5px] text-ink-faint">
               {formatPrice(coupon.discount)} 할인 · {picked.length}명 선택됨
             </p>
@@ -329,7 +357,7 @@ function SendSheet({
           <button
             type="button"
             onClick={onClose}
-            className="h-11 shrink-0 rounded-pill px-3 text-[13px] text-ink-soft"
+            className="h-12 shrink-0 rounded-pill px-3 text-[13px] text-ink-soft"
           >
             닫기
           </button>
@@ -342,6 +370,8 @@ function SendSheet({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="이름 또는 번호 뒷자리"
+          aria-label="회원 검색"
+          autoFocus
           className={INPUT}
         />
 
@@ -354,7 +384,7 @@ function SendSheet({
                 : [...new Set([...picked, ...visible.map((row) => row.id)])],
             )
           }
-          className="mt-2.5 h-10 w-full rounded-card border border-line text-[13px] text-ink-soft"
+          className="mt-2.5 h-12 w-full rounded-card border border-line text-[13px] text-ink-soft"
         >
           {allPicked
             ? "보이는 회원 선택 해제"

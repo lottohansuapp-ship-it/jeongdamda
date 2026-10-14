@@ -23,7 +23,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#6B8E23",
+  // --color-canvas. 메타데이터는 CSS 변수를 못 읽어 값을 적는다 (manifest.ts 와 같은 값).
+  themeColor: "#FAFAF8",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

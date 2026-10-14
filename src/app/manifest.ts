@@ -11,14 +11,20 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     orientation: "portrait",
     background_color: "#FAFAF8",
-    theme_color: "#6B8E23",
+    // 화면 배경(--color-canvas)과 같은 색. 상태바와 화면이 한 장으로 이어져 앱처럼 보인다.
+    theme_color: "#FAFAF8",
     lang: "ko",
+    // PNG 를 같이 둔다. SVG 만 있으면 일부 안드로이드 런처가 아이콘을 못 그리고,
+    // 마스크용에 같은 SVG 를 쓰면 원형으로 깎일 때 아래 받침이 잘린다.
+    // PNG 는 icon.svg 에서 뽑았다 — 그림을 바꾸면 PNG 도 다시 뽑는다.
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       {
-        src: "/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/icons/maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
         purpose: "maskable",
       },
     ],

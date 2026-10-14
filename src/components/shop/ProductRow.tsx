@@ -5,6 +5,7 @@ import { stockStatus } from "@/lib/stock";
 import type { ProductWithCategory } from "@/types/database";
 import { ProductPhoto } from "./ProductPhoto";
 import { QuickAdd } from "./QuickAdd";
+import { StockBadge } from "./StockBadge";
 
 /**
  * 목록의 한 줄. 왼쪽 사진, 오른쪽 정보, 끝에 담기 버튼.
@@ -19,7 +20,8 @@ import { QuickAdd } from "./QuickAdd";
  * 버튼을 누르면 담기만 된다.
  */
 export function ProductRow({ product }: { product: ProductWithCategory }) {
-  const soldOut = stockStatus(product.today_stock).level === "out";
+  const level = stockStatus(product.today_stock).level;
+  const soldOut = level === "out";
   const badges = resolveBadges(product.badges);
 
   return (
@@ -32,9 +34,13 @@ export function ProductRow({ product }: { product: ProductWithCategory }) {
           photoPath={product.photo_path}
           sizes="84px"
         />
+        {/* 반투명 위의 흰 11px 글씨는 밝은 반찬 사진 위에서 대비가 3:1 도 안 됐다.
+            흰 알약 위의 진한 글씨는 사진과 상관없이 읽힌다 (ProductCard 와 같은 모양). */}
         {soldOut && (
-          <div className="absolute inset-0 grid place-items-center bg-ink/45">
-            <span className="text-[11px] leading-none text-white">품절</span>
+          <div className="absolute inset-0 grid place-items-center bg-ink/30">
+            <span className="rounded-pill bg-white/95 px-2 py-1 text-[12px] leading-none text-ink">
+              품절
+            </span>
           </div>
         )}
       </div>
@@ -62,6 +68,9 @@ export function ProductRow({ product }: { product: ProductWithCategory }) {
         )}
 
         <div className="flex flex-wrap items-center gap-1.5 pt-2">
+          {/* 얼마 안 남았을 때만 보인다. 넉넉한 반찬마다 「충분」 이 붙으면 소음이 되고,
+              정작 2개 남은 반찬이 30개 남은 반찬과 똑같아 보였다. */}
+          {level === "low" && <StockBadge stock={product.today_stock} showCount />}
           {badges.map((badge) => (
             <span
               key={badge.key}

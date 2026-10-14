@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Toast } from "@/components/ui/Toast";
 import {
   deleteAddress,
   saveAddress,
@@ -114,7 +115,7 @@ export function AccountBoard({
         <form action={signOut}>
           <button
             type="submit"
-            className="h-11 rounded-pill border border-line bg-white px-4 text-[13px] text-ink-soft transition-colors duration-200 hover:border-ink-faint"
+            className="h-12 rounded-pill border border-line bg-white px-4 text-[13px] text-ink-soft transition-colors duration-200 hover:border-ink-faint"
           >
             로그아웃
           </button>
@@ -231,7 +232,7 @@ export function AccountBoard({
             <button
               type="button"
               onClick={() => setEditing("new")}
-              className="h-10 rounded-pill border border-line bg-white px-3.5 text-[13px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
+              className="h-12 rounded-pill border border-line bg-white px-3.5 text-[13px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
             >
               + 추가
             </button>
@@ -317,15 +318,7 @@ export function AccountBoard({
         )}
       </section>
 
-      {toast && (
-        <div
-          role="status"
-          className="fixed inset-x-4 bottom-6 z-50 mx-auto max-w-[420px] rounded-card px-4 py-3.5 text-[13.5px] leading-relaxed text-white shadow-lift"
-          style={{ background: toast.tone === "error" ? "#c9302c" : "#2f3330" }}
-        >
-          {toast.message}
-        </div>
-      )}
+      {toast && <Toast message={toast.message} tone={toast.tone} />}
     </div>
   );
 }
@@ -491,7 +484,7 @@ function SmallButton({
     <button
       type="button"
       onClick={onClick}
-      className={`h-9 rounded-pill border border-line px-3 text-[13px] transition-colors duration-200 ${
+      className={`h-12 rounded-pill border border-line px-3 text-[13px] transition-colors duration-200 ${
         tone === "danger"
           ? "text-ink-faint hover:border-danger hover:text-danger"
           : "text-ink-soft hover:border-ink-faint"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Toast } from "@/components/ui/Toast";
 import {
   bulkUpdateProducts,
   createCategory,
@@ -132,7 +133,7 @@ function ErrorNotice({ errors }: { errors: ErrorLog[] }) {
         <button
           type="button"
           onClick={acknowledge}
-          className="h-8 shrink-0 rounded-pill border border-danger/30 px-2.5 text-[12px] text-danger transition-colors duration-200 hover:bg-danger/10"
+          className="h-12 shrink-0 rounded-pill border border-danger/30 px-2.5 text-[12px] text-danger transition-colors duration-200 hover:bg-danger/10"
         >
           확인했어요
         </button>
@@ -597,14 +598,14 @@ export function AdminBoard({
               <button
                 type="button"
                 onClick={() => bulk(false)}
-                className="h-9 rounded-pill border border-line px-3 text-[12.5px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger"
+                className="h-12 rounded-pill border border-line px-3 text-[12.5px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger"
               >
                 전부 숨기기
               </button>
               <button
                 type="button"
                 onClick={() => bulk(true)}
-                className="h-9 rounded-pill border border-line px-3 text-[12.5px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
+                className="h-12 rounded-pill border border-line px-3 text-[12.5px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
               >
                 전부 판매중
               </button>
@@ -640,15 +641,7 @@ export function AdminBoard({
         </ul>
       )}
 
-      {toast && (
-        <div
-          role="status"
-          className="fixed inset-x-4 bottom-6 z-50 mx-auto max-w-[420px] rounded-card px-4 py-3.5 text-[13.5px] leading-relaxed text-white shadow-lift"
-          style={{ background: toast.tone === "error" ? "#c9302c" : "#2f3330" }}
-        >
-          {toast.message}
-        </div>
-      )}
+      {toast && <Toast message={toast.message} tone={toast.tone} />}
     </div>
   );
 }

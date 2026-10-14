@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { markFromList } from "@/components/ui/BackToList";
 import { hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
 import { EMPTY_FILTERS, filterProducts, isFiltering, type ShopFilters } from "@/lib/filter";
 import { FilterChip, FilterTab } from "@/components/ui/Filters";
@@ -21,6 +22,9 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
     setFilters((current) => ({ ...current, ...next }));
 
   const listRef = useRef<HTMLElement>(null);
+
+  // 상세의 「뒤로」 가 진짜 뒤로가기를 해도 되는지 알려 준다 (BackToList).
+  useEffect(() => markFromList(), []);
 
   /**
    * 카테고리를 고르면 목록 첫 줄로 옮겨 준다.
@@ -92,7 +96,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
       {/* 카테고리를 고르면 위의 추천 캐러셀이 사라진다. 그때도 pt-8 이 남아 있으면
           공지와 검색창 사이가 휑하게 벌어진다. 캐러셀이 있을 때만 띄운다. */}
       <section
-        className={`scroll-mt-3 ${browsing ? "pt-1" : "pt-8"}`}
+        className={`scroll-mt-3 ${!browsing && recommended.length > 0 ? "pt-8" : "pt-1"}`}
         ref={listRef}
         aria-labelledby="all-heading"
       >
@@ -145,7 +149,12 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
               320px 처럼 좁은 화면에서만 살짝 밀어서 보게 된다.
               화면이 튀는 것보다 그편이 낫다.
             */
-            className="no-scrollbar -mx-5 mt-2.5 flex flex-nowrap gap-x-0.5 overflow-x-auto px-5"
+            /*
+              양 끝 20px(=좌우 여백) 만 흐리게. 360px 갤럭시에서 마지막 카테고리가
+              칼로 자른 듯 잘려 고장처럼 보였다. 흐려지면 "더 있다" 로 읽힌다.
+              한 줄에 다 들어가는 화면에서는 그 자리가 원래 빈 여백이라 아무것도 안 흐려진다.
+            */
+            className="no-scrollbar -mx-5 mt-2.5 flex flex-nowrap gap-x-0.5 overflow-x-auto px-5 [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]"
           >
             <FilterTab
               active={filters.categorySlug === null}

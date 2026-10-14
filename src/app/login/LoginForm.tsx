@@ -219,7 +219,7 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
           <button
             type="button"
             onClick={() => setMode(forgot ? "login" : "forgot")}
-            className="underline underline-offset-4"
+            className="inline-flex min-h-12 items-center underline underline-offset-4"
           >
             {forgot ? "로그인으로 돌아가기" : "비밀번호를 잊으셨나요?"}
           </button>
@@ -231,14 +231,14 @@ export function LoginForm({ next, initialMode, kakaoEnabled }: LoginFormProps) {
         <button
           type="button"
           onClick={() => setMode(signingUp ? "login" : "signup")}
-          className="text-ink underline underline-offset-4"
+          className="inline-flex min-h-12 items-center text-ink underline underline-offset-4"
         >
           {signingUp ? "로그인" : "회원가입"}
         </button>
       </p>
 
       <p className="pt-8 text-center text-[12.5px] text-ink-faint">
-        <Link href="/" className="underline underline-offset-4">
+        <Link href="/" className="inline-flex min-h-12 items-center underline underline-offset-4">
           그냥 둘러보기
         </Link>
       </p>

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AddToCart } from "@/components/cart/AddToCart";
 import { BADGE_STYLE, resolveBadges } from "@/lib/badges";
 import { ProductPhoto } from "@/components/shop/ProductPhoto";
 import { StockBadge } from "@/components/shop/StockBadge";
+import { BackToList } from "@/components/ui/BackToList";
 import { formatPrice } from "@/lib/format";
 import { getProduct } from "@/lib/queries";
 import { stockStatus } from "@/lib/stock";
@@ -59,11 +59,16 @@ async function ProductBody({ params }: PageProps) {
   const result = await getProduct(id);
 
   if (!result.ok) {
+    // 원문(DB 오류 문장)은 손님에게 보여 주지 않는다. 읽어도 할 수 있는 게 없고
+    // 내부 구조가 드러난다. 서버 로그에 남긴다.
+    console.error("[product]", id, result.error);
     return (
       <div className="px-5 py-24 text-center">
         <p className="text-[15px]">상품 정보를 불러오지 못했어요.</p>
-        <p className="pt-3 text-[12px] text-ink-faint">{result.error}</p>
-        <BackLink />
+        <p className="pt-2 text-[13px] text-ink-soft">잠시 뒤 다시 열어 주세요.</p>
+        <div className="pt-5">
+          <BackToList variant="pill" />
+        </div>
       </div>
     );
   }
@@ -88,6 +93,11 @@ async function ProductBody({ params }: PageProps) {
           priority
           sizes="(max-width: 720px) 100vw, 720px"
         />
+        {/* 홈 화면에 추가해 앱으로 쓰면 브라우저 뒤로가기 버튼이 없다.
+            아래 「다른 반찬 더 보기」 까지 내려가야만 나갈 수 있었다. */}
+        <div className="absolute left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10">
+          <BackToList variant="icon" />
+        </div>
         {status.level === "out" && (
           <div className="absolute inset-0 grid place-items-center bg-ink/45">
             <span className="rounded-pill bg-white/95 px-4 py-2 text-[14px]">
@@ -147,7 +157,9 @@ async function ProductBody({ params }: PageProps) {
           방문 전 한 번 더 확인해 주세요.
         </p>
 
-        <BackLink />
+        <div className="pt-5 text-center">
+          <BackToList variant="pill" />
+        </div>
       </div>
 
       <AddToCart
@@ -161,15 +173,3 @@ async function ProductBody({ params }: PageProps) {
   );
 }
 
-function BackLink() {
-  return (
-    <div className="pt-5 text-center">
-      <Link
-        href="/"
-        className="inline-flex h-12 items-center rounded-pill border border-line bg-white px-6 text-[14px] text-ink-soft transition-colors duration-200 hover:border-ink-faint"
-      >
-        다른 반찬 더 보기
-      </Link>
-    </div>
-  );
-}

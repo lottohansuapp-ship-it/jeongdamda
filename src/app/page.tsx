@@ -49,9 +49,12 @@ export default async function HomePage() {
 
       {/* 사장님 공지는 목록보다 위에. 반찬을 다 고르고 나서 알면 늦다.
           위(header pb-5)와 아래(pb-5)를 같게 둬서 공지가 한쪽으로 쏠려 보이지 않게 한다. */}
-      <div className="pb-5">
-        <StoreNotice notice={store.settings?.notice ?? null} />
-      </div>
+      {/* 공지가 없을 때 빈 칸의 여백만 남아 머리글과 검색창 사이가 벌어졌다. */}
+      {store.settings?.notice?.trim() && (
+        <div className="pb-5">
+          <StoreNotice notice={store.settings.notice} />
+        </div>
+      )}
 
       {result.ok ? (
         <ShopBrowser
@@ -71,13 +74,14 @@ export default async function HomePage() {
 }
 
 function DataError({ message }: { message: string }) {
+  // DB 오류 원문은 손님 화면에 두지 않는다. 서버 로그에서 본다.
+  console.error("[home]", message);
   return (
     <div className="rounded-card bg-white px-6 py-16 text-center shadow-soft">
       <p className="text-[15px]">반찬 목록을 불러오지 못했어요.</p>
       <p className="pt-2 text-[13px] leading-relaxed text-ink-soft">
         잠시 후 다시 시도해 주세요.
       </p>
-      <p className="pt-4 text-[12px] text-ink-faint">{message}</p>
     </div>
   );
 }

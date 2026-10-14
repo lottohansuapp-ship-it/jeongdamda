@@ -404,7 +404,7 @@ function AlarmBar({
       <button
         type="button"
         onClick={onToggle}
-        className="mb-4 flex w-full items-center justify-center gap-2 rounded-card bg-clay px-4 py-4 text-[16px] text-white shadow-soft transition-colors duration-200 hover:bg-clay-deep"
+        className="mb-4 flex w-full items-center justify-center gap-2 rounded-card bg-clay-deep px-4 py-4 text-[16px] text-white shadow-soft transition-opacity duration-200 hover:opacity-90"
       >
         <BellIcon />
         주문 소리 꺼짐 — 눌러서 켜기
