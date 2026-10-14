@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { ReorderButton } from "./ReorderButton";
+import { RetryPayment } from "./RetryPayment";
 import { StatusPill } from "./StatusPill";
 import { cancelOrder } from "@/lib/order-actions";
 import {
@@ -187,6 +188,9 @@ export function OrderDetail({
           className="tap-target mt-2.5 w-full rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:opacity-40"
         />
       )}
+
+      {/* 결제가 안 된 주문은 취소하고 다시 담는 대신 여기서 바로 다시 결제한다 */}
+      {paymentReady && <RetryPayment order={order} />}
 
       <div className="pt-2.5">
         {canCustomerCancel(order.status) ? (

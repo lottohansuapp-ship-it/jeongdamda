@@ -1,0 +1,102 @@
+import { PORTONE_STORE_ID } from "./config";
+import type { PaymentMethod } from "./methods";
+import { STORE_INFO } from "../store-info";
+
+/**
+ * 결제창 여는 일을 한 곳에 둔다. 주문서와 주문 화면(다시 결제하기)이 같이 쓴다.
+ *
+ * 따로 두면 한쪽만 고쳐진다 — KCP 가 휴대폰 간편결제에 요구하는 site_name 이
+ * 빠져서 결제창이 안 떴던 것도, 그런 값 하나가 조용히 빠진 경우였다.
+ */
+/**
+ * 포트원 결제창.
+ *
+ * SDK 는 결제가 켜져 있을 때만 불러온다. 꺼져 있으면 번들에 실리지 않는다.
+ *
+ * 모바일에서는 결제 앱으로 넘어갔다가 redirectUrl 로 돌아오기 때문에 이 함수가
+ * 값을 돌려주지 못할 수도 있다. 그 경우는 웹훅이 처리하고, 주문 화면이
+ * 스스로 갱신되면서 결제 완료로 바뀐다.
+ */
+export async function openPaymentWindow(input: {
+  /** 손님이 고른 수단. 채널키가 여기 붙어 있다. */
+  method: PaymentMethod | null;
+  paymentId: string;
+  amount: number;
+  orderName: string;
+  customerName: string;
+  customerPhone: string;
+  /** KCP 가 요구하는 가맹점 회원 식별자. 휴대폰 소액결제 한도 관리에 쓴다. */
+  shopUserId: string;
+  redirectUrl: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.method) {
+    return { ok: false, error: "결제 수단이 연결되지 않았어요." };
+  }
+
+  try {
+    const PortOne = await import("@portone/browser-sdk/v2");
+
+    const response = await PortOne.requestPayment({
+      storeId: PORTONE_STORE_ID,
+      channelKey: input.method.channelKey,
+      paymentId: input.paymentId,
+      orderName: input.orderName,
+      totalAmount: input.amount,
+      // SDK 가 받는 값은 "KRW" 다. 서버 API 문서의 CURRENCY_KRW 와 다르다 —
+      // as never 로 덮어 두는 바람에 타입 검사도 못 잡았고, 결제창을 실제로
+      // 여는 순간에야 터질 자리였다. 캐스팅을 빼서 컴파일러가 보게 둔다.
+      currency: "KRW",
+      payMethod: input.method.payMethod,
+      /*
+        간편결제는 어느 앱을 열지 알려 준다. 안 알려 주면 KCP 가 간편결제 고르는
+        화면을 한 번 더 띄운다 — 손님은 방금 「카카오페이」 를 눌렀는데 또 묻는 셈이다.
+        계좌이체는 KCP 결제창이 은행을 고르게 하므로 더 넘길 값이 없다.
+      */
+      ...(input.method.easyPayProvider
+        ? { easyPay: { easyPayProvider: input.method.easyPayProvider } }
+        : {}),
+      ...(input.method.payMethod === "TRANSFER" ? { transfer: {} } : {}),
+      customer: {
+        fullName: input.customerName,
+        phoneNumber: input.customerPhone,
+      },
+      /*
+        NHN KCP 는 shop_user_id 를 요구한다. 휴대폰 소액결제와 상품권에서는
+        **필수**다 (SDK 타입에도 물음표가 없다). 없으면 결제창이 열리다 만다.
+
+        카드에는 없어도 되지만 늘 보낸다 — 수단마다 다르게 보내면 휴대폰
+        결제를 켜는 날 이 줄을 빼먹는다. 다른 PG 는 이 값을 무시한다.
+
+        손님의 회원 id 다. 개인정보가 아니라 우리가 만든 식별자다.
+      */
+      bypass: {
+        kcp_v2: {
+          shop_user_id: input.shopUserId,
+          /*
+            결제창에 보일 상호. KCP 는 **휴대폰에서 간편결제·계좌이체를 부를 때 필수**다
+            (포트원 KCP V2 문서). 빠져 있어서 휴대폰에서 카카오페이·네이버페이·
+            계좌이체를 누르면 결제창이 아예 안 떴다. 카드는 없어도 열려서 몰랐다.
+            사업자등록증 상호를 쓴다 — PG 심사가 등록증과 대조한다.
+          */
+          site_name: STORE_INFO.name,
+        },
+      },
+      redirectUrl: input.redirectUrl,
+    });
+
+    // code 가 있으면 실패다. 손님이 창을 닫은 경우도 여기로 온다.
+    if (response?.code) {
+      return { ok: false, error: response.message ?? "결제가 취소되었어요." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "결제창을 열지 못했어요. 잠시 후 다시 시도해 주세요." };
+  }
+}
+
+/** 결제창에 보일 주문 이름. "고추잎무침 외 2건" */
+export function orderNameFrom(names: string[]): string {
+  const first = names[0] ?? "반찬";
+  const rest = names.length - 1;
+  return rest > 0 ? `${first} 외 ${rest}건` : first;
+}
