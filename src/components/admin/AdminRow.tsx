@@ -206,7 +206,11 @@ export function AdminRow({
 
     const form = new FormData();
     form.set("photo", ready);
-    const result = await uploadPhoto(product.id, form);
+    // 연결이 끊기면 던진다. 그러면 「사진 올리는 중…」 만 남고 아무 말이 없었다.
+    const result = await uploadPhoto(product.id, form).catch(() => ({
+      ok: false as const,
+      error: "사진을 올리지 못했어요. 인터넷 연결을 확인하고 다시 골라 주세요.",
+    }));
     event.target.value = "";
 
     if (result.ok) onNotice(`${product.name} · 사진 변경됨`);

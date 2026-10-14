@@ -166,6 +166,7 @@ export function AdminBoard({
   const [photoName, setPhotoName] = useState<string | null>(null);
   /** 카테고리를 고르는 중인가, 새로 만드는 중인가. */
   const [newCategory, setNewCategory] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState<ShopFilters>(EMPTY_FILTERS);
 
   const patch = (next: Partial<ShopFilters>) =>
@@ -314,7 +315,12 @@ export function AdminBoard({
       const ready = await shrinkPhoto(photo);
       const form = new FormData();
       form.set("photo", ready);
-      const uploaded = await uploadPhoto(result.data.id, form);
+      // 연결이 끊기거나 서버가 거절하면 던진다. 상품은 이미 만들어졌으니
+      // "실패" 로만 알리면 사장님이 또 추가해서 같은 반찬이 둘 된다.
+      const uploaded = await uploadPhoto(result.data.id, form).catch(() => ({
+        ok: false as const,
+        error: "사진이 너무 크거나 연결이 끊겼어요",
+      }));
 
       if (!uploaded.ok) {
         // 상품은 이미 만들어졌다. 그 사실을 감추면 사장님이 또 추가하신다.
@@ -329,6 +335,26 @@ export function AdminBoard({
     setPhotoName(null);
     setNewCategory(false);
     onNotice("상품이 추가되었습니다");
+  }
+
+  /*
+    form action 대신 onSubmit 을 쓴다. action 으로 넘기면 React 가 처리가 끝난
+    뒤 칸을 전부 비운다 — 카테고리 만들기가 실패해도 이름·가격·사진이 다
+    지워져서, 휴대폰으로 처음부터 다시 쳐야 했다.
+    두 번 누르면 같은 반찬이 둘 생기므로 저장 중에는 버튼을 막는다.
+  */
+  async function submitAdd(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving) return;
+    const formData = new FormData(event.currentTarget);
+    setSaving(true);
+    try {
+      await onAdd(formData);
+    } catch {
+      onError("저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -351,29 +377,39 @@ export function AdminBoard({
 
       {adding ? (
         <form
-          action={onAdd}
+          onSubmit={submitAdd}
           className="mb-4 space-y-2.5 rounded-card bg-white p-4 shadow-soft"
         >
           <p className="text-[15px]">새 반찬 추가</p>
           <input name="name" required placeholder="상품명" className={INPUT} />
+          {/* 칸 이름을 눈에 보이게 둔다. 예전엔 플레이스홀더뿐이라 휴대폰에서
+              오른쪽 「0」 칸이 뭔지 알 수 없었고, 가격을 재고 칸에 넣은 채
+              「이 입력란을 작성하세요」 만 보고 막혔다. */}
           <div className="grid grid-cols-2 gap-2.5">
-            <input
-              name="price"
-              type="number"
-              min={0}
-              step={100}
-              required
-              placeholder="가격"
-              className={INPUT}
-            />
-            <input
-              name="today_stock"
-              type="number"
-              min={0}
-              defaultValue={0}
-              placeholder="오늘 재고"
-              className={INPUT}
-            />
+            <label className="block">
+              <span className="block pb-1 text-[13px] text-ink-soft">가격 (원)</span>
+              <input
+                name="price"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={100}
+                required
+                placeholder="예: 4000"
+                className={INPUT}
+              />
+            </label>
+            <label className="block">
+              <span className="block pb-1 text-[13px] text-ink-soft">오늘 재고 (개)</span>
+              <input
+                name="today_stock"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                defaultValue={0}
+                className={INPUT}
+              />
+            </label>
           </div>
           {/* 고르기와 만들기를 한 자리에 둔다. 반찬을 추가하려다 카테고리가
               없다는 걸 아는 순간이 가장 흔해서, 화면을 옮기지 않고 끝내게 한다. */}
@@ -432,9 +468,10 @@ export function AdminBoard({
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
-              className="h-12 flex-1 rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep"
+              disabled={saving}
+              className="h-12 flex-1 rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:opacity-50"
             >
-              추가하기
+              {saving ? "저장하는 중…" : "추가하기"}
             </button>
             <button
               type="button"

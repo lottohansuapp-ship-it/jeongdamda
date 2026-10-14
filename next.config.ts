@@ -9,6 +9,17 @@ const nextConfig: NextConfig = {
   turbopack: { root: __dirname },
   // 재고 실시간성 + 성능을 태그 무효화로 양립시킨다 (docs/PLAN.md D3)
   cacheComponents: true,
+  experimental: {
+    serverActions: {
+      /*
+        서버 액션 요청은 기본 1MB 까지다. 사진 올리기(uploadPhoto)는 5MB 까지
+        받도록 만들어 놓고 그 앞에서 1MB 로 잘리고 있었다. 보통은 브라우저가
+        먼저 줄여서 넘지 않지만, 줄이기에 실패하면 휴대폰 원본(3~5MB)이 그대로
+        가서 오류가 났다. uploadPhoto 의 5MB 검사와 맞춘다.
+      */
+      bodySizeLimit: "6mb",
+    },
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
