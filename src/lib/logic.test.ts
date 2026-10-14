@@ -1002,6 +1002,38 @@ test("availableMethods: 공백만 든 채널키는 없는 것으로 친다", () 
   assert.deepEqual(availableMethods({ ...NO_CHANNELS, mobile: "   " }), []);
 });
 
+test("availableMethods: KCP 간편결제·계좌이체는 카드 채널로 부른다", () => {
+  const all = availableMethods(
+    { ...NO_CHANNELS, card: "ch-kcp" },
+    { kakaopay: true, naverpay: true, transfer: true },
+  );
+  assert.deepEqual(all.map((m) => m.key), ["card", "kakaopay", "naverpay", "transfer"]);
+  for (const m of all) assert.equal(m.channelKey, "ch-kcp", m.key);
+  assert.equal(all[1].easyPayProvider, "KAKAOPAY", "카카오페이 앱을 바로 연다");
+  assert.equal(all[2].easyPayProvider, "NAVERPAY");
+  assert.equal(all[3].payMethod, "TRANSFER");
+  assert.equal(all[3].easyPayProvider, undefined);
+});
+
+test("availableMethods: 카드 채널이 없으면 KCP 수단도 안 나온다", () => {
+  const none = availableMethods(NO_CHANNELS, { kakaopay: true, naverpay: true, transfer: true });
+  assert.deepEqual(none, [], "부를 채널이 없으면 결제창이 실패한다");
+});
+
+test("availableMethods: 카카오페이 직접 계약 채널이 KCP 간편결제보다 먼저다", () => {
+  const methods = availableMethods(
+    { ...NO_CHANNELS, card: "ch-kcp", kakaopay: "ch-kakao" },
+    { kakaopay: true, naverpay: false, transfer: false },
+  );
+  assert.deepEqual(methods.map((m) => m.key), ["card", "kakaopay"], "카카오페이가 두 번 나오면 안 된다");
+  assert.equal(methods[1].channelKey, "ch-kakao");
+});
+
+test("availableMethods: 스위치를 안 넘기면 지금까지와 같다", () => {
+  const methods = availableMethods({ ...NO_CHANNELS, card: "ch-kcp" });
+  assert.deepEqual(methods.map((m) => m.key), ["card"]);
+});
+
 test("pickMethod: 고른 것이 사라지면 첫 번째로 되돌린다", () => {
   const methods = availableMethods({
     ...NO_CHANNELS,
