@@ -6,6 +6,8 @@ import { useMemo, useState, useTransition } from "react";
 import { StoreNotice } from "@/components/shop/StoreNotice";
 import { placeOrder } from "@/lib/order-actions";
 import { confirmMyPayment } from "@/lib/payment-actions";
+import { PAY_ERROR_KEY } from "@/components/orders/PaymentFailNotice";
+import { STORE_INFO } from "@/lib/store-info";
 import { PORTONE_CHANNELS, PORTONE_STORE_ID } from "@/lib/payments/config";
 import {
   availableMethods,
@@ -166,6 +168,12 @@ export function CheckoutBoard({
       if (!paid.ok) {
         // 결제 실패·취소. 주문은 pending_payment 로 남았다가 10분 뒤 재고가 돌아간다.
         // 손님이 상황을 볼 수 있게 주문 화면으로 보낸다.
+        // 이 화면은 곧 사라지므로 실패 이유를 주문 화면으로 넘긴다 (PaymentFailNotice)
+        try {
+          sessionStorage.setItem(PAY_ERROR_KEY(orderId), paid.error);
+        } catch {
+          // 저장이 막힌 브라우저 — 이유는 못 보여도 주문 화면으로는 간다
+        }
         setError(paid.error);
         router.replace(`/orders/${orderId}`);
         return;
@@ -653,7 +661,16 @@ async function openPaymentWindow(input: {
         손님의 회원 id 다. 개인정보가 아니라 우리가 만든 식별자다.
       */
       bypass: {
-        kcp_v2: { shop_user_id: input.shopUserId },
+        kcp_v2: {
+          shop_user_id: input.shopUserId,
+          /*
+            결제창에 보일 상호. KCP 는 **휴대폰에서 간편결제·계좌이체를 부를 때 필수**다
+            (포트원 KCP V2 문서). 빠져 있어서 휴대폰에서 카카오페이·네이버페이·
+            계좌이체를 누르면 결제창이 아예 안 떴다. 카드는 없어도 열려서 몰랐다.
+            사업자등록증 상호를 쓴다 — PG 심사가 등록증과 대조한다.
+          */
+          site_name: STORE_INFO.name,
+        },
       },
       redirectUrl: input.redirectUrl,
     });
