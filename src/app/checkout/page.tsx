@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 
 export default function CheckoutPage() {
   return (
-    <main className="mx-auto w-full max-w-[560px] flex-1 px-5">
+    <main className="mx-auto flex w-full max-w-[560px] flex-1 flex-col px-5">
       <header className="pb-5 pt-10">
         <h1 className="text-[26px] leading-tight">주문서</h1>
       </header>

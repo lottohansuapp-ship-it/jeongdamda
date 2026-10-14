@@ -186,7 +186,8 @@ export function CheckoutBoard({
   }
 
   return (
-    <div>
+    // 남은 높이를 채운다. 담은 게 적어도 아래 바가 화면 바닥에 붙어 있게 (CartBoard 와 같다).
+    <div className="flex flex-1 flex-col">
       {/* 결제 직전이 "오늘 배달이 늦어요" 같은 공지를 볼 마지막 자리다.
           settings 는 이미 받고 있어서 조회가 늘지 않는다. */}
       {settings.notice && (
@@ -486,7 +487,8 @@ export function CheckoutBoard({
       </section>
 
       {/* sticky — 바가 자기 높이만큼 자리를 차지해 마지막 줄이 가려지지 않는다 (CartBoard 참조). */}
-      <div className="sticky bottom-0 z-40 -mx-5 mt-6 border-t border-line bg-white/95 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur-md">
+      <div aria-hidden className="h-6 shrink-0" />
+      <div className="sticky bottom-0 z-40 -mx-5 mt-auto border-t border-line bg-white/95 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3.5 backdrop-blur-md">
         <div className="mx-auto max-w-[560px]">
           <dl className="space-y-1.5 pb-3 text-[13.5px]">
             <Row label="상품 금액" value={formatPrice(cart.subtotal)} />

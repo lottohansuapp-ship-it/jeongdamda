@@ -3,8 +3,11 @@
 -- 0027 은 feature/identity 브랜치가 쓴다. 그 파일은 주문·취소 함수를 건드리지
 -- 않으므로 어느 쪽을 먼저 실행해도 서로 덮어쓰지 않는다.
 --
--- 이 파일을 실행한 **다음에** 앱을 배포한다. cancel_order 의 인자가 바뀌어서
--- 옛 앱이 결제된 주문을 취소하면 실패한다(환불은 나가지 않는다 — 막히는 쪽이다).
+-- 순서: 이 파일 실행 → 결과 줄 확인 → 바로 앱 배포.
+--   · 실행 후 배포 전까지: 옛 앱은 cancel_order 에 p_refunded 를 늘 붙여 보내므로
+--     **모든 취소가 실패한다**(돈은 안 나간다 — 막히는 쪽이다). 그래서 바로 배포한다.
+--   · 거꾸로 앱부터 배포하면 위험하다. 포트원 환불은 나가는데 record_refund 가 없어
+--     주문이 결제됨으로 남는다. 반드시 이 파일이 먼저다.
 --
 --   1. 환불 기록은 서버만 남긴다 (record_refund). 손님이 cancel_order 에
 --      "환불했음" 을 직접 넣어 보낼 수 있었다.
@@ -709,4 +712,9 @@ select
     as "새 함수 (4이면 정상)",
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname = 'cancel_order')
-    as "cancel_order (1이면 정상)";
+    as "cancel_order (1이면 정상)",
+  -- 손님(authenticated)·비로그인(anon)이 직접 부를 수 있으면 안 된다. 둘 다 false 여야 정상.
+  has_function_privilege('authenticated', 'public.release_pending_orders(uuid[],text)', 'execute')
+    as "손님 직접 호출 (false 정상)",
+  has_function_privilege('anon', 'public.release_pending_orders(uuid[],text)', 'execute')
+    as "비로그인 직접 호출 (false 정상)";

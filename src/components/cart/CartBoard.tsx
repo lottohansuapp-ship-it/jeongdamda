@@ -210,7 +210,8 @@ export function CartBoard({
   }
 
   return (
-    <div>
+    // 남은 높이를 채운다. 반찬이 한두 개뿐일 때도 아래 바가 화면 바닥에 붙어 있게.
+    <div className="flex flex-1 flex-col">
       <ul className="space-y-2.5">
         {view.lines.map((line) => {
           const blocked = line.issue !== null;
@@ -374,7 +375,8 @@ export function CartBoard({
       {/* fixed 가 아니라 sticky 다. fixed 는 자리를 차지하지 않아서 아래에 바 높이만큼
           여백(pb-40)을 어림잡아 뒀는데, 쿠폰·배달 안내가 붙으면 바가 그보다 커져
           「장바구니 비우기」 가 바 밑에 깔렸다. sticky 는 자기 높이만큼 자리를 차지한다. */}
-      <div className="sticky bottom-0 z-40 -mx-5 mt-6 border-t border-line bg-white/95 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
+      <div aria-hidden className="h-6 shrink-0" />
+      <div className="sticky bottom-0 z-40 -mx-5 mt-auto border-t border-line bg-white/95 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
         <div className="mx-auto max-w-[560px]">
           {error && (
             <p role="alert" className="pb-2 text-[13px] text-danger">
