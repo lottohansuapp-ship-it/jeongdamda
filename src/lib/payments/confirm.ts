@@ -1,6 +1,7 @@
 import "server-only";
 import { publicClient } from "../supabase/public";
-import { getPayment, PAYMENT_DB_SECRET } from "./portone";
+import { needsRefund } from "./config";
+import { cancelPayment, getPayment, PAYMENT_DB_SECRET } from "./portone";
 
 /**
  * 결제 확정. 웹훅과 손님 화면이 **같은 함수**를 부른다.
@@ -56,6 +57,26 @@ export async function confirmPayment(paymentId: string): Promise<ConfirmResult> 
 
   const applied = Boolean(result?.applied);
   const orderId = result?.order_id ?? null;
+
+  /*
+    돈은 들어왔는데 주문은 이미 취소됐다 — 되돌린다 (needsRefund 설명 참조).
+    웹훅과 손님 화면이 동시에 와서 두 번 취소를 요청해도 괜찮다. 두 번째는
+    "이미 취소됨" 으로 오고 cancelPayment 가 그것을 성공으로 본다.
+    되돌리기에 실패하면 오류로 돌려준다 — 웹훅이 5xx 를 받고 다시 보내서
+    다음에 또 시도한다. 사장님도 알아야 하므로 남긴다.
+  */
+  if (needsRefund(payment.data.status, result?.status)) {
+    const refund = await cancelPayment(paymentId, "취소된 주문에 들어온 결제 자동 환불");
+    const { reportError } = await import("../report");
+    if (!refund.ok) {
+      await reportError("payment-refund", `취소된 주문에 결제가 들어왔는데 자동 환불 실패: ${refund.error}`, paymentId);
+      return { ok: false, error: "취소된 주문의 결제를 되돌리지 못했습니다." };
+    }
+    if (!refund.data.alreadyCancelled) {
+      await reportError("payment-refund", "취소된 주문에 결제가 들어와 자동으로 환불했어요", paymentId);
+    }
+    return { ok: true, applied: false, status: "canceled", orderId };
+  }
 
   /*
     알림도 여기서 보낸다. 예전에는 웹훅 라우트에만 있었다.

@@ -12,6 +12,7 @@ import { checkVerification, identityEnabled } from "./identity.ts";
 import { friendlyDbError, NOT_ADMIN_MESSAGE } from "./db-error.ts";
 import {
   keyHealthFromStatus,
+  needsRefund,
   isPaymentReady,
   missingPaymentKeys,
   type PaymentKeys,
@@ -1374,4 +1375,21 @@ test("friendlyDbError: 권한 오류는 무엇을 해야 하는지 말한다", (
 
 test("friendlyDbError: 다른 오류는 원문을 둔다", () => {
   assert.equal(friendlyDbError({ code: "23505", message: "duplicate key" }), "duplicate key");
+});
+
+/*
+  취소된 주문에 결제가 들어오면 되돌린다. 10분이 지나 주문이 취소된 뒤에
+  결제를 마치면 돈만 빠지고 주문은 없던 구멍이 있었다.
+*/
+test("needsRefund: 결제됐는데 주문이 취소됐으면 되돌린다", () => {
+  assert.equal(needsRefund("PAID", "canceled"), true);
+});
+
+test("needsRefund: 그 밖에는 건드리지 않는다", () => {
+  assert.equal(needsRefund("PAID", "paid"), false, "정상 확정");
+  assert.equal(needsRefund("PAID", "pending_payment"), false, "확정 중");
+  assert.equal(needsRefund("PAID", "completed"), false);
+  assert.equal(needsRefund("CANCELLED", "canceled"), false, "이미 환불됨");
+  assert.equal(needsRefund("FAILED", "canceled"), false, "돈이 안 빠졌다");
+  assert.equal(needsRefund("PAID", undefined), false, "주문을 모르면 손대지 않는다");
 });
