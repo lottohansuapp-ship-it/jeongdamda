@@ -43,6 +43,18 @@ export function keyHealthFromStatus(status: number): ApiKeyHealth {
   return "unknown";
 }
 
+/**
+ * 포트원은 결제됐다는데 주문은 이미 취소된 경우 — 돈을 돌려줘야 한다.
+ *
+ * 주문 후 10분이 지나면 재고를 돌려주고 주문을 취소한다(sweep_expired_orders).
+ * 그런데 손님이 결제창을 오래 붙들고 있다가 그 뒤에 결제를 마치면, 돈은 빠졌는데
+ * 주문은 취소된 채로 남았다. 손님이 직접 취소한 직후 결제가 끝나는 경우도 같다.
+ * 재고는 이미 풀렸으니 주문을 되살리지 않고 결제를 되돌린다.
+ */
+export function needsRefund(paymentStatus: string, orderStatus: string | undefined): boolean {
+  return paymentStatus === "PAID" && orderStatus === "canceled";
+}
+
 /** 결제창을 띄울 수 있는지. 브라우저에서도 확인할 수 있다. */
 export function isPaymentConfigured(): boolean {
   return Boolean(PORTONE_STORE_ID && PORTONE_CHANNEL_KEY);
