@@ -33,7 +33,9 @@ export function IdentityForm({ next, userId, returned }: IdentityFormProps) {
   );
 
   async function finish(identityVerificationId: string, consent: boolean) {
-    const result = await confirmIdentity(identityVerificationId, consent);
+    const result = await confirmIdentity(identityVerificationId, consent).catch(
+      () => ({ ok: false as const, error: "본인인증 결과를 확인하지 못했어요. 다시 시도해 주세요." }),
+    );
     if (!result.ok) {
       setError(result.error);
       setPending(false);
@@ -55,6 +57,10 @@ export function IdentityForm({ next, userId, returned }: IdentityFormProps) {
       } else {
         setError(result.error);
       }
+    }).catch(() => {
+      // 인증 창에서 막 돌아온 직후 연결이 끊기면 여기로 온다. 버튼이
+      // "확인하는 중" 에 갇히지 않게 오류를 띄워 다시 누를 수 있게 한다.
+      setError("본인인증 결과를 확인하지 못했어요. 다시 시도해 주세요.");
     });
   }, [returned.id, returned.failed, returned.agreed, next, router]);
 
