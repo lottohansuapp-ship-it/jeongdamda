@@ -131,7 +131,9 @@ export function availableMethods(
     methods.push({
       key: "vbank",
       label: "가상계좌 입금",
-      hint: "발급된 계좌로 30분 안에 입금해요",
+      // 명령하는 말투가 아니라 알려 주는 말투로(사용자 요청). 어르신이 다음 날 같은
+      // 계좌로 보내지 않도록 "1회용" 과 "30분" 을 둘 다 적는다.
+      hint: "1회용 계좌가 발급되고, 30분 동안만 입금할 수 있어요",
       payMethod: "VIRTUAL_ACCOUNT",
       channelKey: card,
     });
