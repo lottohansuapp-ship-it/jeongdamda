@@ -11,7 +11,13 @@
  * 계약하지 않은 수단을 띄우면 손님이 고른 뒤에야 결제창이 오류를 낸다 — 손님이
  * 가게를 의심하게 되는 실패다. 그래서 기본은 "계약한 것만 보인다" 이다.
  */
-export type PaymentMethodKey = "card" | "kakaopay" | "naverpay" | "transfer" | "mobile";
+export type PaymentMethodKey =
+  | "card"
+  | "kakaopay"
+  | "naverpay"
+  | "transfer"
+  | "vbank"
+  | "mobile";
 
 export type EasyPayProvider = "KAKAOPAY" | "NAVERPAY";
 
@@ -21,7 +27,7 @@ export interface PaymentMethod {
   /** 어르신도 무엇인지 알 수 있게. 아이콘만으로는 부족하다. */
   hint: string;
   /** 포트원 requestPayment 의 payMethod */
-  payMethod: "CARD" | "EASY_PAY" | "TRANSFER" | "MOBILE";
+  payMethod: "CARD" | "EASY_PAY" | "TRANSFER" | "VIRTUAL_ACCOUNT" | "MOBILE";
   /** 간편결제일 때 어느 앱을 바로 열지. 없으면 PG 가 고르는 화면을 먼저 띄운다. */
   easyPayProvider?: EasyPayProvider;
   channelKey: string;
@@ -39,18 +45,33 @@ export interface KcpExtras {
   kakaopay: boolean;
   naverpay: boolean;
   transfer: boolean;
+  /** 가상계좌 입금. 입금 기한 30분, 환불은 사장님이 직접 이체 (vbank.ts) */
+  virtualAccount: boolean;
 }
 
-export const NO_KCP_EXTRAS: KcpExtras = { kakaopay: false, naverpay: false, transfer: false };
+export const NO_KCP_EXTRAS: KcpExtras = {
+  kakaopay: false,
+  naverpay: false,
+  transfer: false,
+  virtualAccount: false,
+};
 
 /*
-  2026-10-14 사용자 결정: KCP 에 간편결제·실시간 계좌이체 심사를 받으려고
-  **승인 전에 켜 둔다.** 심사자가 결제 화면에서 버튼을 확인할 수 있게 하려는 것이다.
+  2026-10-14 사용자 결정: KCP 에 간편결제 심사를 받으려고 **승인 전에 켜 둔다.**
+  심사자가 결제 화면에서 버튼을 확인할 수 있게 하려는 것이다.
+
+  2026-10-15: 실시간 계좌이체는 빼고 가상계좌 입금으로 바꿨다(사용자 결정).
+  가상계좌도 KCP 와 따로 계약·심사가 필요하다.
 
   승인 전에는 이 수단을 고르면 KCP 결제창이 실패한다(돈은 빠지지 않는다).
   영업을 켜기 전에 승인됐는지 확인하고, 안 된 수단은 false 로 돌려 배포한다.
 */
-export const KCP_EXTRAS: KcpExtras = { kakaopay: true, naverpay: true, transfer: true };
+export const KCP_EXTRAS: KcpExtras = {
+  kakaopay: true,
+  naverpay: true,
+  transfer: false,
+  virtualAccount: true,
+};
 
 /** 보이는 순서 = 손님이 많이 쓰는 순 */
 export function availableMethods(
@@ -102,6 +123,16 @@ export function availableMethods(
       label: "실시간 계좌이체",
       hint: "내 은행 계좌에서 바로 결제돼요",
       payMethod: "TRANSFER",
+      channelKey: card,
+    });
+  }
+
+  if (card && extras.virtualAccount) {
+    methods.push({
+      key: "vbank",
+      label: "가상계좌 입금",
+      hint: "발급된 계좌로 30분 안에 입금해요",
+      payMethod: "VIRTUAL_ACCOUNT",
       channelKey: card,
     });
   }

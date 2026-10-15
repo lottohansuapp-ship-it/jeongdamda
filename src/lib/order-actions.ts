@@ -131,11 +131,21 @@ export async function placeOrder(
  *
  * 권한과 시점 판단은 두 함수 안에서 한다. 화면이 버튼을 감추는 건 UX 다.
  */
+export interface CancelOptions {
+  /**
+   * 사장님이 손님 계좌로 직접 이체했다는 확인 (가상계좌 입금 주문, 0029).
+   * 이 값만으로는 아무것도 안 된다 — DB 가 manual_refund 를 준 경우(관리자·입금된
+   * 가상계좌 주문)에만 쓴다. 손님은 begin_cancel 에서 먼저 거절된다.
+   */
+  manualRefundDone?: boolean;
+}
+
 export async function cancelOrder(
   orderId: string,
   reason?: string,
+  options: CancelOptions = {},
 ): Promise<ActionResult> {
-  const first = await attemptCancel(orderId, reason);
+  const first = await attemptCancel(orderId, reason, options);
   if (first.ok) return { ok: true, data: undefined };
 
   /**
@@ -152,7 +162,7 @@ export async function cancelOrder(
    */
   if (!first.retryable) return { ok: false, error: first.error };
 
-  const second = await attemptCancel(orderId, reason);
+  const second = await attemptCancel(orderId, reason, options);
   return second.ok
     ? { ok: true, data: undefined }
     : { ok: false, error: second.error };
@@ -164,7 +174,8 @@ type CancelAttempt =
 
 async function attemptCancel(
   orderId: string,
-  reason?: string,
+  reason: string | undefined,
+  options: CancelOptions,
 ): Promise<CancelAttempt> {
   const session = await authed();
   if (!session)
@@ -178,15 +189,36 @@ async function attemptCancel(
       retryable: false,
     };
 
-  const { payment_id, total, needs_refund } = claim.data as {
+  const { payment_id, total, needs_refund, manual_refund, vbank_open } = claim.data as {
     payment_id: string | null;
     total: number;
     needs_refund: boolean;
+    /** 관리자 + 입금된 가상계좌 주문. 포트원 환불 대신 사장님이 직접 이체 (0029) */
+    manual_refund?: boolean;
+    /** 입금 전 가상계좌 주문. 취소하면서 계좌를 닫는다 */
+    vbank_open?: boolean;
   };
 
-  if (needs_refund && payment_id) {
+  if (manual_refund && payment_id) {
+    if (!options.manualRefundDone) {
+      return {
+        ok: false,
+        error: `가상계좌로 입금된 주문이에요. 손님 계좌로 ${total.toLocaleString("ko-KR")}원을 직접 보낸 뒤 취소해 주세요.`,
+        retryable: false,
+      };
+    }
+    const recorded = await recordManualRefund(payment_id, total);
+    if (!recorded.ok) return { ok: false, error: recorded.error, retryable: false };
+  } else if (needs_refund && payment_id) {
     const refund = await refundAndRecord(payment_id, total, reason);
     if (!refund.ok) return { ok: false, error: refund.error, retryable: false };
+  }
+
+  // 입금 전 가상계좌는 **취소보다 먼저** 닫는다. 닫지 못한 채 취소하면 재고가 풀린 뒤에도
+  // 계좌가 열려 있어 입금이 들어올 수 있다. 닫기에 실패하면 취소하지 않는다.
+  if (vbank_open && payment_id) {
+    const closed = await closeOpenVbank(payment_id);
+    if (!closed.ok) return { ok: false, error: closed.error, retryable: false };
   }
 
   const { error } = await session.db.rpc("cancel_order", {
@@ -213,6 +245,56 @@ async function attemptCancel(
   updateTag(PRODUCTS_TAG); // 재고가 돌아왔다
   await notify(orderId, "canceled");
   return { ok: true };
+}
+
+/**
+ * 사장님이 손님 계좌로 직접 이체한 환불을 기록한다 (가상계좌 입금 주문).
+ * 포트원은 부르지 않는다 — 가상계좌는 결제 취소만으로 돈이 돌아가지 않는다.
+ */
+async function recordManualRefund(
+  paymentId: string,
+  total: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { recordRefund } = await import("./payments/confirm");
+  const recorded = await recordRefund(paymentId, total);
+  if (recorded.ok) return { ok: true };
+
+  const { reportError } = await import("./report");
+  await reportError("refund", `직접 환불 기록을 남기지 못했어요: ${recorded.error}`, paymentId);
+  return { ok: false, error: "환불 기록을 남기지 못했어요. 잠시 뒤 다시 취소해 주세요." };
+}
+
+/**
+ * 입금 전 가상계좌를 닫는다.
+ *
+ * 닫기가 실패하면 포트원에 지금 상태를 다시 묻는다.
+ *   · 방금 입금됐다(PAID) — 손님이 입금 직후, 결제 웹훅보다 먼저 취소를 누른 경우다.
+ *     그대로 취소하면 돈은 들어왔는데 재고는 풀린다. 결제를 먼저 확정하고 취소는 멈춘다.
+ *   · 이미 닫혔다(CANCELLED) — 할 일이 끝나 있다. 취소를 이어 간다.
+ *   · 그 밖(포트원 장애 등) — 열린 계좌를 두고 취소할 수 없다. 다시 눌러 달라고 한다.
+ */
+async function closeOpenVbank(
+  paymentId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { closeVirtualAccount, getPayment } = await import("./payments/portone");
+  const closed = await closeVirtualAccount(paymentId);
+  if (closed.ok) return { ok: true };
+
+  const now = await getPayment(paymentId);
+  if (now.ok && now.data.status === "CANCELLED") return { ok: true };
+
+  if (now.ok && now.data.status === "PAID") {
+    const { confirmPayment } = await import("./payments/confirm");
+    await confirmPayment(paymentId);
+    return {
+      ok: false,
+      error: "방금 입금이 확인됐어요. 가상계좌로 입금한 주문은 매장에 전화로 취소해 주세요.",
+    };
+  }
+
+  const { reportError } = await import("./report");
+  await reportError("payment-vbank", `가상계좌를 닫지 못해 취소를 멈췄어요: ${closed.error}`, paymentId);
+  return { ok: false, error: "지금은 취소하지 못했어요. 잠시 뒤 다시 눌러 주세요." };
 }
 
 /**

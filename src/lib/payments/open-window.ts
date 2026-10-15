@@ -1,5 +1,6 @@
 import { PORTONE_STORE_ID } from "./config";
 import type { PaymentMethod } from "./methods";
+import { vbankDueDate } from "./vbank";
 import { STORE_INFO } from "../store-info";
 
 /**
@@ -56,6 +57,14 @@ export async function openPaymentWindow(input: {
         ? { easyPay: { easyPayProvider: input.method.easyPayProvider } }
         : {}),
       ...(input.method.payMethod === "TRANSFER" ? { transfer: {} } : {}),
+      /*
+        가상계좌는 입금 기한을 30분으로 건다(사용자 결정). 기본값(PG 마다 며칠)으로 두면
+        재고가 풀린 뒤에도 계좌가 열려 있어 늦은 입금이 들어온다. KCP 가 실제로 정한
+        기한은 발급 뒤 서버가 다시 조회해 그 값을 쓴다(confirm.ts, 45분 상한).
+      */
+      ...(input.method.payMethod === "VIRTUAL_ACCOUNT"
+        ? { virtualAccount: { accountExpiry: { dueDate: vbankDueDate(new Date()) } } }
+        : {}),
       customer: {
         fullName: input.customerName,
         phoneNumber: input.customerPhone,

@@ -23,6 +23,7 @@ import {
   pickMethod,
   type PaymentChannels,
 } from "./payments/methods.ts";
+import { bankLabel, vbankDueDate } from "./payments/vbank.ts";
 import { clampQuantity, lineIssue, summarizeCart } from "./cart.ts";
 import {
   decodeDraft,
@@ -1056,25 +1057,40 @@ test("availableMethods: 공백만 든 채널키는 없는 것으로 친다", () 
 test("availableMethods: KCP 간편결제·계좌이체는 카드 채널로 부른다", () => {
   const all = availableMethods(
     { ...NO_CHANNELS, card: "ch-kcp" },
-    { kakaopay: true, naverpay: true, transfer: true },
+    { kakaopay: true, naverpay: true, transfer: true, virtualAccount: true },
   );
-  assert.deepEqual(all.map((m) => m.key), ["card", "kakaopay", "naverpay", "transfer"]);
+  assert.deepEqual(all.map((m) => m.key), ["card", "kakaopay", "naverpay", "transfer", "vbank"]);
   for (const m of all) assert.equal(m.channelKey, "ch-kcp", m.key);
   assert.equal(all[1].easyPayProvider, "KAKAOPAY", "카카오페이 앱을 바로 연다");
   assert.equal(all[2].easyPayProvider, "NAVERPAY");
   assert.equal(all[3].payMethod, "TRANSFER");
   assert.equal(all[3].easyPayProvider, undefined);
+  assert.equal(all[4].payMethod, "VIRTUAL_ACCOUNT");
+});
+
+test("vbankDueDate: 지금부터 30분 뒤를 한국 시간 YYYYMMDDHHmmss 로", () => {
+  // UTC 03:00 = 한국 12:00
+  assert.equal(vbankDueDate(new Date("2026-10-15T03:00:00Z")), "20261015123000");
+  // 한국 자정을 넘는 경우 날짜도 넘어간다 (UTC 14:45 = 한국 23:45 → 00:15)
+  assert.equal(vbankDueDate(new Date("2026-10-15T14:45:00Z")), "20261016001500");
+});
+
+test("bankLabel: 포트원 은행 코드를 한글로, 모르는 코드는 그대로", () => {
+  assert.equal(bankLabel("KOOKMIN_BANK"), "국민은행");
+  assert.equal(bankLabel("INDUSTRIAL_BANK_OF_KOREA"), "IBK기업은행");
+  assert.equal(bankLabel("SOMETHING_NEW"), "SOMETHING_NEW");
+  assert.equal(bankLabel(null), "");
 });
 
 test("availableMethods: 카드 채널이 없으면 KCP 수단도 안 나온다", () => {
-  const none = availableMethods(NO_CHANNELS, { kakaopay: true, naverpay: true, transfer: true });
+  const none = availableMethods(NO_CHANNELS, { kakaopay: true, naverpay: true, transfer: true, virtualAccount: true });
   assert.deepEqual(none, [], "부를 채널이 없으면 결제창이 실패한다");
 });
 
 test("availableMethods: 카카오페이 직접 계약 채널이 KCP 간편결제보다 먼저다", () => {
   const methods = availableMethods(
     { ...NO_CHANNELS, card: "ch-kcp", kakaopay: "ch-kakao" },
-    { kakaopay: true, naverpay: false, transfer: false },
+    { kakaopay: true, naverpay: false, transfer: false, virtualAccount: false },
   );
   assert.deepEqual(methods.map((m) => m.key), ["card", "kakaopay"], "카카오페이가 두 번 나오면 안 된다");
   assert.equal(methods[1].channelKey, "ch-kakao");

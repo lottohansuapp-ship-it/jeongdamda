@@ -6,6 +6,8 @@ import { useState, useTransition } from "react";
 import { ReorderButton } from "./ReorderButton";
 import { RetryPayment } from "./RetryPayment";
 import { StatusPill } from "./StatusPill";
+import { VbankNotice } from "./VbankNotice";
+import { STORE_INFO } from "@/lib/store-info";
 import { cancelOrder } from "@/lib/order-actions";
 import {
   canCustomerCancel,
@@ -42,11 +44,20 @@ export function OrderDetail({
 
   const meta = statusMeta(order.status);
   const isDelivery = order.fulfillment === "delivery";
+  /** 가상계좌가 발급됐고 아직 입금 전 (0029) */
+  const awaitingDeposit = order.status === "pending_payment" && Boolean(order.vbank_account);
+  /** 가상계좌로 입금이 끝난 주문 — 손님이 직접 취소할 수 없다(사장님이 계좌로 환불) */
+  const paidByVbank = Boolean(order.vbank_account) && Boolean(order.paid_at);
   const deadline =
-    order.status === "pending_payment" ? formatClock(order.reserved_until) : "";
+    order.status === "pending_payment" && !awaitingDeposit
+      ? formatClock(order.reserved_until)
+      : "";
 
   function cancel() {
-    if (!confirm("주문을 취소할까요? 담았던 재고는 매장으로 돌아가요.")) return;
+    const message = awaitingDeposit
+      ? "주문을 취소할까요? 발급된 계좌로는 입금하지 마세요."
+      : "주문을 취소할까요? 담았던 재고는 매장으로 돌아가요.";
+    if (!confirm(message)) return;
     setError(null);
     startTransition(async () => {
       const result = await cancelOrder(order.id);
@@ -84,7 +95,9 @@ export function OrderDetail({
           그때 "결제 기능은 준비 중" 이 뜨면 방금 결제한 손님이 놀란다.
           켜는 날 고칠 코드를 남기지 않는다는 원칙(D16)에도 어긋난다.
         */}
-        {order.status === "pending_payment" && (
+        {awaitingDeposit && <VbankNotice order={order} />}
+
+        {order.status === "pending_payment" && !awaitingDeposit && (
           <div className="mt-4 rounded-[12px] bg-cream p-3.5">
             <p className="text-[13px] leading-relaxed">
               {paymentReady
@@ -190,10 +203,17 @@ export function OrderDetail({
       )}
 
       {/* 결제가 안 된 주문은 취소하고 다시 담는 대신 여기서 바로 다시 결제한다 */}
-      {paymentReady && <RetryPayment order={order} />}
+      {/* 계좌를 받은 주문은 다시 결제하지 않는다 — 그 계좌로 입금하면 된다 */}
+      {paymentReady && !awaitingDeposit && <RetryPayment order={order} />}
 
       <div className="pt-2.5">
-        {canCustomerCancel(order.status) ? (
+        {paidByVbank && order.status === "paid" ? (
+          <p className="text-center text-[13px] leading-relaxed text-ink-faint">
+            가상계좌로 입금한 주문은 매장({STORE_INFO.phone})에 전화로 취소해 주세요.
+            <br />
+            환불은 매장에서 손님 계좌로 보내 드려요.
+          </p>
+        ) : canCustomerCancel(order.status) ? (
           <button
             type="button"
             disabled={pending}

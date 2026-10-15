@@ -1,7 +1,14 @@
 import "server-only";
 import { publicClient } from "../supabase/public";
 import { isOurPaymentId, isPaymentNotFound, needsRefund } from "./config";
-import { cancelPayment, getPayment, PAYMENT_DB_SECRET } from "./portone";
+import {
+  cancelPayment,
+  closeVirtualAccount,
+  getPayment,
+  PAYMENT_DB_SECRET,
+  type PortOnePayment,
+} from "./portone";
+import { VBANK_MINUTES } from "./vbank";
 
 /**
  * 결제 확정. 웹훅과 손님 화면이 **같은 함수**를 부른다.
@@ -36,6 +43,68 @@ export async function recordRefund(
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
+/**
+ * 가상계좌 발급 기록 (mark_vbank_issued, 0029). 여러 번 불려도 된다.
+ *
+ * 기한은 포트원이 알려 준 값(KCP 가 실제로 정한 것)을 넘긴다. 결제창에 30분을
+ * 넘겼지만 PG 가 그대로 따른다는 보장은 없다 — DB 가 45분에서 자르고(capped),
+ * 잘렸으면 사장님 화면에 알린다. 그 계좌는 재고가 풀린 뒤에도 열려 있어서다.
+ */
+async function recordVbankIssued(
+  paymentId: string,
+  vbank: NonNullable<PortOnePayment["virtualAccount"]>,
+  /** 아직 입금 전일 때만 닫는다. 입금된 계좌는 닫을 수도 없고 닫을 이유도 없다. */
+  closeIfCanceled: boolean,
+): Promise<ConfirmResult & { refunded?: boolean }> {
+  const { data, error } = await publicClient().rpc("mark_vbank_issued", {
+    p_payment_id: paymentId,
+    p_bank: vbank.bank,
+    p_account: vbank.accountNumber,
+    p_holder: vbank.holder,
+    p_due: vbank.expiredAt,
+    p_secret: PAYMENT_DB_SECRET,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  const result = data as {
+    applied?: boolean;
+    status?: string;
+    order_id?: string;
+    capped?: boolean;
+    refunded?: boolean;
+  } | null;
+
+  if (result?.capped) {
+    const { reportError } = await import("../report");
+    await reportError(
+      "payment-vbank",
+      `가상계좌 입금 기한이 ${VBANK_MINUTES}분보다 길게 발급됐어요(${vbank.expiredAt}). 재고는 45분 뒤 풀리니, 그 뒤 입금은 직접 돌려줘야 해요.`,
+      paymentId,
+    );
+  }
+
+  // 이미 취소된 주문에 계좌가 늦게 발급됐다. 열어 두면 입금이 들어올 수 있으니 닫는다.
+  if (closeIfCanceled && result && !result.applied && result.status === "canceled") {
+    const closed = await closeVirtualAccount(paymentId);
+    if (!closed.ok) {
+      const { reportError } = await import("../report");
+      await reportError(
+        "payment-vbank",
+        `취소된 주문에 발급된 가상계좌를 닫지 못했어요: ${closed.error}`,
+        paymentId,
+      );
+    }
+  }
+
+  return {
+    ok: true,
+    applied: false,
+    status: result?.status === "pending_payment" ? "VIRTUAL_ACCOUNT_ISSUED" : (result?.status ?? "VIRTUAL_ACCOUNT_ISSUED"),
+    orderId: result?.order_id ?? null,
+    refunded: Boolean(result?.refunded),
+  };
+}
+
 export type ConfirmResult =
   | { ok: true; applied: boolean; status: string; orderId: string | null }
   | { ok: false; error: string };
@@ -59,8 +128,15 @@ export async function confirmPayment(paymentId: string): Promise<ConfirmResult> 
     return { ok: false, error: payment.error };
   }
 
-  // 아직 결제되지 않았다. 오류가 아니다 — 가상계좌처럼 나중에 완료되는 수단도 있고
-  // 그때 포트원이 웹훅을 다시 보낸다. 주문은 pending_payment 로 남는다.
+  const vbank = payment.data.virtualAccount;
+
+  // 가상계좌가 발급됐다 — 계좌를 주문에 적고 재고 잡는 시간을 입금 기한까지 늘린다.
+  // 입금되면 포트원이 PAID 웹훅을 다시 보낸다.
+  if (payment.data.status === "VIRTUAL_ACCOUNT_ISSUED" && vbank) {
+    return recordVbankIssued(paymentId, vbank, true);
+  }
+
+  // 아직 결제되지 않았다. 오류가 아니다 — 주문은 pending_payment 로 남는다.
   if (payment.data.status !== "PAID") {
     return {
       ok: true,
@@ -68,6 +144,18 @@ export async function confirmPayment(paymentId: string): Promise<ConfirmResult> 
       status: payment.data.status,
       orderId: null,
     };
+  }
+
+  // 입금 완료. 발급 웹훅을 놓쳤어도 이 주문이 가상계좌라는 걸 먼저 적어 둔다 —
+  // 취소할 때 포트원 환불이 아니라 사장님 직접 이체로 가야 해서다(begin_cancel 0029).
+  if (vbank) {
+    const marked = await recordVbankIssued(paymentId, vbank, false);
+    if (!marked.ok) return marked;
+    // 사장님이 이미 손님 계좌로 돌려주고 취소까지 끝낸 주문 — 입금 웹훅이 다시 와도
+    // 할 일이 없다. 여기서 끊지 않으면 "돌려주세요" 알림이 또 떠서 알림을 못 믿게 된다.
+    if (marked.refunded) {
+      return { ok: true, applied: false, status: "canceled", orderId: marked.orderId };
+    }
   }
 
   const { data, error } = await publicClient().rpc("mark_order_paid", {
@@ -97,8 +185,21 @@ export async function confirmPayment(paymentId: string): Promise<ConfirmResult> 
     다음에 또 시도한다. 사장님도 알아야 하므로 남긴다.
   */
   if (needsRefund(payment.data.status, result?.status)) {
-    const refund = await cancelPayment(paymentId, "취소된 주문에 들어온 결제 자동 환불");
     const { reportError } = await import("../report");
+
+    // 가상계좌 입금은 결제 취소만으로 돈이 돌아가지 않는다(환불 계좌가 필요하다).
+    // 사장님이 손님 계좌로 직접 돌려줘야 하므로 화면 맨 위에 남긴다.
+    // 실패로 돌려주지 않는다 — 웹훅이 계속 다시 와도 할 수 있는 일이 없다.
+    if (vbank) {
+      await reportError(
+        "payment-refund",
+        `취소된 주문에 가상계좌 입금(${payment.data.amount}원)이 들어왔어요. 손님 계좌로 직접 돌려주세요.`,
+        paymentId,
+      );
+      return { ok: true, applied: false, status: "canceled", orderId };
+    }
+
+    const refund = await cancelPayment(paymentId, "취소된 주문에 들어온 결제 자동 환불");
     if (!refund.ok) {
       await reportError("payment-refund", `취소된 주문에 결제가 들어왔는데 자동 환불 실패: ${refund.error}`, paymentId);
       return { ok: false, error: "취소된 주문의 결제를 되돌리지 못했습니다." };

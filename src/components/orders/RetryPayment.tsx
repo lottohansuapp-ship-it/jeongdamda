@@ -102,7 +102,11 @@ export function RetryPayment({ order }: { order: OrderWithItems }) {
     // 맨 위의 확인이 먼저 돌아 이미 결제된 걸 알아챈다.
     const after = await confirmMyPayment(paymentId).catch(() => null);
     setBusy(false);
-    if (!after?.ok || after.data.status !== "paid") {
+    // 가상계좌는 결제창이 끝나면 "계좌 발급" 까지다. 새로 그리면 계좌 안내가 나온다.
+    const settled =
+      after?.ok &&
+      (after.data.status === "paid" || after.data.status === "VIRTUAL_ACCOUNT_ISSUED");
+    if (!settled) {
       setError(
         "결제 확인이 늦어지고 있어요. 잠시 뒤 화면을 새로고침해 주세요. 돈은 한 번만 빠집니다.",
       );

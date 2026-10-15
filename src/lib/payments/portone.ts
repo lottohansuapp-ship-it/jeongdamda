@@ -96,8 +96,35 @@ export interface PortOnePayment {
   status: string;
   /** 실제로 결제된 총액 (원) */
   amount: number;
-  /** card / easyPay / transfer … 표시에만 쓴다 */
+  /** PaymentMethodCard / PaymentMethodVirtualAccount … */
   method: string | null;
+  /** 가상계좌일 때만. 발급된 계좌 — 손님 주문 화면에 보여 준다. */
+  virtualAccount: {
+    bank: string | null;
+    accountNumber: string;
+    holder: string | null;
+    /** KCP 가 실제로 정한 입금 기한 (RFC 3339) */
+    expiredAt: string | null;
+  } | null;
+}
+
+/** 포트원 결제 조회의 결제수단 칸. 가상계좌일 때 계좌 정보가 붙는다. */
+type RawMethod = {
+  type?: string;
+  bank?: string;
+  accountNumber?: string;
+  remitteeName?: string;
+  expiredAt?: string;
+};
+
+function toVirtualAccount(method: RawMethod | undefined): PortOnePayment["virtualAccount"] {
+  if (method?.type !== "PaymentMethodVirtualAccount" || !method.accountNumber) return null;
+  return {
+    bank: method.bank ?? null,
+    accountNumber: method.accountNumber,
+    holder: method.remitteeName ?? null,
+    expiredAt: method.expiredAt ?? null,
+  };
 }
 
 export type PortOneResult<T> =
@@ -177,7 +204,7 @@ export async function getPayment(
   const raw = result.data as {
     status?: string;
     amount?: { total?: number };
-    method?: { type?: string };
+    method?: RawMethod;
   };
 
   const total = raw.amount?.total;
@@ -187,7 +214,12 @@ export async function getPayment(
 
   return {
     ok: true,
-    data: { status: raw.status, amount: total, method: raw.method?.type ?? null },
+    data: {
+      status: raw.status,
+      amount: total,
+      method: raw.method?.type ?? null,
+      virtualAccount: toVirtualAccount(raw.method),
+    },
   };
 }
 
@@ -210,6 +242,19 @@ export async function cancelPayment(
   return isAlreadyCancelled(result.code, result.error)
     ? { ok: true, data: { alreadyCancelled: true } }
     : result;
+}
+
+/**
+ * 입금 전 가상계좌를 닫는다(말소). 손님이 입금 전에 취소했을 때, 또는 이미 취소된
+ * 주문에 계좌가 늦게 발급됐을 때 부른다. 닫지 않으면 기한까지 입금이 들어올 수 있고,
+ * 들어오면 사장님이 손님 계좌로 직접 돌려줘야 한다.
+ */
+export async function closeVirtualAccount(paymentId: string): Promise<PortOneResult<null>> {
+  const result = await call(
+    `/payments/${encodeURIComponent(paymentId)}/virtual-account/close`,
+    { method: "POST", body: "{}" },
+  );
+  return result.ok ? { ok: true, data: null } : result;
 }
 
 /** 검증 로직은 signature.ts 에 있다 (테스트 가능하도록). 여기서는 시크릿만 붙인다. */

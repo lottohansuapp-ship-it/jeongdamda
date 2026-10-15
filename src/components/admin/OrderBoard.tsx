@@ -358,8 +358,10 @@ export function OrderBoard({
               onAdvance={(to) =>
                 run(order, to, () => advanceOrder(order.id, to))
               }
-              onCancel={(reason) =>
-                run(order, "canceled", () => cancelOrder(order.id, reason))
+              onCancel={(reason, manualRefundDone) =>
+                run(order, "canceled", () =>
+                  cancelOrder(order.id, reason, { manualRefundDone }),
+                )
               }
             />
           ))}
@@ -482,10 +484,17 @@ function OrderCard({
   order: OrderWithItems;
   busy: boolean;
   onAdvance: (to: string) => void;
-  onCancel: (reason: string) => void;
+  onCancel: (reason: string, manualRefundDone: boolean) => void;
 }) {
   const [picking, setPicking] = useState(false);
+  const [transferred, setTransferred] = useState(false);
   const isDelivery = order.fulfillment === "delivery";
+  /*
+    가상계좌로 입금된 주문. 결제 취소만으로 돈이 돌아가지 않아서 사장님이 손님
+    계좌로 직접 보내야 한다(사용자 결정). 이체했다고 확인해야 취소 버튼이 열린다.
+  */
+  const isVbank = Boolean(order.vbank_account);
+  const manualRefund = isVbank && Boolean(order.paid_at);
   // 지금 누를 수 있는 버튼은 규칙이 정한다. 안 쓰는 버튼은 아예 그리지 않는다.
   const next = nextStatuses(order.status);
 
@@ -563,6 +572,9 @@ function OrderCard({
             (배달비 {formatPrice(order.delivery_fee)})
           </span>
         )}
+        {isVbank && (
+          <span className="pl-1.5 text-[12.5px] text-ink-faint">· 가상계좌</span>
+        )}
       </p>
 
       {/*
@@ -593,7 +605,7 @@ function OrderCard({
             type="button"
             disabled={busy}
             onClick={() => setPicking(true)}
-            className="flex min-h-[44px] items-center px-3 text-[13px] text-ink-faint underline underline-offset-4 transition-colors duration-200 hover:text-danger disabled:opacity-40"
+            className="flex min-h-12 items-center px-3 text-[13px] text-ink-faint underline underline-offset-4 transition-colors duration-200 hover:text-danger disabled:opacity-40"
           >
             주문 취소
           </button>
@@ -602,6 +614,24 @@ function OrderCard({
 
       {picking && (
         <div className="mt-2.5 rounded-[12px] border border-danger/30 bg-danger/5 p-3">
+          {manualRefund && (
+            <div className="mb-2.5 rounded-[10px] bg-white p-3">
+              <p className="text-[13px] leading-relaxed text-danger-deep">
+                가상계좌로 입금된 주문이에요. 앱이 자동으로 돌려주지 못해요.
+                손님 계좌로 <strong className="font-normal">{formatPrice(order.total)}</strong>을
+                먼저 보내 주세요.
+              </p>
+              <label className="mt-2 flex min-h-12 items-center gap-2.5 text-[13.5px]">
+                <input
+                  type="checkbox"
+                  checked={transferred}
+                  onChange={(event) => setTransferred(event.target.checked)}
+                  className="h-5 w-5 accent-olive"
+                />
+                손님 계좌로 이체했어요
+              </label>
+            </div>
+          )}
           <p className="pb-2 text-[12.5px] text-ink-soft">
             취소 사유를 골라 주세요. 손님 주문내역에 그대로 보입니다.
           </p>
@@ -610,12 +640,12 @@ function OrderCard({
               <button
                 key={reason}
                 type="button"
-                disabled={busy}
+                disabled={busy || (manualRefund && !transferred)}
                 onClick={() => {
                   setPicking(false);
-                  onCancel(reason);
+                  onCancel(reason, manualRefund && transferred);
                 }}
-                className="flex min-h-[44px] items-center rounded-pill border border-line bg-white px-3.5 text-[13px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger disabled:opacity-40"
+                className="flex min-h-12 items-center rounded-pill border border-line bg-white px-3.5 text-[13px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger disabled:opacity-40"
               >
                 {reason}
               </button>
@@ -623,7 +653,7 @@ function OrderCard({
             <button
               type="button"
               onClick={() => setPicking(false)}
-              className="flex min-h-[44px] items-center rounded-pill px-3.5 text-[13px] text-ink-faint"
+              className="flex min-h-12 items-center rounded-pill px-3.5 text-[13px] text-ink-faint"
             >
               그만두기
             </button>
