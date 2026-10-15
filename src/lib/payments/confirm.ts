@@ -109,7 +109,17 @@ export type ConfirmResult =
   | { ok: true; applied: boolean; status: string; orderId: string | null }
   | { ok: false; error: string };
 
-export async function confirmPayment(paymentId: string): Promise<ConfirmResult> {
+export async function confirmPayment(
+  paymentId: string,
+  options: {
+    /**
+     * 손님 화면에서 부를 때 true. 결제창이 아예 안 열렸으면 포트원은 그 결제를 모른다 —
+     * 그건 "아직 결제 안 됨" 이지 장애가 아니다. 웹훅은 false 로 둔다: 포트원이 보낸
+     * 웹훅의 결제를 포트원이 모른다면 키가 엇갈린 것이라 드러나야 한다.
+     */
+    missingIsUnpaid?: boolean;
+  } = {},
+): Promise<ConfirmResult> {
   if (!PAYMENT_DB_SECRET) {
     return { ok: false, error: "결제가 아직 연결되지 않았습니다." };
   }
@@ -121,7 +131,7 @@ export async function confirmPayment(paymentId: string): Promise<ConfirmResult> 
     // 우리 번호인데 없다면 키가 엇갈린 것이라 아래로 내려가 500·알림으로 드러낸다.
     if (
       isPaymentNotFound(payment.code, payment.httpStatus) &&
-      !isOurPaymentId(paymentId)
+      (options.missingIsUnpaid || !isOurPaymentId(paymentId))
     ) {
       return { ok: true, applied: false, status: "NOT_FOUND", orderId: null };
     }

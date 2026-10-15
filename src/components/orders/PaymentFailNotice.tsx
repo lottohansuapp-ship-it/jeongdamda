@@ -55,7 +55,7 @@ export function PaymentFailNotice({ orderId, status }: { orderId: string; status
       <button
         type="button"
         onClick={dismiss}
-        className="mt-2.5 h-9 rounded-pill border border-danger/30 px-3 text-[12.5px] text-danger transition-colors duration-200 hover:bg-danger/10"
+        className="mt-2.5 h-12 rounded-pill border border-danger/30 px-4 text-[12.5px] text-danger transition-colors duration-200 hover:bg-danger/10"
       >
         확인했어요
       </button>

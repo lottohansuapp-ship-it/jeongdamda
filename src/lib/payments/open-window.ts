@@ -98,8 +98,19 @@ export async function openPaymentWindow(input: {
       return { ok: false, error: response.message ?? "결제가 취소되었어요." };
     }
     return { ok: true };
-  } catch {
-    return { ok: false, error: "결제창을 열지 못했어요. 잠시 후 다시 시도해 주세요." };
+  } catch (thrown) {
+    /*
+      포트원이 요청을 거절하면 응답 대신 예외가 온다(예: 이 채널이 가상계좌를 못 받음,
+      입금 기한 형식이 틀림). 예전엔 그 이유를 버려서 "결제창을 열지 못했어요" 만 남았고,
+      KCP 승인 문제인지 우리 값 문제인지 가릴 수 없었다. 이유를 함께 보여 준다.
+    */
+    const detail = thrown instanceof Error ? thrown.message : String(thrown ?? "");
+    return {
+      ok: false,
+      error: detail
+        ? `결제창을 열지 못했어요. (${detail})`
+        : "결제창을 열지 못했어요. 잠시 후 다시 시도해 주세요.",
+    };
   }
 }
 

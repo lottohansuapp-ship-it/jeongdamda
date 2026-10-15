@@ -27,7 +27,9 @@ export async function confirmMyPayment(
   const id = paymentId.trim();
   if (!id) return { ok: false, error: "결제 정보가 올바르지 않습니다." };
 
-  const result = await confirmPayment(id);
+  // 결제창이 안 열렸던 주문도 여기로 온다 — 포트원이 모르면 "아직 안 됨" 으로 본다.
+  // 예전엔 오류로 돌아가 주문 화면에 "결제를 확인하는 중이에요… 전화 주세요" 가 떴다.
+  const result = await confirmPayment(id, { missingIsUnpaid: true });
   if (!result.ok) return { ok: false, error: result.error };
 
   // 확정되면 재고 예약이 확정 차감으로 바뀐다 — 목록도 그 사실을 알아야 한다.
