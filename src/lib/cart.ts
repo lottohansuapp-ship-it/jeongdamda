@@ -130,6 +130,33 @@ export function planReorder(
   return { rows, soldOut, reduced };
 }
 
+/**
+ * 장바구니 한 번에 정리하기 — 못 사는 줄은 빼고, 재고보다 많이 담은 줄은 재고만큼으로.
+ *
+ * 품절이 섞이면 손님은 줄마다 삭제·−를 눌러야 했다. 버튼 하나로 끝낸다.
+ * product 가 null 이면 판매를 껐거나 지워서 RLS 가 감춘 상품이다.
+ */
+export function planTidy(
+  rows: readonly {
+    product_id: string;
+    quantity: number;
+    product: { today_available: boolean; today_stock: number } | null;
+  }[],
+): { remove: string[]; cap: { product_id: string; quantity: number }[] } {
+  const remove: string[] = [];
+  const cap: { product_id: string; quantity: number }[] = [];
+
+  for (const row of rows) {
+    const product = row.product;
+    if (!product || !product.today_available || product.today_stock <= 0) {
+      remove.push(row.product_id);
+    } else if (row.quantity > product.today_stock) {
+      cap.push({ product_id: row.product_id, quantity: product.today_stock });
+    }
+  }
+  return { remove, cap };
+}
+
 export function clampQuantity(value: number, stock: number): number {
   const ceiling = Math.min(MAX_PER_ITEM, Math.max(1, stock));
   return Math.min(Math.max(1, Math.round(value)), ceiling);

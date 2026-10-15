@@ -5,7 +5,7 @@ import { deliveryFeeFor, deliveryHours } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ProductPhoto } from "@/components/shop/ProductPhoto";
-import { clearCart, removeFromCart, setCartQuantity } from "@/lib/cart-actions";
+import { clearCart, removeFromCart, setCartQuantity, tidyCart } from "@/lib/cart-actions";
 import {
   clampQuantity,
   summarizeCart,
@@ -104,6 +104,21 @@ type CartRow = { product: CartLine["product"]; quantity: number };
 function progress(value: number, goal: number): number {
   if (goal <= 0) return 1;
   return Math.min(1, Math.max(0, value / goal));
+}
+
+/**
+ * 「한 번에 정리」 를 눌렀을 때 화면에 먼저 보여 줄 모습. 실제 정리는 서버(tidyCart)가
+ * 지금 재고로 다시 판단하고, 응답 뒤 새로 받아 맞춘다. 상품 정보가 없는 줄(orphan)은
+ * rows 에 없으므로 서버 응답 뒤 사라진다.
+ */
+function tidiedRows(rows: CartRow[]): CartRow[] {
+  return rows
+    .filter((row) => row.product.today_available && row.product.today_stock > 0)
+    .map((row) =>
+      row.quantity > row.product.today_stock
+        ? { ...row, quantity: row.product.today_stock }
+        : row,
+    );
 }
 
 function toRows(cart: CartSummary): CartRow[] {
@@ -268,10 +283,28 @@ export function CartBoard({
                   </div>
 
                   {blocked && line.issue && (
-                    <p className="pt-1.5 text-[12.5px] text-danger">
-                      {ISSUE_TEXT[line.issue]}
-                      {line.issue === "insufficient" &&
-                        ` · ${line.available}개까지 가능`}
+                    <p className="flex flex-wrap items-center gap-x-2 pt-1.5 text-[12.5px] text-danger">
+                      <span>
+                        {ISSUE_TEXT[line.issue]}
+                        {line.issue === "insufficient" &&
+                          ` · ${line.available}개까지 가능`}
+                      </span>
+                      {/* −를 여러 번 누르지 않게 한 번에 맞춘다 */}
+                      {line.issue === "insufficient" && line.available > 0 && (
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() =>
+                            run(
+                              withQuantity(line.product.id, line.available),
+                              () => setCartQuantity(line.product.id, line.available),
+                            )
+                          }
+                          className="-my-3 inline-flex min-h-12 items-center text-clay-deep underline underline-offset-4"
+                        >
+                          {line.available}개로 맞추기
+                        </button>
+                      )}
                     </p>
                   )}
 
@@ -384,9 +417,20 @@ export function CartBoard({
             </p>
           )}
           {view.blockingIssues > 0 && (
-            <p className="pb-2 text-[12.5px] text-clay-deep">
-              주문할 수 없는 상품 {view.blockingIssues}개를 먼저 정리해 주세요
-            </p>
+            <div className="flex items-center justify-between gap-3 pb-2">
+              <p className="text-[12.5px] text-clay-deep">
+                주문할 수 없는 상품 {view.blockingIssues}개를 먼저 정리해 주세요
+              </p>
+              {/* 품절이 섞이면 줄마다 삭제·−를 눌러야 했다. 한 번에 정리한다. */}
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => run(tidiedRows(rows), tidyCart)}
+                className="h-12 shrink-0 rounded-pill border border-clay/40 bg-white px-3.5 text-[13px] text-clay-deep transition-colors duration-200 hover:bg-cream disabled:opacity-40"
+              >
+                한 번에 정리
+              </button>
+            </div>
           )}
 
           {coupons.length > 0 && (

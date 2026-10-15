@@ -1,7 +1,7 @@
 "use server";
 
 import { currentUserId, serverClient } from "./supabase/server";
-import { MAX_PER_ITEM, planReorder } from "./cart";
+import { MAX_PER_ITEM, planReorder, planTidy } from "./cart";
 import type { ActionResult } from "@/types/database";
 
 async function authed() {
@@ -186,6 +186,51 @@ export async function reorder(
   if (writeError) return { ok: false, error: writeError.message };
 
   return { ok: true, data: { added: plan.rows.length, skipped, reduced: plan.reduced } };
+}
+
+/**
+ * 주문 못 하는 반찬 한 번에 정리 (planTidy). 품절·판매 중지·지운 반찬은 빼고,
+ * 재고보다 많이 담은 반찬은 남은 수량으로 맞춘다.
+ *
+ * 판단은 서버가 지금 재고로 다시 한다 — 화면에 보이던 재고는 낡았을 수 있다.
+ */
+export async function tidyCart(): Promise<ActionResult<{ removed: number; capped: number }>> {
+  const session = await authed();
+  if (!session) return { ok: false, error: "로그인이 필요합니다." };
+
+  const { data, error } = await session.db
+    .from("cart_items")
+    .select("product_id, quantity, product:products(today_available, today_stock)")
+    .eq("user_id", session.userId);
+  if (error) return { ok: false, error: error.message };
+
+  const plan = planTidy(
+    (data ?? []) as unknown as {
+      product_id: string;
+      quantity: number;
+      product: { today_available: boolean; today_stock: number } | null;
+    }[],
+  );
+
+  if (plan.remove.length > 0) {
+    const { error: removeError } = await session.db
+      .from("cart_items")
+      .delete()
+      .eq("user_id", session.userId)
+      .in("product_id", plan.remove);
+    if (removeError) return { ok: false, error: removeError.message };
+  }
+
+  for (const row of plan.cap) {
+    const { error: capError } = await session.db
+      .from("cart_items")
+      .update({ quantity: row.quantity })
+      .eq("user_id", session.userId)
+      .eq("product_id", row.product_id);
+    if (capError) return { ok: false, error: capError.message };
+  }
+
+  return { ok: true, data: { removed: plan.remove.length, capped: plan.cap.length } };
 }
 
 export async function clearCart(): Promise<ActionResult> {

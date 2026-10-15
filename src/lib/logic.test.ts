@@ -24,7 +24,7 @@ import {
   type PaymentChannels,
 } from "./payments/methods.ts";
 import { bankLabel, vbankDueDate } from "./payments/vbank.ts";
-import { clampQuantity, lineIssue, planReorder, summarizeCart } from "./cart.ts";
+import { clampQuantity, lineIssue, planReorder, planTidy, summarizeCart } from "./cart.ts";
 import {
   decodeDraft,
   encodeDraft,
@@ -965,6 +965,25 @@ test("isAlreadyCancelled: 오류 종류가 있으면 그것만 본다", () => {
   assert.equal(isAlreadyCancelled("CANCEL_AMOUNT_EXCEEDS_CANCELLABLE_AMOUNT", "already partially cancelled"), false);
   assert.equal(isAlreadyCancelled(undefined, "이미 취소된 결제입니다"), true);
   assert.equal(isAlreadyCancelled(undefined, "결제 서버에 연결하지 못했습니다."), false);
+});
+
+test("planTidy: 못 사는 줄은 빼고, 재고보다 많으면 재고만큼으로", () => {
+  const plan = planTidy([
+    { product_id: "ok", quantity: 2, product: { today_available: true, today_stock: 5 } },
+    { product_id: "out", quantity: 1, product: { today_available: true, today_stock: 0 } },
+    { product_id: "off", quantity: 1, product: { today_available: false, today_stock: 9 } },
+    { product_id: "gone", quantity: 1, product: null },
+    { product_id: "short", quantity: 5, product: { today_available: true, today_stock: 3 } },
+  ]);
+  assert.deepEqual(plan.remove.sort(), ["gone", "off", "out"]);
+  assert.deepEqual(plan.cap, [{ product_id: "short", quantity: 3 }]);
+});
+
+test("planTidy: 정리할 게 없으면 빈 계획", () => {
+  const plan = planTidy([
+    { product_id: "ok", quantity: 2, product: { today_available: true, today_stock: 5 } },
+  ]);
+  assert.deepEqual(plan, { remove: [], cap: [] });
 });
 
 test("planReorder: 품절·판매 중지는 빼고 센다", () => {
