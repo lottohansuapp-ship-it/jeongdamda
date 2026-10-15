@@ -157,6 +157,28 @@ export function planTidy(
   return { remove, cap };
 }
 
+/**
+ * 주문서에 미리 골라 둘 쿠폰 — 지금 금액으로 쓸 수 있는 것 중 할인이 가장 큰 것.
+ *
+ * 예전엔 아무것도 안 골라진 채 시작했다. 장바구니에서 "쿠폰 1장 있어요" 를 보고 온
+ * 손님도, 요청사항 아래 쿠폰 칸을 지나쳐 결제를 누르면 할인을 못 받았다.
+ * 화면 표시용이다 — 실제 할인은 place_order 가 쿠폰 번호로 다시 계산한다.
+ */
+export function bestCoupon(
+  coupons: readonly { id: string; coupon: { discount: number; min_order: number } }[],
+  subtotal: number,
+): string | null {
+  let best: { id: string; saving: number } | null = null;
+  for (const item of coupons) {
+    if (subtotal < item.coupon.min_order) continue;
+    const saving = Math.min(item.coupon.discount, subtotal);
+    if (saving > 0 && (best === null || saving > best.saving)) {
+      best = { id: item.id, saving };
+    }
+  }
+  return best?.id ?? null;
+}
+
 export function clampQuantity(value: number, stock: number): number {
   const ceiling = Math.min(MAX_PER_ITEM, Math.max(1, stock));
   return Math.min(Math.max(1, Math.round(value)), ceiling);

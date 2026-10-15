@@ -23,7 +23,7 @@ import {
 import { checkDelivery, type DeliveryQuote, type OpenState } from "@/lib/store";
 import { formatPrice } from "@/lib/format";
 import { formatOrderTime } from "@/lib/orders";
-import type { CartSummary } from "@/lib/cart";
+import { bestCoupon, type CartSummary } from "@/lib/cart";
 import type { Address, DeliveryArea, Profile, StoreSettings, UserCoupon } from "@/types/database";
 
 const CLOSED_TEXT: Record<string, string> = {
@@ -111,7 +111,10 @@ export function CheckoutBoard({
 
     할인은 반찬 값에서만 빼고 배달비는 안 깎는다. 반찬 값보다 많이 깎이지도 않는다.
   */
-  const [couponId, setCouponId] = useState<string | null>(null);
+  // 쓸 수 있는 것 중 할인이 가장 큰 쿠폰을 미리 골라 둔다. 누르면 해제된다.
+  const [couponId, setCouponId] = useState<string | null>(() =>
+    bestCoupon(coupons, cart.subtotal),
+  );
   const picked = coupons.find((c) => c.id === couponId) ?? null;
   const usable = picked !== null && cart.subtotal >= picked.coupon.min_order;
   const discount = usable ? Math.min(picked.coupon.discount, cart.subtotal) : 0;

@@ -24,7 +24,14 @@ import {
   type PaymentChannels,
 } from "./payments/methods.ts";
 import { bankLabel, vbankDueDate } from "./payments/vbank.ts";
-import { clampQuantity, lineIssue, planReorder, planTidy, summarizeCart } from "./cart.ts";
+import {
+  bestCoupon,
+  clampQuantity,
+  lineIssue,
+  planReorder,
+  planTidy,
+  summarizeCart,
+} from "./cart.ts";
 import {
   decodeDraft,
   encodeDraft,
@@ -995,6 +1002,31 @@ test("isAlreadyCancelled: 오류 종류가 있으면 그것만 본다", () => {
   assert.equal(isAlreadyCancelled("CANCEL_AMOUNT_EXCEEDS_CANCELLABLE_AMOUNT", "already partially cancelled"), false);
   assert.equal(isAlreadyCancelled(undefined, "이미 취소된 결제입니다"), true);
   assert.equal(isAlreadyCancelled(undefined, "결제 서버에 연결하지 못했습니다."), false);
+});
+
+test("bestCoupon: 쓸 수 있는 것 중 할인이 가장 큰 것", () => {
+  const coupons = [
+    { id: "small", coupon: { discount: 1000, min_order: 0 } },
+    { id: "big", coupon: { discount: 5000, min_order: 30000 } },
+    { id: "mid", coupon: { discount: 3000, min_order: 10000 } },
+  ];
+  assert.equal(bestCoupon(coupons, 20000), "mid", "big 은 최소주문 미달");
+  assert.equal(bestCoupon(coupons, 40000), "big");
+  assert.equal(bestCoupon(coupons, 5000), "small");
+});
+
+test("bestCoupon: 할인은 상품 금액을 넘지 않는 만큼으로 비교한다", () => {
+  const coupons = [
+    { id: "a", coupon: { discount: 9000, min_order: 0 } },
+    { id: "b", coupon: { discount: 2000, min_order: 0 } },
+  ];
+  // 상품 1,500원이면 둘 다 1,500원 할인 — 같으면 먼저 온 것
+  assert.equal(bestCoupon(coupons, 1500), "a");
+});
+
+test("bestCoupon: 쓸 수 있는 게 없으면 null", () => {
+  assert.equal(bestCoupon([{ id: "x", coupon: { discount: 3000, min_order: 15000 } }], 9000), null);
+  assert.equal(bestCoupon([], 9000), null);
 });
 
 test("planTidy: 못 사는 줄은 빼고, 재고보다 많으면 재고만큼으로", () => {
