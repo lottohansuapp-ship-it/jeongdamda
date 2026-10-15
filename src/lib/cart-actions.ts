@@ -1,7 +1,7 @@
 "use server";
 
 import { currentUserId, serverClient } from "./supabase/server";
-import { MAX_PER_ITEM } from "./cart";
+import { MAX_PER_ITEM, planReorder } from "./cart";
 import type { ActionResult } from "@/types/database";
 
 async function authed() {
@@ -115,7 +115,7 @@ export async function setCartQuantity(
  */
 export async function reorder(
   orderId: string,
-): Promise<ActionResult<{ added: number; skipped: number }>> {
+): Promise<ActionResult<{ added: number; skipped: number; reduced: number }>> {
   const session = await authed();
   if (!session) return { ok: false, error: "로그인이 필요합니다." };
 
@@ -136,52 +136,56 @@ export async function reorder(
     Boolean(row.product_id),
   );
 
-  // 지금 살 수 있는 것만 남긴다. 판매를 껐거나 지운 상품은 RLS 가 감춘다.
-  const { data: alive } = await session.db
+  // 오늘 판매 중인 반찬과 남은 재고. 판매를 껐거나 지운 상품은 RLS 가 감춘다.
+  // 재고까지 읽는 이유: 예전엔 판매 여부만 봐서 품절(재고 0)까지 담았고, 장바구니가
+  // 막혀 단골이 품절마다 삭제를 눌러야 했다 (planReorder 참조).
+  const { data: alive, error: readError } = await session.db
     .from("products")
-    .select("id")
+    .select("id, today_stock")
     .in(
       "id",
       wanted.map((row) => row.product_id),
     )
     .eq("today_available", true);
-
-  const available = new Set((alive ?? []).map((row) => row.id));
-  const rows = wanted.filter((row) => available.has(row.product_id));
-  const skipped = data.length - rows.length;
-
-  if (rows.length === 0) {
-    return { ok: false, error: "지난번에 담으신 반찬이 오늘은 없어요." };
-  }
+  if (readError) return { ok: false, error: readError.message };
 
   // 이미 담긴 것과 합친다. 그래서 그냥 덮지 않고 기존 수량을 읽어 더한다.
-  const { data: current } = await session.db
+  const { data: current, error: cartError } = await session.db
     .from("cart_items")
     .select("product_id, quantity")
     .eq("user_id", session.userId);
+  if (cartError) return { ok: false, error: cartError.message };
 
-  const already = new Map(
-    (current ?? []).map((row) => [
-      row.product_id as string,
-      row.quantity as number,
-    ]),
+  const plan = planReorder(
+    wanted,
+    new Map((alive ?? []).map((row) => [row.id as string, row.today_stock as number])),
+    new Map((current ?? []).map((row) => [row.product_id as string, row.quantity as number])),
   );
+  // 지운 상품(product_id 가 비어 있음)도 "오늘 없음" 으로 함께 센다.
+  const skipped = plan.soldOut + (data.length - wanted.length);
+
+  if (plan.rows.length === 0) {
+    return {
+      ok: false,
+      error:
+        plan.reduced > 0
+          ? "지난번 반찬은 이미 남은 만큼 장바구니에 담겨 있어요."
+          : "지난번에 담으신 반찬이 오늘은 모두 품절이에요.",
+    };
+  }
 
   const { error: writeError } = await session.db.from("cart_items").upsert(
-    rows.map((row) => ({
+    plan.rows.map((row) => ({
       user_id: session.userId,
       product_id: row.product_id,
-      quantity: Math.min(
-        MAX_PER_ITEM,
-        (already.get(row.product_id) ?? 0) + row.quantity,
-      ),
+      quantity: row.quantity,
     })),
     { onConflict: "user_id,product_id" },
   );
 
   if (writeError) return { ok: false, error: writeError.message };
 
-  return { ok: true, data: { added: rows.length, skipped } };
+  return { ok: true, data: { added: plan.rows.length, skipped, reduced: plan.reduced } };
 }
 
 export async function clearCart(): Promise<ActionResult> {

@@ -50,9 +50,14 @@ export function ReorderButton({
        * 말을 손님이 볼 겨를이 없었다. 지난번과 다른 구성인 걸 받고 나서야
        * 알게 되는 건 반찬가게에서 제일 나쁜 경험이다.
        */
-      if (result.data.skipped > 0) {
+      const { added, skipped, reduced } = result.data;
+      if (skipped > 0 || reduced > 0) {
+        const notes = [
+          skipped > 0 ? `${skipped}가지는 오늘 품절이라 뺐어요` : "",
+          reduced > 0 ? `${reduced}가지는 남은 만큼만 담았어요` : "",
+        ].filter(Boolean);
         setNotice({
-          text: `${result.data.added}가지를 담았어요. ${result.data.skipped}가지는 오늘 없어서 빠졌습니다.`,
+          text: `${added}가지를 담았어요. ${notes.join(", ")}.`,
           partial: true,
         });
         return;

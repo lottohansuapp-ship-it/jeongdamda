@@ -24,7 +24,7 @@ import {
   type PaymentChannels,
 } from "./payments/methods.ts";
 import { bankLabel, vbankDueDate } from "./payments/vbank.ts";
-import { clampQuantity, lineIssue, summarizeCart } from "./cart.ts";
+import { clampQuantity, lineIssue, planReorder, summarizeCart } from "./cart.ts";
 import {
   decodeDraft,
   encodeDraft,
@@ -965,6 +965,44 @@ test("isAlreadyCancelled: 오류 종류가 있으면 그것만 본다", () => {
   assert.equal(isAlreadyCancelled("CANCEL_AMOUNT_EXCEEDS_CANCELLABLE_AMOUNT", "already partially cancelled"), false);
   assert.equal(isAlreadyCancelled(undefined, "이미 취소된 결제입니다"), true);
   assert.equal(isAlreadyCancelled(undefined, "결제 서버에 연결하지 못했습니다."), false);
+});
+
+test("planReorder: 품절·판매 중지는 빼고 센다", () => {
+  const plan = planReorder(
+    [{ product_id: "a", quantity: 2 }, { product_id: "b", quantity: 1 }, { product_id: "c", quantity: 1 }],
+    new Map([["a", 10], ["b", 0]]), // c 는 오늘 판매 안 함(목록에 없음)
+    new Map(),
+  );
+  assert.deepEqual(plan.rows, [{ product_id: "a", quantity: 2 }]);
+  assert.equal(plan.soldOut, 2);
+  assert.equal(plan.reduced, 0);
+});
+
+test("planReorder: 재고가 모자라면 남은 만큼만 담고 줄였다고 센다", () => {
+  const plan = planReorder([{ product_id: "a", quantity: 5 }], new Map([["a", 3]]), new Map());
+  assert.deepEqual(plan.rows, [{ product_id: "a", quantity: 3 }]);
+  assert.equal(plan.reduced, 1);
+});
+
+test("planReorder: 이미 담긴 수량에 더하되 재고를 넘지 않는다", () => {
+  const plan = planReorder([{ product_id: "a", quantity: 2 }], new Map([["a", 3]]), new Map([["a", 2]]));
+  assert.deepEqual(plan.rows, [{ product_id: "a", quantity: 3 }]);
+  assert.equal(plan.reduced, 1);
+});
+
+test("planReorder: 이미 재고만큼 담겨 있으면 건드리지 않는다(줄이지도 않는다)", () => {
+  const plan = planReorder([{ product_id: "a", quantity: 2 }], new Map([["a", 3]]), new Map([["a", 5]]));
+  assert.deepEqual(plan.rows, []);
+  assert.equal(plan.reduced, 1);
+});
+
+test("planReorder: 같은 반찬이 두 줄이면 합친다", () => {
+  const plan = planReorder(
+    [{ product_id: "a", quantity: 1 }, { product_id: "a", quantity: 2 }],
+    new Map([["a", 10]]),
+    new Map(),
+  );
+  assert.deepEqual(plan.rows, [{ product_id: "a", quantity: 3 }]);
 });
 
 test("alarmTime: 늦게 결제된 주문도 새 주문으로 울린다", () => {
