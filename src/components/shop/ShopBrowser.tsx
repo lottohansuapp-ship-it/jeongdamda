@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { markFromList } from "@/components/ui/BackToList";
 import { hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
-import { EMPTY_FILTERS, filterProducts, isFiltering, type ShopFilters } from "@/lib/filter";
+import { EMPTY_FILTERS, filterProducts, isFiltering, soldOutLast, type ShopFilters } from "@/lib/filter";
 import { FilterChip, FilterTab } from "@/components/ui/Filters";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { Carousel } from "./Carousel";
@@ -57,8 +57,10 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
     });
   }
 
+  // 품절은 뒤로(숨기지 않음). 많이 팔린 날 살 수 있는 반찬을 찾으려고
+  // 품절을 몇 개씩 지나치지 않게.
   const visible = useMemo(
-    () => filterProducts(products, filters),
+    () => soldOutLast(filterProducts(products, filters)),
     [products, filters],
   );
 

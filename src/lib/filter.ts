@@ -66,6 +66,23 @@ export function filterProducts(
   });
 }
 
+/**
+ * 손님 목록에서 품절을 뒤로 보낸다. 숨기지는 않는다(CLAUDE.md: 판매 중 + 재고 0 은
+ * 보이되 품절). 각 무리 안에서는 사장님이 정한 순서를 그대로 둔다.
+ *
+ * 품절이 판매 중인 반찬 사이사이에 섞여 있어서, 많이 팔린 날엔 살 수 있는 걸
+ * 찾으려고 품절을 몇 개씩 지나쳐야 했다. 관리자 화면은 쓰지 않는다 — 사장님은
+ * 정한 순서 그대로 봐야 한다.
+ */
+export function soldOutLast(
+  products: readonly ProductWithCategory[],
+): ProductWithCategory[] {
+  return [
+    ...products.filter((product) => product.today_stock > 0),
+    ...products.filter((product) => product.today_stock <= 0),
+  ];
+}
+
 /** 필터가 하나라도 걸려 있는지. 화면이 "전체를 보고 있는가"를 판단한다. */
 export function isFiltering(filters: ShopFilters): boolean {
   return (

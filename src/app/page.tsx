@@ -13,6 +13,9 @@ export default async function HomePage() {
     getShopData(),
     getStore().catch(() => ({ settings: null, areas: [] })),
   ]);
+  const orderable = result.ok
+    ? result.data.products.filter((product) => product.today_stock > 0).length
+    : 0;
 
   return (
     <>
@@ -34,14 +37,22 @@ export default async function HomePage() {
         <Wordmark as="h1" size="lg" />
         <p className="pt-4 text-[15px] leading-relaxed text-ink-soft">
           오늘 아침에 만든 반찬입니다.
+          {/* 예전엔 판매 중인 가짓수를 셌다. 대부분 품절인 날에도 "39가지" 라고 해서
+              손님이 실제와 다르게 기대했다. 지금 살 수 있는 것만 센다. */}
           {result.ok && (
             <>
               <br />
-              지금 준비된 건{" "}
-              <span className="text-[19px] tracking-tight text-olive-deep">
-                {result.data.products.length}가지
-              </span>
-              예요.
+              {orderable > 0 ? (
+                <>
+                  지금 주문 가능한 반찬은{" "}
+                  <span className="text-[19px] tracking-tight text-olive-deep">
+                    {orderable}가지
+                  </span>
+                  예요.
+                </>
+              ) : (
+                "오늘 준비한 반찬은 모두 팔렸어요."
+              )}
             </>
           )}
         </p>

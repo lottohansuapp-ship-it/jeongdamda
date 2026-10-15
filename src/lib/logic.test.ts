@@ -4,6 +4,7 @@ import {
   compareProducts,
   filterProducts,
   isFiltering,
+  soldOutLast,
   EMPTY_FILTERS,
 } from "./filter.ts";
 import { alarmTime, checkNewOrders } from "./alarm.ts";
@@ -93,6 +94,19 @@ function make(
     ...overrides,
   };
 }
+
+test("soldOutLast: 품절은 뒤로, 나머지 순서는 그대로", () => {
+  const c = { id: "c", name: "반찬", slug: "b" };
+  const list = [
+    make({ name: "가", category: c, today_stock: 0 }),
+    make({ name: "나", category: c, today_stock: 3 }),
+    make({ name: "다", category: c, today_stock: 0 }),
+    make({ name: "라", category: c, today_stock: 8 }),
+  ];
+  assert.deepEqual(soldOutLast(list).map((p) => p.name), ["나", "라", "가", "다"]);
+  // 원래 배열은 건드리지 않는다
+  assert.deepEqual(list.map((p) => p.name), ["가", "나", "다", "라"]);
+});
 
 const stew = { id: "c-stew", name: "찌개", slug: "stew" };
 const namul = { id: "c-namul", name: "나물", slug: "namul" };

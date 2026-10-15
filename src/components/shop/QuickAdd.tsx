@@ -70,8 +70,11 @@ export function QuickAdd({
         type="button"
         onClick={add}
         aria-label={`${productName} 장바구니에 담기`}
-        className={`grid h-12 w-12 place-items-center rounded-full shadow-lift transition-[background-color,transform] duration-200 active:scale-90 ${
-          state === "done" ? "bg-olive-deep text-white" : "bg-white/95 text-ink"
+        // 흰 카드 위의 흰 동그라미라 담기 버튼으로 읽히지 않았다. 올리브 테두리로 버튼임을 보인다.
+        className={`grid h-12 w-12 place-items-center rounded-full border-2 shadow-soft transition-[background-color,transform] duration-200 active:scale-90 ${
+          state === "done"
+            ? "border-olive-deep bg-olive-deep text-white"
+            : "border-olive bg-white text-olive-deep hover:bg-olive-soft"
         }`}
       >
         {state === "done" ? <CheckIcon /> : <PlusIcon />}
