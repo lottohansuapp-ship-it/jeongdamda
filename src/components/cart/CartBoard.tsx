@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { deliveryFeeFor, deliveryHours } from "@/lib/store";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ProductPhoto } from "@/components/shop/ProductPhoto";
 import { clearCart, removeFromCart, setCartQuantity, tidyCart } from "@/lib/cart-actions";
 import {
@@ -97,6 +97,9 @@ function deliveryFeeNow(
 /** summarizeCart 에 넣을 최소 형태. 화면에서 수량만 바꿔가며 다시 계산한다. */
 type CartRow = { product: CartLine["product"]; quantity: number };
 
+/** +/− 를 누르고 이만큼 더 안 누르면 저장한다. 연타하는 동안엔 보내지 않는다. */
+const QUANTITY_SAVE_DELAY_MS = 400;
+
 /**
  * 진행 막대의 채움 비율(0~1). 막대는 width 대신 scaleX 로 늘인다 —
  * width 를 움직이면 매 프레임 레이아웃을 다시 계산한다 (디자인 규칙: transform 만).
@@ -145,7 +148,11 @@ export function CartBoard({
    */
   const [rows, setRows] = useState(() => toRows(cart));
   const [seen, setSeen] = useState(cart);
-  if (seen !== cart) {
+  /** 아직 서버에 안 보낸 수량 변경 수. 0 이 아니면 서버 값으로 화면을 덮지 않는다. */
+  const [unsaved, setUnsaved] = useState(0);
+  const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  // 저장 중에 다른 응답의 새로고침이 오면 손님이 막 누른 숫자가 이전 값으로 튀었다.
+  if (seen !== cart && unsaved === 0) {
     setSeen(cart);
     setRows(toRows(cart));
   }
@@ -183,6 +190,40 @@ export function CartBoard({
       setRows(previous);
       setError(result.error ?? "처리하지 못했어요.");
     }
+  }
+
+  /**
+   * +/− 수량. 숫자는 바로 바꾸고, 저장은 손을 뗀 뒤 마지막 값만 한 번 보낸다.
+   *
+   * 예전엔 누를 때마다 따로 저장해서, 연타하면 응답 순서가 뒤바뀌어 숫자가
+   * 이전 값으로 잠깐 튀었다. 저장이 남아 있는 동안 「주문서 작성하기」 는 막는다 —
+   * 저장 전 수량으로 주문서가 열리면 화면 금액과 결제 금액이 달라진다.
+   */
+  function changeQuantity(productId: string, quantity: number) {
+    setError(null);
+    setRows((current) =>
+      current.map((row) => (row.product.id === productId ? { ...row, quantity } : row)),
+    );
+
+    const timers = saveTimers.current;
+    const waiting = timers.get(productId);
+    if (waiting) clearTimeout(waiting);
+    else setUnsaved((count) => count + 1);
+
+    timers.set(
+      productId,
+      setTimeout(async () => {
+        timers.delete(productId);
+        const result = await setCartQuantity(productId, quantity).catch(() => ({
+          ok: false as const,
+          error: "서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.",
+        }));
+        setUnsaved((count) => count - 1);
+        if (!result.ok) setError(result.error ?? "수량을 바꾸지 못했어요.");
+        // 성공이면 하단 탭 배지를, 실패면 화면 숫자를 서버 값으로 맞춘다.
+        router.refresh();
+      }, QUANTITY_SAVE_DELAY_MS),
+    );
   }
 
   function withQuantity(productId: string, quantity: number): CartRow[] {
@@ -314,16 +355,7 @@ export function CartBoard({
                       <Step
                         label="수량 줄이기"
                         disabled={line.quantity <= 1}
-                        onClick={() =>
-                          run(
-                            withQuantity(line.product.id, line.quantity - 1),
-                            () =>
-                              setCartQuantity(
-                                line.product.id,
-                                line.quantity - 1,
-                              ),
-                          )
-                        }
+                        onClick={() => changeQuantity(line.product.id, line.quantity - 1)}
                       >
                         −
                       </Step>
@@ -338,16 +370,7 @@ export function CartBoard({
                       <Step
                         label="수량 늘리기"
                         disabled={line.quantity >= ceiling}
-                        onClick={() =>
-                          run(
-                            withQuantity(line.product.id, line.quantity + 1),
-                            () =>
-                              setCartQuantity(
-                                line.product.id,
-                                line.quantity + 1,
-                              ),
-                          )
-                        }
+                        onClick={() => changeQuantity(line.product.id, line.quantity + 1)}
                       >
                         +
                       </Step>
@@ -544,6 +567,15 @@ export function CartBoard({
                 주문서 작성하기
               </button>
             </>
+          ) : unsaved > 0 ? (
+            // 수량 저장이 끝나기 전에 주문서가 열리면 저장 전 수량으로 금액이 보인다.
+            <button
+              type="button"
+              aria-disabled
+              className="tap-target w-full cursor-wait rounded-card bg-olive text-[15px] text-white opacity-60"
+            >
+              저장하는 중…
+            </button>
           ) : (
             <Link
               href="/checkout"
