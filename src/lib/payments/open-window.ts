@@ -95,7 +95,8 @@ export async function openPaymentWindow(input: {
 
     // code 가 있으면 실패다. 손님이 창을 닫은 경우도 여기로 온다.
     if (response?.code) {
-      return { ok: false, error: response.message ?? "결제가 취소되었어요." };
+      const detail = failureDetail(response);
+      return { ok: false, error: detail || "결제가 취소되었어요." };
     }
     return { ok: true };
   } catch (thrown) {
@@ -104,7 +105,7 @@ export async function openPaymentWindow(input: {
       입금 기한 형식이 틀림). 예전엔 그 이유를 버려서 "결제창을 열지 못했어요" 만 남았고,
       KCP 승인 문제인지 우리 값 문제인지 가릴 수 없었다. 이유를 함께 보여 준다.
     */
-    const detail = thrown instanceof Error ? thrown.message : String(thrown ?? "");
+    const detail = failureDetail(thrown);
     return {
       ok: false,
       error: detail
@@ -112,6 +113,20 @@ export async function openPaymentWindow(input: {
         : "결제창을 열지 못했어요. 잠시 후 다시 시도해 주세요.",
     };
   }
+}
+
+/**
+ * 포트원·KCP 가 준 실패 정보를 한 줄로. 설명(message)이 비어 오는 경우가 있어서
+ * 오류 코드(code)와 KCP 코드·문구(pgCode·pgMessage)까지 모은다 — 무엇이 거절했는지
+ * 가리려면 코드가 문장보다 확실하다.
+ */
+function failureDetail(source: unknown): string {
+  if (source == null) return "";
+  if (typeof source !== "object") return String(source);
+  const e = source as { code?: unknown; message?: unknown; pgCode?: unknown; pgMessage?: unknown };
+  const parts = [e.pgMessage || e.message, e.pgCode, e.code]
+    .filter((part): part is string => typeof part === "string" && part.trim() !== "");
+  return [...new Set(parts)].join(" · ");
 }
 
 /** 결제창에 보일 주문 이름. "고추잎무침 외 2건" */
