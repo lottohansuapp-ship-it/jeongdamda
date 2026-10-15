@@ -30,7 +30,8 @@ export function PaymentReturn({
 }) {
   const router = useRouter();
   const done = useRef(false);
-  const [failed, setFailed] = useState(false);
+  /** 확인이 실패한 이유. 보여 줘야 원인을 가린다 — 예전엔 버려서 "확인 중" 만 남았다. */
+  const [failed, setFailed] = useState<string | null>(null);
 
   /*
     주소창의 paymentId 만 보고 판단하면 안 된다. 그 값은 결제 앱에서 막
@@ -54,7 +55,7 @@ export function PaymentReturn({
       } else {
         // 웹훅이 늦게라도 처리한다. 손님에게 "실패" 라고 말하지 않는다 —
         // 돈은 이미 나갔고, 실제로는 몇 초 뒤 확정되는 경우가 대부분이다.
-        setFailed(true);
+        setFailed(result.error || "알 수 없는 오류");
       }
     });
   }, [status, paymentId, orderId, router]);
@@ -69,6 +70,7 @@ export function PaymentReturn({
       결제를 확인하는 중이에요. 잠시 뒤 자동으로 바뀝니다.
       <br />
       오래 걸리면 02-6953-8086 으로 전화 주세요.
+      <span className="block pt-1.5 text-[11.5px] text-ink-faint">({failed})</span>
     </p>
   );
 }

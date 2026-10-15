@@ -121,12 +121,20 @@ export async function openPaymentWindow(input: {
  * 가리려면 코드가 문장보다 확실하다.
  */
 function failureDetail(source: unknown): string {
-  if (source == null) return "";
+  if (source == null) return `오류 값 없음(${String(source)})`;
   if (typeof source !== "object") return String(source);
   const e = source as { code?: unknown; message?: unknown; pgCode?: unknown; pgMessage?: unknown };
   const parts = [e.pgMessage || e.message, e.pgCode, e.code]
     .filter((part): part is string => typeof part === "string" && part.trim() !== "");
-  return [...new Set(parts)].join(" · ");
+  if (parts.length > 0) return [...new Set(parts)].join(" · ");
+
+  // 아는 칸이 하나도 없다. 무엇이 왔는지라도 남긴다 — 이름과 들어 있는 값 전부.
+  try {
+    const raw = JSON.stringify(source, Object.getOwnPropertyNames(source));
+    return `${Object.prototype.toString.call(source)} ${raw}`.slice(0, 300);
+  } catch {
+    return Object.prototype.toString.call(source);
+  }
 }
 
 /** 결제창에 보일 주문 이름. "고추잎무침 외 2건" */
