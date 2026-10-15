@@ -63,6 +63,32 @@ export function needsRefund(paymentStatus: string, orderStatus: string | undefin
  * 섞이면 환불이 안 나갔는데 "환불됨" 으로 처리될 수 있었다.
  * 종류를 못 받았을 때(네트워크 너머 프록시 오류 등)만 문장으로 추정한다.
  */
+/**
+ * 포트원에 그런 결제가 아예 없는가.
+ *
+ * 콘솔 「호출 테스트」 는 example-payment-id 같은 예시 번호로 웹훅을 보낸다.
+ * 서명은 맞으니 통과하고, 조회하면 "없음" 이 온다. 예전엔 이걸 일시 장애로 보고 500 을
+ * 줘서 포트원이 같은 웹훅을 계속 다시 보냈고, 누를 때마다 관리자 화면에 빨간 알림이 쌓였다.
+ * 포트원 공식 예제도 이 경우 200 으로 닫는다 — 기다려도 생기지 않는 결제다.
+ * 키 거절(401)·포트원 장애(5xx)는 여기에 들지 않는다. 그건 다시 받아야 한다.
+ */
+export function isPaymentNotFound(code: string | undefined, httpStatus: number | undefined): boolean {
+  if (code) return code === "PAYMENT_NOT_FOUND";
+  return httpStatus === 404;
+}
+
+/**
+ * 우리 앱이 만든 결제번호인가. place_order(0028)가 `주문번호-난수8자` 로 만든다:
+ * 20261014-0031-0e6ea1b2.
+ *
+ * "포트원에 없는 결제" 를 조용히 넘길지 가르는 데 쓴다. 우리 번호인데 포트원이
+ * 모른다면 그건 테스트가 아니라 키가 엇갈린 것(실연동 결제를 테스트 키로 조회 등)이라
+ * 결제가 확정되지 않는다 — 그때는 500 과 빨간 알림으로 반드시 드러나야 한다.
+ */
+export function isOurPaymentId(paymentId: string): boolean {
+  return /^\d{8}-\d{4}-[0-9a-f]{8}$/.test(paymentId);
+}
+
 export function isAlreadyCancelled(code: string | undefined, message: string): boolean {
   if (code) return code === "PAYMENT_ALREADY_CANCELLED";
   return /이미\s*취소|already\s+cancel/i.test(message);

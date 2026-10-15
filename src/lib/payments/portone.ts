@@ -103,7 +103,7 @@ export interface PortOnePayment {
 export type PortOneResult<T> =
   | { ok: true; data: T }
   /** code 는 포트원이 준 오류 종류 (예: PAYMENT_ALREADY_CANCELLED). 문장보다 믿을 만하다. */
-  | { ok: false; error: string; code?: string };
+  | { ok: false; error: string; code?: string; httpStatus?: number };
 
 async function call(
   path: string,
@@ -133,7 +133,7 @@ async function call(
     if (!response.ok) {
       // 포트원이 준 메시지를 쓰되 없으면 상태 코드만. 우리 시크릿은 섞이지 않는다.
       const message = body?.message ?? `포트원 응답 오류 (${response.status})`;
-      return { ok: false, error: message, code: body?.type };
+      return { ok: false, error: message, code: body?.type, httpStatus: response.status };
     }
 
     return { ok: true, data: body };

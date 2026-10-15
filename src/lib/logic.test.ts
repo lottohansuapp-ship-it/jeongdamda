@@ -9,7 +9,7 @@ import {
 import { alarmTime, checkNewOrders } from "./alarm.ts";
 import { signUpError } from "./auth-errors.ts";
 import { safeNextPath } from "./safe-next.ts";
-import { isAlreadyCancelled } from "./payments/config.ts";
+import { isAlreadyCancelled, isOurPaymentId, isPaymentNotFound } from "./payments/config.ts";
 import { friendlyDbError, NOT_ADMIN_MESSAGE } from "./db-error.ts";
 import {
   keyHealthFromStatus,
@@ -938,6 +938,24 @@ test("safeNextPath: 우리 사이트 경로만 통과시킨다", () => {
   assert.equal(safeNextPath("/\\evil.com"), "/");
   assert.equal(safeNextPath("/\tevil.com"), "/");
   assert.equal(safeNextPath(null), "/");
+});
+
+test("isPaymentNotFound: 포트원에 없는 결제(호출 테스트의 예시 번호)", () => {
+  assert.equal(isPaymentNotFound("PAYMENT_NOT_FOUND", 404), true);
+  // 종류를 못 받았어도 404 면 없는 결제다
+  assert.equal(isPaymentNotFound(undefined, 404), true);
+  // 키 거절·포트원 장애는 "없음" 이 아니다 — 다시 받아야 한다
+  assert.equal(isPaymentNotFound("UNAUTHORIZED", 401), false);
+  assert.equal(isPaymentNotFound(undefined, 500), false);
+  assert.equal(isPaymentNotFound(undefined, undefined), false);
+});
+
+test("isOurPaymentId: 우리가 만든 결제번호 형식만", () => {
+  assert.equal(isOurPaymentId("20261014-0031-0e6ea1b2"), true);
+  // 포트원 콘솔 호출 테스트의 예시 번호
+  assert.equal(isOurPaymentId("example-payment-id"), false);
+  assert.equal(isOurPaymentId("20261014-0031"), false);
+  assert.equal(isOurPaymentId(""), false);
 });
 
 test("isAlreadyCancelled: 오류 종류가 있으면 그것만 본다", () => {

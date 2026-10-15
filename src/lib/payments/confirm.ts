@@ -1,6 +1,6 @@
 import "server-only";
 import { publicClient } from "../supabase/public";
-import { needsRefund } from "./config";
+import { isOurPaymentId, isPaymentNotFound, needsRefund } from "./config";
 import { cancelPayment, getPayment, PAYMENT_DB_SECRET } from "./portone";
 
 /**
@@ -46,7 +46,18 @@ export async function confirmPayment(paymentId: string): Promise<ConfirmResult> 
   }
 
   const payment = await getPayment(paymentId);
-  if (!payment.ok) return { ok: false, error: payment.error };
+  if (!payment.ok) {
+    // 우리 번호가 아닌데 포트원에도 없는 결제다 — 콘솔 「호출 테스트」 의 예시 번호.
+    // 실패로 돌려주면 웹훅이 500 → 포트원이 계속 재시도하고 관리자 빨간 알림이 쌓인다.
+    // 우리 번호인데 없다면 키가 엇갈린 것이라 아래로 내려가 500·알림으로 드러낸다.
+    if (
+      isPaymentNotFound(payment.code, payment.httpStatus) &&
+      !isOurPaymentId(paymentId)
+    ) {
+      return { ok: true, applied: false, status: "NOT_FOUND", orderId: null };
+    }
+    return { ok: false, error: payment.error };
+  }
 
   // 아직 결제되지 않았다. 오류가 아니다 — 가상계좌처럼 나중에 완료되는 수단도 있고
   // 그때 포트원이 웹훅을 다시 보낸다. 주문은 pending_payment 로 남는다.
