@@ -350,6 +350,32 @@ export interface CustomerOrders {
  * 번호(offset) 대신 시각(cursor)으로 넘긴다. 보는 중에 새 주문이 생겨도
  * 경계가 밀리지 않고, orders_user_idx (user_id, created_at desc) 를 그대로 탄다.
  */
+/**
+ * 이 손님이 지난번에 고른 수령 방법(결제까지 간 주문 중 가장 최근). 주문서의 첫 값으로 쓴다.
+ * 매주 픽업하는 단골이 주문할 때마다 「픽업」 을 다시 누르지 않게.
+ * 못 읽으면 null — 첫 값을 정하는 데만 쓰니 주문서를 막을 이유가 없다.
+ */
+export async function getLastFulfillment(): Promise<"pickup" | "delivery" | null> {
+  if (envError()) return null;
+  const userId = await currentUserId();
+  if (!userId) return null;
+
+  const db = await serverClient();
+  const { data, error } = await db
+    .from("orders")
+    .select("fulfillment")
+    .eq("user_id", userId)
+    .not("paid_at", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ fulfillment: string }>();
+
+  if (error || !data) return null;
+  return data.fulfillment === "pickup" || data.fulfillment === "delivery"
+    ? data.fulfillment
+    : null;
+}
+
 export async function getOrders(before?: string): Promise<CustomerOrders> {
   if (envError()) return { orders: [], nextCursor: null };
 

@@ -884,6 +884,36 @@ test("reconcileDraft: 저장된 것이 없으면 배달이 기본", () => {
   );
 });
 
+test("reconcileDraft: 지난 주문이 픽업이면 픽업으로 시작한다(배송지가 있어도)", () => {
+  assert.equal(
+    reconcileDraft({}, { ...DRAFT_CONTEXT, lastFulfillment: "pickup" }).fulfillment,
+    "pickup",
+  );
+});
+
+test("reconcileDraft: 주문 이력도 배송지도 없으면 픽업으로 시작한다", () => {
+  assert.equal(
+    reconcileDraft({}, { ...DRAFT_CONTEXT, addressIds: [], defaultAddressId: "" }).fulfillment,
+    "pickup",
+  );
+});
+
+test("reconcileDraft: 지난 주문이 배달이어도 지금 배달이 막혔으면 픽업", () => {
+  assert.equal(
+    reconcileDraft({}, { ...DRAFT_CONTEXT, lastFulfillment: "delivery", deliveryEnabled: false })
+      .fulfillment,
+    "pickup",
+  );
+});
+
+test("reconcileDraft: 고르던 값이 지난 주문보다 먼저다", () => {
+  assert.equal(
+    reconcileDraft({ fulfillment: "delivery" }, { ...DRAFT_CONTEXT, lastFulfillment: "pickup" })
+      .fulfillment,
+    "delivery",
+  );
+});
+
 test("pickupSlots: 픽업이 꺼져 있거나 마감 후면 비어 있다", () => {
   assert.deepEqual(
     pickupSlots(store({ pickup_enabled: false }), { weekday: 1, minutes: 600 }),

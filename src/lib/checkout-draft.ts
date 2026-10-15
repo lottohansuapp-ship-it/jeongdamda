@@ -75,6 +75,8 @@ export interface DraftContext {
   defaultAddressId: string;
   /** 지금 고를 수 있는 픽업 시간대 */
   slots: readonly string[];
+  /** 이 손님의 지난 주문 수령 방법. 주문한 적이 없으면 비어 있다. */
+  lastFulfillment?: CheckoutDraft["fulfillment"] | null;
 }
 
 /**
@@ -102,12 +104,25 @@ export function reconcileDraft(
   };
 }
 
-/** 배달이 기본이다. 꺼져 있으면 픽업으로. */
+/**
+ * 수령 방법의 첫 값.
+ *
+ *   1. 고르던 값(「추가 주문」 으로 다녀온 경우)
+ *   2. 지난 주문과 같은 방법 — 예전엔 늘 배달로 시작해서, 매주 픽업하는 단골이
+ *      주문할 때마다 「픽업」 을 다시 눌러야 했다
+ *   3. 처음이면 배송지가 있을 때만 배달 — 없으면 첫 화면이 "등록된 배송지가 없어요" 였다
+ * 고른 쪽이 지금 막혀 있으면(배달 시간 아님 등) 다른 쪽으로.
+ */
 function resolveFulfillment(
   saved: CheckoutDraft["fulfillment"] | undefined,
   context: DraftContext,
 ): CheckoutDraft["fulfillment"] {
-  if (saved === "pickup" && context.pickupEnabled) return "pickup";
-  if (saved === "delivery" && context.deliveryEnabled) return "delivery";
-  return context.deliveryEnabled ? "delivery" : "pickup";
+  const wanted =
+    saved ??
+    context.lastFulfillment ??
+    (context.addressIds.length > 0 ? "delivery" : "pickup");
+
+  if (wanted === "pickup" && context.pickupEnabled) return "pickup";
+  if (wanted === "delivery" && context.deliveryEnabled) return "delivery";
+  return context.pickupEnabled ? "pickup" : "delivery";
 }

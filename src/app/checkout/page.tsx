@@ -11,6 +11,7 @@ import {
 import {
   getAddresses,
   getCart,
+  getLastFulfillment,
   getMyCoupons,
   getProfile,
   getStore,
@@ -44,7 +45,7 @@ export default function CheckoutPage() {
 }
 
 async function CheckoutBody() {
-  const [profile, cart, addresses, store, coupons, cookieStore] =
+  const [profile, cart, addresses, store, coupons, cookieStore, lastFulfillment] =
     await Promise.all([
       getProfile(),
       getCart(),
@@ -52,6 +53,7 @@ async function CheckoutBody() {
       getStore(),
       getMyCoupons(),
       cookies(),
+      getLastFulfillment(),
     ]);
 
   if (!profile) redirect("/login?next=%2Fcheckout");
@@ -82,6 +84,8 @@ async function CheckoutBody() {
         addresses[0]?.id ??
         "",
       slots,
+      // 지난번과 같은 수령 방법으로 시작한다. 처음이면 배송지가 있을 때만 배달.
+      lastFulfillment,
     },
   );
 
