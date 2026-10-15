@@ -1068,11 +1068,17 @@ test("availableMethods: KCP 간편결제·계좌이체는 카드 채널로 부�
   assert.equal(all[4].payMethod, "VIRTUAL_ACCOUNT");
 });
 
-test("vbankDueDate: 지금부터 30분 뒤를 한국 시간 YYYYMMDDHHmmss 로", () => {
+test("vbankDueDate: 지금부터 30분 뒤를 시간대 붙은 ISO8601(한국 시간) 로", () => {
+  // 포트원 서버는 시간대가 붙은 ISO8601 만 받는다 — "20261015123000" 은 거절됐다.
   // UTC 03:00 = 한국 12:00
-  assert.equal(vbankDueDate(new Date("2026-10-15T03:00:00Z")), "20261015123000");
+  assert.equal(vbankDueDate(new Date("2026-10-15T03:00:00Z")), "2026-10-15T12:30:00+09:00");
   // 한국 자정을 넘는 경우 날짜도 넘어간다 (UTC 14:45 = 한국 23:45 → 00:15)
-  assert.equal(vbankDueDate(new Date("2026-10-15T14:45:00Z")), "20261016001500");
+  assert.equal(vbankDueDate(new Date("2026-10-15T14:45:00Z")), "2026-10-16T00:15:00+09:00");
+  // 같은 순간을 가리켜야 한다
+  assert.equal(
+    Date.parse(vbankDueDate(new Date("2026-10-15T03:00:00Z"))),
+    Date.parse("2026-10-15T03:30:00Z"),
+  );
 });
 
 test("bankLabel: 포트원 은행 코드를 한글로, 모르는 코드는 그대로", () => {

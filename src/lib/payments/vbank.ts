@@ -9,16 +9,18 @@
 export const VBANK_MINUTES = 30;
 
 /**
- * 결제창에 넘길 입금 기한 — 지금부터 30분 뒤, 한국 시간 `YYYYMMDDHHmmss`.
+ * 결제창에 넘길 입금 기한 — 지금부터 30분 뒤, 시간대가 붙은 ISO8601(한국 시간).
+ * 예: 2026-10-15T12:30:00+09:00
  *
- * SDK 형식에 시간대가 없어서 한국 시간으로 적는다. KCP 가 실제로 정한 기한은
- * 발급 뒤 포트원 조회(expiredAt)로 다시 받아 그 값을 믿는다(confirm.ts).
+ * SDK 타입 설명은 `YYYYMMDDHHmmss` 도 된다고 적혀 있지만 실제 포트원 서버는 거절했다
+ * ("유효한 ISO8601 형식(…Z 또는 …±hh:mm)만 허용", 2026-10-15). 그 메시지를 따른다.
+ * KCP 가 실제로 정한 기한은 발급 뒤 포트원 조회(expiredAt)로 다시 받아 그 값을 믿는다(confirm.ts).
  */
 export function vbankDueDate(now: Date): string {
   const due = new Date(now.getTime() + VBANK_MINUTES * 60_000);
   // 한국은 서머타임이 없어 +9시간 고정이다. 더해서 UTC 로 읽으면 한국 시각이 나온다.
   const kst = new Date(due.getTime() + 9 * 3600_000).toISOString();
-  return kst.slice(0, 19).replace(/[-T:]/g, "");
+  return `${kst.slice(0, 19)}+09:00`;
 }
 
 /**
