@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addToCart } from "@/lib/cart-actions";
@@ -89,6 +90,17 @@ export function AddToCart({
           <p role="alert" className="pb-2 text-[13px] text-danger">
             {message}
           </p>
+        )}
+        {/* 담은 뒤 다음 할 일. 상세에는 하단 탭이 없어서 예전엔 뒤로 → 목록 → 장바구니
+            탭을 거쳐야 했다. */}
+        {done && (
+          <Link
+            href="/cart"
+            className="-mt-1 mb-1.5 flex min-h-12 items-center justify-between rounded-[12px] bg-olive-soft px-3.5 text-[14px] text-olive-deep transition-colors duration-200 hover:bg-olive-soft/70"
+          >
+            <span>{productName}을(를) 담았어요</span>
+            <span className="shrink-0">장바구니 보기 →</span>
+          </Link>
         )}
 
         {/* 두 줄로 나눈다. 수량 조절과 버튼 두 개를 한 줄에 넣으면

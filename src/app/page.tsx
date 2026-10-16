@@ -79,7 +79,8 @@ export default async function HomePage() {
       {/* 전자상거래법은 사업자 정보를 초기화면에 표시하라고 정한다. 여기가 그 자리다. */}
       <SiteFooter />
     </main>
-    <BottomNav active="home" />
+    {/* 담긴 게 있으면 탭 위에 「장바구니 보기 · N개 · 금액」 — 담은 뒤 다음 할 일이 보이게 */}
+    <BottomNav active="home" withCartBar />
     </>
   );
 }

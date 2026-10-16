@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { clearReturnToCheckout, markReturnToCheckout } from "@/components/ui/CartBarLink";
 import { StoreNotice } from "@/components/shop/StoreNotice";
 import { placeOrder } from "@/lib/order-actions";
 import { confirmMyPayment } from "@/lib/payment-actions";
@@ -81,6 +82,9 @@ export function CheckoutBoard({
   const [addressId, setAddressId] = useState(draft.addressId);
   const [slot, setSlot] = useState(draft.slot);
   const [memo, setMemo] = useState(draft.memo);
+
+  // 주문서에 돌아왔다. 목록 하단 바를 다시 「장바구니 보기」 로 되돌린다.
+  useEffect(() => clearReturnToCheckout(), []);
 
   /** 고른 것이 바뀔 때마다 쿠키에 남긴다. "추가 주문"으로 나갔다 와도 그대로다. */
   function remember(changes: Partial<CheckoutDraft>) {
@@ -458,6 +462,9 @@ export function CheckoutBoard({
           {/* 주문서에서 메뉴를 더 담고 싶을 때. 여기서 나가도 담아둔 것은 그대로 남는다. */}
           <Link
             href="/"
+            // 목록의 하단 바가 「주문서로 돌아가기」 가 되게 표시한다. 하나 더 담고
+            // 장바구니 → 주문서 작성하기를 다시 누르지 않게.
+            onClick={markReturnToCheckout}
             className="inline-flex min-h-12 shrink-0 items-center text-[13px] text-clay-deep underline underline-offset-4"
           >
             추가 주문

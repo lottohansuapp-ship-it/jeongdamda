@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { CartBadge } from "./CartBadge";
+import { CartBar } from "./CartBar";
 
 /**
  * 서버 컴포넌트다. 클라이언트 컴포넌트로 만들고 usePathname 으로 활성 탭을 고르면
@@ -18,13 +19,27 @@ const TABS = [
   { key: "account", href: "/account", label: "내 정보", Icon: UserIcon },
 ] as const;
 
-export function BottomNav({ active }: { active: NavTab }) {
+export function BottomNav({
+  active,
+  withCartBar = false,
+}: {
+  active: NavTab;
+  /** 담긴 게 있으면 탭 위에 「장바구니 보기」 바를 띄운다 (반찬을 고르는 홈에서만). */
+  withCartBar?: boolean;
+}) {
   return (
     <nav
       aria-label="주요 메뉴"
       id="main-nav"
       className="sticky bottom-0 z-30 mt-auto border-t border-line bg-white/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
     >
+      {withCartBar && (
+        <div className="mx-auto max-w-[560px]">
+          <Suspense fallback={null}>
+            <CartBar />
+          </Suspense>
+        </div>
+      )}
       <ul className="mx-auto flex max-w-[560px]">
         {TABS.map(({ key, href, label, Icon }) => {
           const on = key === active;
