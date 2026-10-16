@@ -188,11 +188,9 @@ export async function createCategory(
   const db = await authed();
   if (!db) return { ok: false, error: "로그인이 필요합니다." };
 
-  const clean = name.trim().replace(/\s+/g, " ");
-  if (!clean) return { ok: false, error: "카테고리 이름을 입력하세요." };
-  if (clean.length > 20) {
-    return { ok: false, error: "카테고리 이름은 20자까지예요." };
-  }
+  const checked = cleanCategoryName(name);
+  if (!checked.ok) return checked;
+  const clean = checked.data;
 
   const { data, error } = await db
     .from("categories")
@@ -200,17 +198,74 @@ export async function createCategory(
     .select("id")
     .single();
 
-  if (error) {
-    // 23505 = unique 위반. 사장님께는 DB 문구 대신 사람 말로 알린다.
-    const duplicate = error.code === "23505";
-    return {
-      ok: false,
-      error: duplicate ? `'${clean}' 은(는) 이미 있어요.` : error.message,
-    };
-  }
+  if (error) return { ok: false, error: categoryError(error, clean) };
 
   updateTag(PRODUCTS_TAG);
   return { ok: true, data: { id: data.id } };
+}
+
+function cleanCategoryName(name: string): ActionResult<string> {
+  const clean = name.trim().replace(/\s+/g, " ");
+  if (!clean) return { ok: false, error: "카테고리 이름을 입력하세요." };
+  if (clean.length > 20) return { ok: false, error: "카테고리 이름은 20자까지예요." };
+  return { ok: true, data: clean };
+}
+
+/** DB 문구 대신 사장님이 알아들을 말로. */
+function categoryError(error: { code?: string; message: string }, name: string): string {
+  // 23505 = 같은 이름(slug) 이 이미 있다
+  if (error.code === "23505") return `'${name}' 은(는) 이미 있어요.`;
+  return friendlyDbError(error);
+}
+
+/**
+ * 카테고리 이름 바꾸기. slug 도 같이 바꾼다 — createCategory 와 같은 규칙이라
+ * 같은 이름이 두 개 생기는 걸 유니크 제약이 그대로 막는다. 반찬은 id 로 이어져 있어 그대로다.
+ */
+export async function renameCategory(id: string, name: string): Promise<ActionResult> {
+  const db = await authed();
+  if (!db) return { ok: false, error: "로그인이 필요합니다." };
+
+  const checked = cleanCategoryName(name);
+  if (!checked.ok) return checked;
+
+  const { data, error } = await db
+    .from("categories")
+    .update({ name: checked.data, slug: checked.data.toLowerCase() })
+    .eq("id", id)
+    .select("id");
+
+  if (error) return { ok: false, error: categoryError(error, checked.data) };
+  // 0행 = 관리자가 아니라 RLS 가 막았거나 이미 지워졌다
+  if (!data || data.length === 0) return { ok: false, error: NOT_ADMIN_MESSAGE };
+
+  updateTag(PRODUCTS_TAG);
+  return { ok: true, data: undefined };
+}
+
+/**
+ * 카테고리 지우기. 반찬이 남아 있으면 DB 가 막는다(products.category_id on delete restrict, 0001)
+ * — 반찬을 다른 카테고리로 옮긴 뒤에 지우게 안내한다. 반찬이 통째로 사라지는 일은 없다.
+ */
+export async function deleteCategory(id: string): Promise<ActionResult> {
+  const db = await authed();
+  if (!db) return { ok: false, error: "로그인이 필요합니다." };
+
+  const { data, error } = await db.from("categories").delete().eq("id", id).select("id");
+
+  if (error) {
+    if (error.code === "23503") {
+      return {
+        ok: false,
+        error: "이 카테고리에 반찬이 남아 있어요. 반찬을 다른 카테고리로 옮긴 뒤 지워 주세요.",
+      };
+    }
+    return { ok: false, error: friendlyDbError(error) };
+  }
+  if (!data || data.length === 0) return { ok: false, error: NOT_ADMIN_MESSAGE };
+
+  updateTag(PRODUCTS_TAG);
+  return { ok: true, data: undefined };
 }
 
 const PHOTO_BUCKET = "product-photos";

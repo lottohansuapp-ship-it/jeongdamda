@@ -135,7 +135,8 @@ async function ProductBody({ params }: PageProps) {
         </div>
 
         {product.description && (
-          <p className="pt-3 text-[14.5px] leading-relaxed text-ink-soft">
+          // 사장님이 줄을 나눠 쓴 그대로 보인다
+          <p className="whitespace-pre-line pt-3 text-[15px] leading-relaxed text-ink-soft">
             {product.description}
           </p>
         )}

@@ -24,6 +24,7 @@ import { AdminNav } from "./AdminNav";
 import type { ErrorLog } from "@/lib/queries";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { AdminRow } from "./AdminRow";
+import { CategoryManager } from "./CategoryManager";
 
 const TOAST_MS = 2600;
 
@@ -168,6 +169,7 @@ export function AdminBoard({
   /** 카테고리를 고르는 중인가, 새로 만드는 중인가. */
   const [newCategory, setNewCategory] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [managingCategories, setManagingCategories] = useState(false);
   const [filters, setFilters] = useState<ShopFilters>(EMPTY_FILTERS);
 
   const patch = (next: Partial<ShopFilters>) =>
@@ -288,10 +290,14 @@ export function AdminBoard({
       categoryId = made.data.id;
     }
 
+    // 빈 칸은 null 로 — 빈 문자열이면 손님 상세에 제목만 덩그러니 남는다
+    const text = (key: string) => String(formData.get(key) ?? "").trim() || null;
     const result = await createProduct({
       name: String(formData.get("name") ?? ""),
       price: Number(formData.get("price") ?? 0),
       category_id: categoryId,
+      description: text("description"),
+      origin: text("origin"),
       today_stock: Number(formData.get("today_stock") ?? 0),
       badges: ["today"],
       sort_order: order.length + 1,
@@ -449,6 +455,21 @@ export function AdminBoard({
               {newCategory ? "고르기" : "새로 만들기"}
             </button>
           </div>
+          {/* 손님 상세 화면에 그대로 나가는 글. 나중에 반찬의 「수정」 에서도 고칠 수 있다. */}
+          <label className="block">
+            <span className="block pb-1 text-[13px] text-ink-soft">상세 설명 (선택)</span>
+            <textarea
+              name="description"
+              rows={3}
+              maxLength={300}
+              placeholder="예: 국산 시금치를 데쳐 참기름에 무쳤어요. 냉장 2일."
+              className="w-full resize-none rounded-card border border-line bg-canvas p-3.5 text-[15px] leading-relaxed placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+            />
+          </label>
+          <label className="block">
+            <span className="block pb-1 text-[13px] text-ink-soft">원산지 (선택)</span>
+            <input name="origin" maxLength={100} placeholder="예: 시금치(국산), 참기름(중국산)" className={INPUT} />
+          </label>
           <label className="tap-target flex w-full cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-dashed border-line bg-canvas px-4 text-[14px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep">
             {photoName ? `사진: ${photoName}` : "사진 고르기 (선택)"}
             <input
@@ -488,13 +509,35 @@ export function AdminBoard({
           </div>
         </form>
       ) : (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="mb-4 h-12 w-full rounded-card border border-dashed border-line bg-white text-[14px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
-        >
-          + 새 반찬 추가
-        </button>
+        <div className="mb-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="h-12 flex-1 rounded-card border border-dashed border-line bg-white text-[14px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
+          >
+            + 새 반찬 추가
+          </button>
+          <button
+            type="button"
+            onClick={() => setManagingCategories((open) => !open)}
+            aria-expanded={managingCategories}
+            className="h-12 shrink-0 rounded-card border border-line bg-white px-4 text-[14px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep"
+          >
+            {managingCategories ? "카테고리 닫기" : "카테고리 관리"}
+          </button>
+        </div>
+      )}
+
+      {managingCategories && !adding && (
+        <CategoryManager
+          categories={categories}
+          products={products}
+          onNotice={onNotice}
+          onError={onError}
+          onDeleted={(slug) => {
+            if (filters.categorySlug === slug) patch({ categorySlug: null });
+          }}
+        />
       )}
 
       <div className="sticky top-0 z-20 -mx-5 mb-3 bg-canvas/92 px-5 pb-3 pt-2 backdrop-blur-md">

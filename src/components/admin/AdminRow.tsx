@@ -399,12 +399,48 @@ export function AdminRow({
           aria-expanded={open}
           className="ml-auto h-12 rounded-pill border border-line px-3 text-[13px] text-ink-soft transition-colors duration-200 hover:border-ink-faint"
         >
-          {open ? "접기" : "수정"}
+          {open ? "접기" : "수정·설명"}
         </button>
       </div>
 
       {!open ? null : (
       <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3.5 sm:grid-cols-4">
+        {/* 손님 상세에 그대로 나가는 글을 맨 위에 둔다. 펼치자마자 보이게.
+            칸 밖을 누르면 저장된다(가격과 같다). 지울 때는 null — 빈 문자열이면
+            손님 상세에 제목만 덩그러니 남는다. */}
+        <div className="col-span-2 sm:col-span-4">
+          <Field label="상세 설명 · 손님 상세 화면에 보여요">
+            <textarea
+              defaultValue={product.description ?? ""}
+              rows={3}
+              maxLength={300}
+              placeholder="예: 국산 시금치를 데쳐 참기름에 무쳤어요. 냉장 2일."
+              onBlur={(event) => {
+                const value = event.target.value.trim();
+                if (value === (product.description ?? "")) return;
+                patch({ description: value || null }, "상세 설명");
+              }}
+              className="w-full resize-none rounded-[12px] border border-line bg-canvas p-3 text-[15px] leading-relaxed placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+            />
+          </Field>
+        </div>
+        <div className="col-span-2 sm:col-span-4">
+          <Field label="원산지">
+            <input
+              type="text"
+              defaultValue={product.origin ?? ""}
+              maxLength={100}
+              placeholder="예: 시금치(국산), 참기름(중국산)"
+              onBlur={(event) => {
+                const value = event.target.value.trim();
+                if (value === (product.origin ?? "")) return;
+                patch({ origin: value || null }, "원산지");
+              }}
+              className="h-11 w-full rounded-[12px] border border-line bg-canvas px-3 text-[15px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+            />
+          </Field>
+        </div>
+
         <Field label="가격">
           <input
             type="number"
@@ -468,25 +504,6 @@ export function AdminRow({
           </div>
         </Field>
 
-        {/* 한 줄을 다 쓴다. 위 넷은 숫자·버튼이라 좁아도 되지만 이건 글자다.
-            지울 때는 null 로 넣어야 한다 — 빈 문자열은 값이 있는 걸로 쳐서
-            손님 상세에 "원산지" 줄만 덩그러니 남는다. */}
-        <div className="col-span-2 sm:col-span-4">
-          <Field label="원산지">
-            <input
-              type="text"
-              defaultValue={product.origin ?? ""}
-              placeholder="국내산"
-              onBlur={(event) => {
-                const value = event.target.value.trim();
-                if (value === (product.origin ?? "")) return;
-                patch({ origin: value || null }, "원산지");
-              }}
-              className="h-11 w-full rounded-[12px] border border-line bg-canvas px-3 text-[14px] placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
-            />
-          </Field>
-        </div>
-
         <div className="col-span-2 flex justify-end sm:col-span-4">
           <button
             type="button"
@@ -535,7 +552,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="block pb-1 text-[11.5px] text-ink-faint">{label}</span>
+      <span className="block pb-1 text-[13px] text-ink-soft">{label}</span>
       {children}
     </label>
   );
