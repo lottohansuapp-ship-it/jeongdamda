@@ -3,6 +3,7 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { StoreForm } from "@/components/admin/StoreForm";
+import { PasswordResetCard } from "@/components/admin/PasswordResetCard";
 import { getStore } from "@/lib/queries";
 import { missingPaymentConfig } from "@/lib/payments/portone";
 import { storeOpenState, toSeoulClock } from "@/lib/store";
@@ -51,6 +52,7 @@ async function StoreBody() {
     <>
       <PaymentStatus />
       <StoreForm settings={settings} areas={areas} openState={openState} />
+      <PasswordResetCard />
     </>
   );
 }

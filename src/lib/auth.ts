@@ -4,9 +4,10 @@ import { redirect, RedirectType } from "next/navigation";
 import { headers } from "next/headers";
 import { serverClient } from "./supabase/server";
 import { normalizePhone } from "./format";
-import { PHONE_TAKEN_MESSAGE } from "./store-info";
+import { PHONE_TAKEN_MESSAGE, STORE_INFO } from "./store-info";
 import { signUpError } from "./auth-errors";
 import { safeNextPath } from "./safe-next";
+import { isPhoneAccountEmail, loginEmailFor, phoneLoginEmail } from "./phone-login";
 
 export interface AuthState {
   error: string | null;
@@ -30,19 +31,24 @@ export async function signIn(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
-  const email = String(formData.get("email") ?? "").trim();
+  // 한 칸에 이메일도 휴대폰 번호도 받는다 (phone-login.ts)
+  const id = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const next = safeNext(formData.get("next"));
 
+  const email = loginEmailFor(id);
   if (!email || !password) {
-    return { error: "이메일과 비밀번호를 입력해 주세요.", notice: null };
+    return { error: "휴대폰 번호(또는 이메일)와 비밀번호를 입력해 주세요.", notice: null };
   }
 
   const db = await serverClient();
   const { error } = await db.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: "이메일 또는 비밀번호가 올바르지 않습니다.", notice: null };
+    return {
+      error: "휴대폰 번호(또는 이메일)나 비밀번호가 맞지 않아요.",
+      notice: null,
+    };
   }
 
   // replace — 로그인 화면이 기록에 남으면 뒤로가기가 로그인 화면으로 갔다가 다시 튕겨 나온다.
@@ -74,7 +80,10 @@ export async function signUp(
   if (!phone) {
     return { error: "휴대폰 번호를 다시 확인해 주세요.", notice: null };
   }
-  if (!email || !password) {
+  // 휴대폰으로 가입하면 이메일 칸이 없다. 번호가 곧 로그인 아이디다.
+  const byPhone = formData.get("method") === "phone";
+  const loginEmail = byPhone ? phoneLoginEmail(phone) : email;
+  if (!loginEmail || !password) {
     return { error: "이메일과 비밀번호를 입력해 주세요.", notice: null };
   }
   if (password.length < 8) {
@@ -83,7 +92,7 @@ export async function signUp(
 
   const db = await serverClient();
   const { data, error } = await db.auth.signUp({
-    email,
+    email: loginEmail,
     password,
     options: {
       data: { name, phone },
@@ -91,7 +100,14 @@ export async function signUp(
     },
   });
 
-  if (error) return { error: signUpError(error), notice: null };
+  if (error) {
+    const message = signUpError(error);
+    // 번호 계정의 "이미 가입된 이메일" 은 손님이 넣은 적 없는 이메일 이야기다.
+    return {
+      error: byPhone && message.includes("이메일") ? PHONE_TAKEN_MESSAGE : message,
+      notice: null,
+    };
+  }
 
   // 이메일 확인이 켜져 있으면 세션 없이 돌아온다
   if (!data.session) {
@@ -195,6 +211,13 @@ export async function requestPasswordReset(
 ): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim();
   if (!email) return { error: "이메일을 입력해 주세요.", notice: null };
+  // 번호 계정의 메일은 사장님 메일함으로 간다(phone-login.ts) — 보내지 않고 전화로 안내한다.
+  if (!email.includes("@") || isPhoneAccountEmail(email)) {
+    return {
+      error: `휴대폰 번호로 가입하셨다면 매장(${STORE_INFO.phone})에 전화 주세요. 임시 비밀번호를 알려 드려요.`,
+      notice: null,
+    };
+  }
 
   const db = await serverClient();
   await db.auth.resetPasswordForEmail(email, {

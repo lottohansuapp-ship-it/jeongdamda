@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ next?: string; mode?: string }>;
+  searchParams: Promise<{ next?: string; mode?: string; error?: string }>;
 }
 
 export default function LoginPage({ searchParams }: PageProps) {
@@ -25,7 +25,7 @@ export default function LoginPage({ searchParams }: PageProps) {
 }
 
 async function LoginBody({ searchParams }: PageProps) {
-  const { next, mode } = await searchParams;
+  const { next, mode, error } = await searchParams;
   const target =
     next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
@@ -64,10 +64,28 @@ async function LoginBody({ searchParams }: PageProps) {
         next={target}
         initialMode={mode === "signup" ? "signup" : "login"}
         kakaoEnabled={process.env.NEXT_PUBLIC_KAKAO_LOGIN_ENABLED === "1"}
+        notice={
+          error
+            ? Object.hasOwn(CALLBACK_NOTICE, error)
+              ? CALLBACK_NOTICE[error]
+              : CALLBACK_NOTICE.default
+            : null
+        }
       />
     </>
   );
 }
+
+/*
+  메일 인증·카카오 로그인에서 돌아오다 실패하면 auth/callback 이 ?error= 를 붙여 보낸다.
+  예전엔 그 값을 읽지 않아 빈 로그인 화면만 떴다. 메일 앱 안 브라우저에서 링크를 열면
+  흔히 나는 일이고, 그때도 인증 자체는 끝나 있는 경우가 많다. 문구는 정해 둔 것만 쓴다.
+*/
+const CALLBACK_NOTICE: Record<string, string> = {
+  exchange_failed:
+    "인증 링크를 다른 앱에서 여셔서 자동 로그인이 안 됐어요. 가입하신 정보로 아래에서 로그인해 주세요.",
+  default: "로그인을 마치지 못했어요. 아래에서 다시 로그인해 주세요.",
+};
 
 function Skeleton() {
   return (

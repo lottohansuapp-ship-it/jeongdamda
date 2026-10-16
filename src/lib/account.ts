@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { currentUserId, serverClient } from "./supabase/server";
 import { normalizePhone } from "./format";
-import { PHONE_TAKEN_MESSAGE } from "./store-info";
+import { PHONE_TAKEN_MESSAGE, STORE_INFO } from "./store-info";
+import { isPhoneAccountEmail, phoneLoginEmail } from "./phone-login";
 import type { ActionResult } from "@/types/database";
 
 async function authed() {
@@ -36,6 +37,17 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   const phone = normalizePhone(rawPhone);
   if (!phone) {
     return { ok: false, error: "휴대폰 번호를 다시 확인해 주세요." };
+  }
+
+  // 휴대폰으로 가입한 손님은 번호가 로그인 아이디다. 여기서 번호만 바꾸면
+  // 다음 로그인 때 새 번호로는 못 들어온다 — 바꾸지 못하게 막고 매장으로 안내한다.
+  const { data: claims } = await session.db.auth.getClaims();
+  const loginEmail = claims?.claims.email;
+  if (isPhoneAccountEmail(loginEmail) && phoneLoginEmail(phone) !== loginEmail) {
+    return {
+      ok: false,
+      error: `휴대폰 번호로 가입하셔서 번호가 로그인 아이디예요. 번호를 바꾸시려면 매장(${STORE_INFO.phone})에 전화 주세요.`,
+    };
   }
 
   const { error } = await session.db

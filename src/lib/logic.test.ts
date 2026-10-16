@@ -26,6 +26,7 @@ import {
 } from "./payments/methods.ts";
 import { bankLabel, vbankDueDate } from "./payments/vbank.ts";
 import { parsePendingAdd } from "./pending-add.ts";
+import { isPhoneAccountEmail, loginEmailFor, phoneLoginEmail } from "./phone-login.ts";
 import { cancelDeadline, canCustomerCancel, displayStatus, refundNotice } from "./orders.ts";
 import {
   bestCoupon,
@@ -1622,4 +1623,26 @@ test("계좌가 발급된 결제 대기 주문은 입금 대기로 보인다", (
   assert.equal(displayStatus("pending_payment", true).label, "입금 대기");
   assert.equal(displayStatus("pending_payment", false).label, "결제 대기");
   assert.equal(displayStatus("paid", true).label, "결제 완료");
+});
+
+// --- 휴대폰 번호 가입: 번호 ↔ 로그인 아이디
+test("휴대폰 번호는 매장 메일의 + 주소로 바뀐다(하이픈 유무 같게)", () => {
+  assert.equal(phoneLoginEmail("010-1234-5678"), "jeongdamtta+p01012345678@gmail.com");
+  assert.equal(phoneLoginEmail("01012345678"), "jeongdamtta+p01012345678@gmail.com");
+  assert.equal(phoneLoginEmail("010 1234 5678"), "jeongdamtta+p01012345678@gmail.com");
+  assert.equal(phoneLoginEmail("1234"), null);
+});
+
+test("로그인 칸: 이메일은 그대로, 번호는 로그인 아이디로", () => {
+  assert.equal(loginEmailFor(" Kim@Example.com "), "kim@example.com");
+  assert.equal(loginEmailFor("010-1234-5678"), "jeongdamtta+p01012345678@gmail.com");
+  assert.equal(loginEmailFor("아무말"), null);
+  assert.equal(loginEmailFor(""), null);
+});
+
+test("휴대폰 가입 계정인지 이메일로 알아본다", () => {
+  assert.equal(isPhoneAccountEmail("jeongdamtta+p01012345678@gmail.com"), true);
+  assert.equal(isPhoneAccountEmail("jeongdamtta@gmail.com"), false);
+  assert.equal(isPhoneAccountEmail("someone+p01012345678@gmail.com"), false);
+  assert.equal(isPhoneAccountEmail(null), false);
 });

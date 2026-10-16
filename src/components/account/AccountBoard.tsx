@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AddressForm, FIELD } from "./AddressForm";
@@ -123,6 +124,13 @@ export function AccountBoard({
             저장
           </button>
         </form>
+        {/* 임시 비밀번호를 받은 손님이 바꿀 길. 예전엔 메일 재설정 링크로만 갈 수 있었다. */}
+        <Link
+          href="/account/password"
+          className="mt-2 flex min-h-12 items-center justify-center text-[14px] text-ink-soft underline underline-offset-4"
+        >
+          비밀번호 바꾸기
+        </Link>
       </section>
 
       <section
