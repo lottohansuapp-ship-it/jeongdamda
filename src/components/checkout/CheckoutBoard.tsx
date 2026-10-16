@@ -169,51 +169,66 @@ export function CheckoutBoard({
     formData.set("user_coupon_id", usable && picked ? picked.id : "");
 
     startTransition(async () => {
-      const result = await placeOrder(formData);
+      const result = await placeOrder(formData).catch(() => ({
+        ok: false as const,
+        error: "주문을 보내지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.",
+      }));
       if (!result.ok) {
         setError(result.error);
+        // 그 사이 품절·픽업 시간 지남이면 화면이 낡은 그대로라 같은 걸 또 눌러 또 실패했다.
+        router.refresh();
         return;
       }
 
       const { orderId, paymentId, total: amount } = result.data;
       clearDraft(); // 주문이 만들어졌으니 들고 있을 이유가 없다
 
-      // 결제를 아직 켜지 않았으면 여기서 끝. 주문은 남고 화면이 안내한다.
-      if (!paymentReady) {
+      // 여기부터는 주문이 이미 있다. 무엇이 터지든 오류 화면이 아니라 그 주문으로 보낸다 —
+      // 결제 직후 연결이 끊긴 손님이 「불러오지 못했어요」 를 보면 돈만 나간 줄 안다.
+      try {
+        await payAndConfirm(orderId, paymentId, amount);
+      } catch {
         router.replace(`/orders/${orderId}`);
-        return;
       }
-
-      const paid = await openPaymentWindow({
-        method,
-        paymentId,
-        amount,
-        orderName: orderNameOf(cart),
-        customerName: profile.name ?? "",
-        customerPhone: profile.phone ?? "",
-        shopUserId: profile.id,
-        redirectUrl: `${window.location.origin}/orders/${orderId}`,
-      });
-
-      if (!paid.ok) {
-        // 결제 실패·취소. 주문은 pending_payment 로 남았다가 10분 뒤 재고가 돌아간다.
-        // 손님이 상황을 볼 수 있게 주문 화면으로 보낸다.
-        // 이 화면은 곧 사라지므로 실패 이유를 주문 화면으로 넘긴다 (PaymentFailNotice)
-        try {
-          sessionStorage.setItem(PAY_ERROR_KEY(orderId), paid.error);
-        } catch {
-          // 저장이 막힌 브라우저 — 이유는 못 보여도 주문 화면으로는 간다
-        }
-        setError(paid.error);
-        router.replace(`/orders/${orderId}`);
-        return;
-      }
-
-      // 서버가 포트원에 다시 물어 확정한다. 실패해도 웹훅이 결국 처리하므로
-      // 손님을 막지 않는다 — 주문 화면이 몇 초 뒤 스스로 바뀐다.
-      await confirmMyPayment(paymentId);
-      router.replace(`/orders/${orderId}`);
     });
+  }
+
+  async function payAndConfirm(orderId: string, paymentId: string, amount: number) {
+    // 결제를 아직 켜지 않았으면 여기서 끝. 주문은 남고 화면이 안내한다.
+    if (!paymentReady) {
+      router.replace(`/orders/${orderId}`);
+      return;
+    }
+
+    const paid = await openPaymentWindow({
+      method,
+      paymentId,
+      amount,
+      orderName: orderNameOf(cart),
+      customerName: profile.name ?? "",
+      customerPhone: profile.phone ?? "",
+      shopUserId: profile.id,
+      redirectUrl: `${window.location.origin}/orders/${orderId}`,
+    });
+
+    if (!paid.ok) {
+      // 결제 실패·취소. 주문은 pending_payment 로 남았다가 10분 뒤 재고가 돌아간다.
+      // 손님이 상황을 볼 수 있게 주문 화면으로 보낸다.
+      // 이 화면은 곧 사라지므로 실패 이유를 주문 화면으로 넘긴다 (PaymentFailNotice)
+      try {
+        sessionStorage.setItem(PAY_ERROR_KEY(orderId), paid.error);
+      } catch {
+        // 저장이 막힌 브라우저 — 이유는 못 보여도 주문 화면으로는 간다
+      }
+      setError(paid.error);
+      router.replace(`/orders/${orderId}`);
+      return;
+    }
+
+    // 서버가 포트원에 다시 물어 확정한다. 실패해도 웹훅이 결국 처리하므로
+    // 손님을 막지 않는다 — 주문 화면이 몇 초 뒤 스스로 바뀐다.
+    await confirmMyPayment(paymentId);
+    router.replace(`/orders/${orderId}`);
   }
 
   return (

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Article, Bullets, PolicyPage } from "@/components/ui/PolicyPage";
 import { STORE_INFO } from "@/lib/store-info";
+import { CANCEL_WINDOW_MINUTES } from "@/lib/orders";
 
 export const metadata: Metadata = {
   title: "취소·환불 정책",
@@ -16,13 +17,13 @@ export default function RefundPage() {
     <PolicyPage title="취소·환불 정책" effectiveFrom="2026년 8월 4일">
       <Article heading="1. 주문 취소">
         <p>
-          결제 후 매장이 주문을 접수하기 전까지는 앱의 주문내역 화면에서 직접
+          결제 후 {CANCEL_WINDOW_MINUTES}분 이내에는 앱의 주문내역 화면에서 직접
           취소하실 수 있습니다. 취소하시면 결제하신 금액 전액이 자동으로
-          환불됩니다.
+          환불됩니다. 주문 화면에 앱에서 취소할 수 있는 마지막 시각을 표시합니다.
         </p>
         <p>
-          매장이 주문을 접수한 뒤에는 이미 조리·포장이 시작되었을 수 있어 앱에서
-          취소가 불가능합니다. 이 경우 {STORE_INFO.phone} 으로 연락해 주시면 진행
+          결제 후 {CANCEL_WINDOW_MINUTES}분이 지나면 반찬을 담고 포장하기 시작하므로
+          앱에서는 취소할 수 없습니다. 이 경우 {STORE_INFO.phone} 으로 연락해 주시면 진행
           상황을 확인하여 안내해 드립니다.
         </p>
       </Article>
@@ -83,7 +84,7 @@ export default function RefundPage() {
 
       <Article heading="6. 배달비">
         <p>
-          매장이 주문을 접수하기 전에 취소하시면 배달비를 포함한 전액이
+          결제 후 {CANCEL_WINDOW_MINUTES}분 이내에 취소하시면 배달비를 포함한 전액이
           환불됩니다. 배달이 이미 출발한 뒤의 취소는 배달비가 환불되지 않을 수
           있습니다.
         </p>

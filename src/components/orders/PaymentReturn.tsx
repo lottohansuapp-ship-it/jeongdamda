@@ -19,6 +19,9 @@ import { confirmMyPayment } from "@/lib/payment-actions";
  * 주소창의 값은 어느 결제를 확인할지 가리키는 데만 쓰고, 금액도 상태도
  * 여기서 오는 값은 믿지 않는다.
  */
+/** 포트원이 "아직 돈이 안 들어왔다" 고 답하는 상태들 (+ 포트원이 모르는 결제) */
+const UNPAID = new Set(["READY", "FAILED", "CANCELLED", "NOT_FOUND"]);
+
 export function PaymentReturn({
   orderId,
   status,
@@ -49,6 +52,9 @@ export function PaymentReturn({
 
     void confirmMyPayment(paymentId).then((result) => {
       if (result.ok) {
+        // 결제가 안 된 채 돌아왔으면 주소를 그대로 둔다. 주소의 code 를 보고
+        // PaymentFailNotice 가 「결제가 진행되지 않았어요」 를 띄운다 — 지우면 그 안내도 사라진다.
+        if (UNPAID.has(result.data.status)) return;
         // 주소창에 남은 결제 파라미터도 함께 지운다.
         router.replace(`/orders/${orderId}`);
         router.refresh();

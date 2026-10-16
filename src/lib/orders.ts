@@ -1,3 +1,5 @@
+import { formatPrice } from "./format.ts";
+
 /**
  * 주문 상태 규칙. 화면마다 if 문을 흩뿌리면 곧 서로 어긋난다.
  * 손님 화면·관리자 화면·서버 액션이 모두 여기를 본다.
@@ -68,11 +70,67 @@ export function nextStatuses(status: string): OrderStatus[] {
 }
 
 /**
- * 손님이 직접 취소할 수 있는 시점 (D23).
- * 사장님이 접수하면 포장이 시작될 수 있으므로 그 뒤로는 매장에 연락해야 한다.
+ * 결제 후 이만큼 지나면 반찬을 담기 시작한다. 그 뒤 취소는 전화로 받는다.
+ * 진짜로 막는 곳은 DB 의 begin_cancel(0030) 이고, 여기는 버튼을 감추는 용도다.
  */
-export function canCustomerCancel(status: string): boolean {
-  return status === "pending_payment" || status === "paid";
+export const CANCEL_WINDOW_MINUTES = 10;
+const CANCEL_WINDOW_MS = CANCEL_WINDOW_MINUTES * 60_000;
+
+/**
+ * 손님이 직접 취소할 수 있는가.
+ * 예전엔 「완료」 직전까지 앱에서 전액 취소가 됐다 — 다 싸 둔 반찬도.
+ */
+export function canCustomerCancel(
+  status: string,
+  paidAt: string | null,
+  now: number = Date.now(),
+): boolean {
+  if (status === "pending_payment") return true;
+  if (status !== "paid") return false;
+  if (!paidAt) return true;
+  return now - Date.parse(paidAt) <= CANCEL_WINDOW_MS;
+}
+
+/** 앱에서 취소할 수 있는 마지막 시각. "10분 남음" 처럼 세지 않는다 — 시각은 늙지 않는다. */
+export function cancelDeadline(paidAt: string | null): string | null {
+  if (!paidAt) return null;
+  return new Date(Date.parse(paidAt) + CANCEL_WINDOW_MS).toISOString();
+}
+
+interface RefundFacts {
+  status: string;
+  total: number;
+  paid_at: string | null;
+  refunded_at: string | null;
+  refund_amount: number | null;
+  vbank_account: string | null;
+}
+
+/**
+ * 취소된 주문에서 손님이 제일 먼저 묻는 것 — "내 돈은?" 에 답한다.
+ * 예전엔 「취소됨 · 사유」 뿐이라 매장으로 전화가 왔다.
+ */
+export function refundNotice(order: RefundFacts): string | null {
+  if (order.status !== "canceled") return null;
+  if (!order.paid_at) return "결제 전에 취소돼서 빠져나간 돈은 없어요.";
+
+  const amount = formatPrice(order.refund_amount ?? order.total);
+  if (order.vbank_account) {
+    return order.refunded_at
+      ? `입금하신 ${amount}을 손님 계좌로 돌려드렸어요.`
+      : "입금하신 금액은 매장에서 손님 계좌로 돌려드려요. 계좌를 여쭤보려고 매장에서 연락드릴게요.";
+  }
+  return order.refunded_at
+    ? `${amount}을 환불했어요. 카드는 3~7영업일 안에 결제 취소로 돌아가요(간편결제는 보통 더 빨라요).`
+    : "환불을 처리하고 있어요. 하루가 지나도 그대로면 매장에 전화 주세요.";
+}
+
+/** 손님에게 보이는 상태. 계좌를 받은 결제 대기는 「입금 대기」 다 — 할 일이 다르다. */
+export function displayStatus(status: string, hasVbankAccount: boolean): StatusMeta {
+  if (status === "pending_payment" && hasVbankAccount) {
+    return { label: "입금 대기", hint: "아래 계좌로 입금하면 주문이 확정돼요", tone: "wait" };
+  }
+  return statusMeta(status);
 }
 
 /** 사장님은 완료·취소가 아니면 언제든 취소할 수 있다 (재고는 되돌린다). */

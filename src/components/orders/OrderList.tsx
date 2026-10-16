@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ReorderButton } from "./ReorderButton";
 import { StatusPill } from "./StatusPill";
-import { formatOrderTime, fulfillmentLabel, isSettled } from "@/lib/orders";
+import { formatClock, formatOrderTime, fulfillmentLabel, isSettled } from "@/lib/orders";
 import { formatPrice } from "@/lib/format";
 import type { OrderWithItems } from "@/types/database";
 
@@ -63,7 +63,7 @@ export function OrderList({
 
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[12.5px] text-ink-faint">
+              <p className="text-[13px] text-ink-soft">
                 {formatOrderTime(order.created_at)} ·{" "}
                 {fulfillmentLabel(order.fulfillment)}
               </p>
@@ -71,12 +71,18 @@ export function OrderList({
                 {summarize(order.items)}
               </p>
             </div>
-            <StatusPill status={order.status} />
+            <StatusPill status={order.status} vbank={Boolean(order.vbank_account)} />
           </div>
 
           <p className="pt-2.5 text-[15px] tabular-nums tracking-tight">
             {formatPrice(order.total)}
           </p>
+          {/* 은행 앱에 다녀온 손님이 목록에서 바로 마감을 본다. 계좌는 상세에 있다. */}
+          {order.status === "pending_payment" && order.vbank_due && (
+            <p className="pt-1 text-[14px] text-clay-deep">
+              {formatClock(order.vbank_due)}까지 입금해 주세요
+            </p>
+          )}
 
           {/* 끝난 주문에만 붙인다. 아직 오는 중인 주문에 "다시 담기"가 있으면
               지금 주문이 어떻게 된 건지 헷갈린다. */}

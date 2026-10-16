@@ -10,13 +10,16 @@ import { VbankNotice } from "./VbankNotice";
 import { STORE_INFO } from "@/lib/store-info";
 import { cancelOrder } from "@/lib/order-actions";
 import {
+  cancelDeadline,
   canCustomerCancel,
+  displayStatus,
   formatClock,
   formatOrderTime,
   fulfillmentLabel,
   isSettled,
   progressIndex,
   progressSteps,
+  refundNotice,
   statusMeta,
 } from "@/lib/orders";
 import { formatPrice } from "@/lib/format";
@@ -42,7 +45,7 @@ export function OrderDetail({
     filter: `id=eq.${order.id}`,
   });
 
-  const meta = statusMeta(order.status);
+  const meta = displayStatus(order.status, Boolean(order.vbank_account));
   const isDelivery = order.fulfillment === "delivery";
   /** 가상계좌가 발급됐고 아직 입금 전 (0029) */
   const awaitingDeposit = order.status === "pending_payment" && Boolean(order.vbank_account);
@@ -52,6 +55,9 @@ export function OrderDetail({
     order.status === "pending_payment" && !awaitingDeposit
       ? formatClock(order.reserved_until)
       : "";
+
+  const canCancel = canCustomerCancel(order.status, order.paid_at);
+  const cancelUntil = order.status === "paid" ? formatClock(cancelDeadline(order.paid_at)) : "";
 
   function cancel() {
     const message = awaitingDeposit
@@ -77,15 +83,15 @@ export function OrderDetail({
             존재 이유가 바로 그 알림이라 status 영역으로 감싼다.
           */}
           <div role="status" className="min-w-0">
-            <p className="text-[12.5px] text-ink-faint">
+            <p className="text-[13px] text-ink-soft">
               주문번호 {order.order_no}
             </p>
             <p className="pt-1.5 text-[19px] leading-snug">{meta.label}</p>
-            <p className="pt-1 text-[13.5px] leading-relaxed text-ink-soft">
+            <p className="pt-1 text-[14px] leading-relaxed text-ink-soft">
               {meta.hint}
             </p>
           </div>
-          <StatusPill status={order.status} />
+          <StatusPill status={order.status} vbank={Boolean(order.vbank_account)} />
         </div>
 
         {/*
@@ -99,9 +105,11 @@ export function OrderDetail({
 
         {order.status === "pending_payment" && !awaitingDeposit && (
           <div className="mt-4 rounded-[12px] bg-cream p-3.5">
-            <p className="text-[13px] leading-relaxed">
+            {/* 결제를 안 한 손님과 막 결제하고 확정을 기다리는 손님이 같은 화면을 본다.
+                예전엔 둘 다 「확인하고 있어요」 라서 결제창을 닫은 손님이 하염없이 기다렸다. */}
+            <p className="text-[14px] leading-relaxed">
               {paymentReady
-                ? "결제를 확인하고 있어요. 잠시만 기다려 주세요."
+                ? "아직 결제가 끝나지 않았어요. 방금 결제하셨다면 잠시 뒤 자동으로 바뀌고, 결제 전이라면 아래 「다시 결제하기」를 눌러 주세요."
                 : "결제 기능은 준비 중이에요. 지금은 주문만 접수된 상태예요."}
               {deadline && (
                 <>
@@ -116,10 +124,13 @@ export function OrderDetail({
           </div>
         )}
 
-        {order.status === "canceled" && order.cancel_reason && (
-          <p className="mt-4 text-[13px] text-ink-soft">
-            사유 · {order.cancel_reason}
-          </p>
+        {order.status === "canceled" && (
+          <div className="mt-4 rounded-[12px] bg-canvas p-3.5 text-[14px] leading-relaxed">
+            {order.cancel_reason && (
+              <p className="text-ink-soft">사유 · {order.cancel_reason}</p>
+            )}
+            <p className={order.cancel_reason ? "pt-1.5" : ""}>{refundNotice(order)}</p>
+          </div>
         )}
 
         {progressIndex(order.status) >= 0 && (
@@ -132,7 +143,19 @@ export function OrderDetail({
         {isDelivery ? (
           <Field label="배송지" value={order.address_snapshot ?? "-"} />
         ) : (
-          <Field label="픽업 시간" value={formatOrderTime(order.pickup_at)} />
+          <>
+            <Field label="픽업 시간" value={formatOrderTime(order.pickup_at)} />
+            {/* 찾으러 와야 하는데 가게 주소가 어디에도 없었다. */}
+            <Field label="매장 위치" value={STORE_INFO.address} />
+            <a
+              href={`https://map.naver.com/p/search/${encodeURIComponent(STORE_INFO.address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-1 ml-[80px] inline-flex min-h-12 items-center text-[14px] text-olive-deep underline underline-offset-4"
+            >
+              지도에서 보기
+            </a>
+          </>
         )}
         <Field
           label="받는 분"
@@ -208,34 +231,53 @@ export function OrderDetail({
 
       <div className="pt-2.5">
         {paidByVbank && order.status === "paid" ? (
-          <p className="text-center text-[13px] leading-relaxed text-ink-faint">
-            가상계좌로 입금한 주문은 매장({STORE_INFO.phone})에 전화로 취소해 주세요.
+          <p className="text-center text-[14px] leading-relaxed text-ink-soft">
+            가상계좌로 입금한 주문은 매장에 전화로 취소해 주세요.
             <br />
             환불은 매장에서 손님 계좌로 보내 드려요.
           </p>
-        ) : canCustomerCancel(order.status) ? (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={cancel}
-            className="tap-target w-full rounded-card border border-line bg-white text-[14px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger disabled:opacity-40"
-          >
-            {pending ? "취소하는 중…" : "주문 취소"}
-          </button>
+        ) : canCancel ? (
+          <>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={cancel}
+              className="tap-target w-full rounded-card border border-line bg-white text-[14px] text-ink-soft transition-colors duration-200 hover:border-danger hover:text-danger disabled:opacity-40"
+            >
+              {pending ? "취소하는 중…" : "주문 취소"}
+            </button>
+            {cancelUntil && (
+              <p className="pt-2 text-center text-[13.5px] leading-relaxed text-ink-soft">
+                {cancelUntil}까지 앱에서 취소할 수 있어요. 그 뒤에는 매장에 전화해 주세요.
+              </p>
+            )}
+          </>
         ) : (
           order.status !== "completed" &&
           order.status !== "canceled" && (
-            <p className="text-center text-[13px] leading-relaxed text-ink-faint">
-              이미 준비가 시작됐어요. 취소가 필요하면 매장에 연락해 주세요.
+            <p className="text-center text-[14px] leading-relaxed text-ink-soft">
+              반찬 준비를 시작해서 앱에서는 취소할 수 없어요.
+              <br />
+              취소가 필요하면 매장에 전화해 주세요.
             </p>
           )
         )}
       </div>
 
-      <div className="pt-6 text-center">
+      {/* 「매장에 연락해 주세요」 라고만 하고 걸 수가 없었다 — 번호는 푸터에만 있었다. */}
+      {!isSettled(order.status) && (
+        <a
+          href={`tel:${STORE_INFO.phone}`}
+          className="tap-target mt-2.5 flex w-full items-center justify-center rounded-card bg-white text-[14.5px] text-olive-deep shadow-soft transition-colors duration-200 hover:bg-olive-soft"
+        >
+          매장에 전화하기 · {STORE_INFO.phone}
+        </a>
+      )}
+
+      <div className="pt-4 text-center">
         <Link
           href="/orders"
-          className="text-[13px] text-ink-faint underline underline-offset-4"
+          className="inline-flex min-h-12 items-center text-[14px] text-ink-soft underline underline-offset-4"
         >
           주문내역으로
         </Link>
@@ -285,7 +327,7 @@ function Section({
 }) {
   return (
     <section className="mt-2.5 rounded-card bg-white p-5 shadow-soft">
-      <h2 className="pb-3.5 text-[13px] text-ink-faint">{title}</h2>
+      <h2 className="pb-3.5 text-[14px] text-ink-soft">{title}</h2>
       {children}
     </section>
   );
@@ -294,10 +336,10 @@ function Section({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-3 pb-2.5 last:pb-0">
-      <span className="w-[68px] shrink-0 text-[13px] text-ink-faint">
+      <span className="w-[68px] shrink-0 text-[13.5px] text-ink-soft">
         {label}
       </span>
-      <span className="min-w-0 flex-1 text-[13.5px] leading-relaxed">
+      <span className="min-w-0 flex-1 text-[14px] leading-relaxed">
         {value}
       </span>
     </div>

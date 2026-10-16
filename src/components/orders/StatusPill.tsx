@@ -1,4 +1,4 @@
-import { statusMeta } from "@/lib/orders";
+import { displayStatus } from "@/lib/orders";
 
 const TONE: Record<string, string> = {
   wait: "bg-cream text-clay-deep",
@@ -8,12 +8,12 @@ const TONE: Record<string, string> = {
 };
 
 /** 상태 뱃지. 손님 화면과 관리자 화면이 같은 말, 같은 색을 쓴다. */
-export function StatusPill({ status }: { status: string }) {
-  const meta = statusMeta(status);
+export function StatusPill({ status, vbank = false }: { status: string; vbank?: boolean }) {
+  const meta = displayStatus(status, vbank);
 
   return (
     <span
-      className={`inline-flex h-7 shrink-0 items-center rounded-pill px-2.5 text-[12.5px] ${TONE[meta.tone]}`}
+      className={`inline-flex h-7 shrink-0 items-center rounded-pill px-2.5 text-[13px] ${TONE[meta.tone]}`}
     >
       {meta.label}
     </span>

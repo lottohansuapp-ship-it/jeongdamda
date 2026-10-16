@@ -128,6 +128,9 @@ export interface Order {
   paid_at: string | null;
   canceled_at: string | null;
   cancel_reason: string | null;
+  /** 환불 기록(0012). 취소된 주문에서 손님의 "내 돈은?" 에 답한다. */
+  refunded_at: string | null;
+  refund_amount: number | null;
   /**
    * 가상계좌로 받는 주문(0029). 계좌가 발급되면 채워진다 — 손님 화면에 그대로 보여 준다.
    * 입금된 뒤 취소하면 돈은 사장님이 손님 계좌로 직접 돌려준다.
@@ -156,7 +159,7 @@ export interface OrderWithItems extends Order {
 }
 
 export const ORDER_COLUMNS =
-  "id, order_no, user_id, status, fulfillment, receiver_name, receiver_phone, address_snapshot, pickup_at, subtotal, delivery_fee, discount, total, memo, reserved_until, payment_id, user_coupon_id, paid_at, canceled_at, cancel_reason, vbank_bank, vbank_account, vbank_holder, vbank_due, created_at, updated_at";
+  "id, order_no, user_id, status, fulfillment, receiver_name, receiver_phone, address_snapshot, pickup_at, subtotal, delivery_fee, discount, total, memo, reserved_until, payment_id, user_coupon_id, paid_at, canceled_at, cancel_reason, refunded_at, refund_amount, vbank_bank, vbank_account, vbank_holder, vbank_due, created_at, updated_at";
 
 export const ORDER_ITEM_COLUMNS =
   "id, order_id, product_id, name, unit_price, quantity, line_total";

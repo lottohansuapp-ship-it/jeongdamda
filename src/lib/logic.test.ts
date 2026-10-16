@@ -26,6 +26,7 @@ import {
 } from "./payments/methods.ts";
 import { bankLabel, vbankDueDate } from "./payments/vbank.ts";
 import { parsePendingAdd } from "./pending-add.ts";
+import { cancelDeadline, canCustomerCancel, displayStatus, refundNotice } from "./orders.ts";
 import {
   bestCoupon,
   clampQuantity,
@@ -1558,4 +1559,67 @@ test("needsRefund: 그 밖에는 건드리지 않는다", () => {
   assert.equal(needsRefund("CANCELLED", "canceled"), false, "이미 환불됨");
   assert.equal(needsRefund("FAILED", "canceled"), false, "돈이 안 빠졌다");
   assert.equal(needsRefund("PAID", undefined), false, "주문을 모르면 손대지 않는다");
+});
+
+// --- 손님 취소는 결제 후 10분까지 (0030 begin_cancel 과 같은 규칙)
+test("결제 전 주문은 언제든 손님이 취소할 수 있다", () => {
+  assert.equal(canCustomerCancel("pending_payment", null, Date.parse("2026-10-16T03:00:00Z")), true);
+});
+
+test("결제 후 10분까지만 손님이 취소할 수 있다", () => {
+  const paid = "2026-10-16T03:00:00Z";
+  assert.equal(canCustomerCancel("paid", paid, Date.parse("2026-10-16T03:09:59Z")), true);
+  assert.equal(canCustomerCancel("paid", paid, Date.parse("2026-10-16T03:10:00Z")), true, "딱 10분은 된다(DB 도 > 로 비교)");
+  assert.equal(canCustomerCancel("paid", paid, Date.parse("2026-10-16T03:10:01Z")), false);
+});
+
+test("완료·취소·준비 단계는 손님이 취소할 수 없다", () => {
+  const now = Date.parse("2026-10-16T03:01:00Z");
+  for (const status of ["completed", "canceled", "preparing", "ready"]) {
+    assert.equal(canCustomerCancel(status, "2026-10-16T03:00:00Z", now), false, status);
+  }
+});
+
+test("취소 마감은 결제 시각 + 10분", () => {
+  assert.equal(cancelDeadline("2026-10-16T03:00:00Z"), "2026-10-16T03:10:00.000Z");
+  assert.equal(cancelDeadline(null), null);
+});
+
+// --- 취소된 주문의 환불 안내
+const canceled = { status: "canceled", total: 12000, paid_at: null, refunded_at: null, refund_amount: null, vbank_account: null };
+
+test("결제 전에 취소된 주문은 빠져나간 돈이 없다고 안내", () => {
+  assert.match(refundNotice(canceled) ?? "", /빠져나간 돈은 없어요/);
+});
+
+test("환불된 카드 주문은 환불 금액과 기간을 안내", () => {
+  const text = refundNotice({ ...canceled, paid_at: "x", refunded_at: "y", refund_amount: 9000 }) ?? "";
+  assert.match(text, /9,000원/);
+  assert.match(text, /영업일/);
+});
+
+test("환불 금액이 비어 있으면 결제 금액으로 안내", () => {
+  assert.match(refundNotice({ ...canceled, paid_at: "x", refunded_at: "y" }) ?? "", /12,000원/);
+});
+
+test("가상계좌 입금 주문은 계좌로 돌려준다고 안내", () => {
+  const before = refundNotice({ ...canceled, paid_at: "x", vbank_account: "123" }) ?? "";
+  assert.match(before, /연락/);
+  const after = refundNotice({ ...canceled, paid_at: "x", refunded_at: "y", refund_amount: 12000, vbank_account: "123" }) ?? "";
+  assert.match(after, /계좌로/);
+});
+
+test("결제됐는데 환불 기록이 아직 없으면 진행 중", () => {
+  assert.match(refundNotice({ ...canceled, paid_at: "x" }) ?? "", /환불을 처리하고 있어요/);
+});
+
+test("취소가 아니면 환불 안내가 없다", () => {
+  assert.equal(refundNotice({ ...canceled, status: "paid" }), null);
+});
+
+// --- 가상계좌 입금 대기는 「결제 대기」 가 아니라 「입금 대기」
+test("계좌가 발급된 결제 대기 주문은 입금 대기로 보인다", () => {
+  assert.equal(displayStatus("pending_payment", true).label, "입금 대기");
+  assert.equal(displayStatus("pending_payment", false).label, "결제 대기");
+  assert.equal(displayStatus("paid", true).label, "결제 완료");
 });
