@@ -22,8 +22,22 @@ interface ShopBrowserProps {
 export function ShopBrowser({ categories, products }: ShopBrowserProps) {
   const [filters, setFilters] = useState<ShopFilters>(EMPTY_FILTERS);
 
-  const patch = (next: Partial<ShopFilters>) =>
-    setFilters((current) => ({ ...current, ...next }));
+  function patch(next: Partial<ShopFilters>) {
+    const merged = { ...filters, ...next };
+    saveFilters(merged);
+    setFilters(merged);
+  }
+
+  /*
+    장바구니의 「메뉴 더 담기」·주문서의 「추가 주문」 으로 돌아오면 고르던
+    카테고리·검색이 그대로다. 예전엔 「나물」 을 보다 나가면 돌아와서 다시 골라야 했다.
+    서버는 sessionStorage 를 못 보므로 그린 뒤에 되살린다.
+  */
+  useEffect(() => {
+    const saved = loadFilters(categories);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 브라우저 저장소는 그린 뒤에만 읽을 수 있다
+    if (saved) setFilters(saved);
+  }, [categories]);
 
   const listRef = useRef<HTMLElement>(null);
 
@@ -298,4 +312,38 @@ function SearchIcon() {
       <path d="m13.5 13.5 3.5 3.5" strokeLinecap="round" />
     </svg>
   );
+}
+
+const FILTERS_KEY = "jeongdamda-shop-filters";
+
+function saveFilters(filters: ShopFilters) {
+  try {
+    const { query, categorySlug, badgeKey, hideSoldOut } = filters;
+    sessionStorage.setItem(FILTERS_KEY, JSON.stringify({ query, categorySlug, badgeKey, hideSoldOut }));
+  } catch {
+    // 막힌 브라우저면 돌아왔을 때 처음부터 고르게 된다
+  }
+}
+
+/** 저장된 필터. 그사이 사라진 카테고리는 버린다 — 빈 목록이 뜨면 품절인 줄 안다. */
+function loadFilters(categories: Category[]): ShopFilters | null {
+  try {
+    const raw = sessionStorage.getItem(FILTERS_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Partial<ShopFilters>;
+    const slug =
+      typeof saved.categorySlug === "string" &&
+      categories.some((category) => category.slug === saved.categorySlug)
+        ? saved.categorySlug
+        : null;
+    return {
+      ...EMPTY_FILTERS,
+      query: typeof saved.query === "string" ? saved.query : "",
+      categorySlug: slug,
+      badgeKey: typeof saved.badgeKey === "string" ? saved.badgeKey : null,
+      hideSoldOut: saved.hideSoldOut === true,
+    };
+  } catch {
+    return null;
+  }
 }
