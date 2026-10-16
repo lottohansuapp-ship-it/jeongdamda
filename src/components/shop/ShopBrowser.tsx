@@ -220,31 +220,33 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
               </FilterTab>
             ))}
           </div>
-
-          {/* 보조 필터 — 카테고리 위에 덧씌우는 조건이라 한 단계 약하게.
-              모양(테두리)과 크기 둘 다 다르게 해야 역할이 다르다는 게 읽힌다. */}
-          <div className="mt-1.5 flex gap-1.5">
-            <FilterChip
-              active={filters.badgeKey === RECOMMEND_KEY}
-              onClick={() =>
-                patch({
-                  badgeKey:
-                    filters.badgeKey === RECOMMEND_KEY ? null : RECOMMEND_KEY,
-                })
-              }
-            >
-              추천만
-            </FilterChip>
-            <FilterChip
-              active={filters.hideSoldOut}
-              onClick={() => patch({ hideSoldOut: !filters.hideSoldOut })}
-            >
-              품절 제외
-            </FilterChip>
-          </div>
         </div>
 
-        <div className="flex items-baseline justify-between pb-4 pt-5">
+        {/* 보조 필터 — 카테고리 위에 덧씌우는 조건이라 한 단계 약하게.
+            고정 바 밖에 둔다. 바가 182px 이라 작은 휴대폰에선 반찬이 세 줄밖에 안 보였다.
+            자주 바꾸는 건 검색·카테고리이고, 이 둘은 목록 맨 위에서 고르면 된다.
+            모양(테두리)과 크기 둘 다 다르게 해야 역할이 다르다는 게 읽힌다. */}
+        <div className="flex gap-1.5 pt-2.5">
+          <FilterChip
+            active={filters.badgeKey === RECOMMEND_KEY}
+            onClick={() =>
+              patch({
+                badgeKey:
+                  filters.badgeKey === RECOMMEND_KEY ? null : RECOMMEND_KEY,
+              })
+            }
+          >
+            추천만
+          </FilterChip>
+          <FilterChip
+            active={filters.hideSoldOut}
+            onClick={() => patch({ hideSoldOut: !filters.hideSoldOut })}
+          >
+            품절 제외
+          </FilterChip>
+        </div>
+
+        <div className="flex items-baseline justify-between pb-4 pt-4">
           <h2 id="all-heading" className="text-[19px]">
             {filters.categorySlug
               ? categories.find((c) => c.slug === filters.categorySlug)?.name
