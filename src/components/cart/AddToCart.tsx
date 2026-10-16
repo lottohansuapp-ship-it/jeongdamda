@@ -36,10 +36,15 @@ export function AddToCart({
     const pending = takePendingAdd((item) => item.productId === productId);
     if (!pending) return;
     startTransition(async () => {
-      const result = await addToCart(productId, pending.quantity).catch(() => null);
-      if (result?.ok) {
+      const result = await addToCart(productId, pending.quantity).catch(() => ({
+        ok: false as const,
+        error: "담지 못했어요. 다시 눌러 주세요.",
+      }));
+      if (result.ok) {
         setDone(true);
         router.refresh();
+      } else if (!result.error.includes("로그인")) {
+        setMessage(result.error); // 그 사이 품절 등 — 조용히 안 담기면 담긴 줄 안다
       }
     });
   }, [productId, router]);

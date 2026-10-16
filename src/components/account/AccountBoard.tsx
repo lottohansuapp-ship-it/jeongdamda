@@ -1,8 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { readReturn } from "@/components/ui/CartBarLink";
 import { AddressForm, FIELD } from "./AddressForm";
 import { Toast } from "@/components/ui/Toast";
 import {
@@ -35,6 +34,8 @@ export function AccountBoard({
   coupons,
 }: AccountBoardProps) {
   const router = useRouter();
+  // 주문서의 「받는 분 변경」 으로 왔다 (?back=checkout).
+  const fromCheckout = useSearchParams().get("back") === "checkout";
   const [toast, setToast] = useState<Toast | null>(null);
   const [editing, setEditing] = useState<Address | "new" | null>(null);
 
@@ -49,8 +50,8 @@ export function AccountBoard({
 
   async function onProfileSubmit(formData: FormData) {
     const result = await updateProfile(formData);
-    // 주문서의 「받는 분 변경」 으로 왔으면 저장하고 바로 주문서로 돌려보낸다.
-    if (result.ok && readReturn()) router.push("/checkout");
+    // 주문서에서 왔으면 저장하고 바로 주문서로 돌려보낸다.
+    if (result.ok && fromCheckout) router.push("/checkout");
     else if (result.ok) notice("내 정보를 저장했어요");
     else fail(result.error);
   }

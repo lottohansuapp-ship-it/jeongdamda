@@ -50,7 +50,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
     로그인을 안 하고 돌아왔으면 담기가 거절되고 아무 일도 없다.
   */
   const router = useRouter();
-  const [added, setAdded] = useState<string | null>(null);
+  const [added, setAdded] = useState<{ message: string; tone: "error" | "notice" } | null>(null);
   useEffect(() => {
     const pending = takePendingAdd();
     if (!pending) return;
@@ -59,16 +59,23 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
     const name = products.find((product) => product.id === pending.productId)?.name ?? "반찬";
     void addToCart(pending.productId, pending.quantity)
       .then((result) => {
-        if (!result.ok) return;
-        setAdded(`${name}을(를) 담았어요`);
+        // 로그인 안 하고 돌아왔으면 조용히 넘어간다. 그 사이 품절 같은 건 알린다.
+        if (!result.ok) {
+          if (!result.error.includes("로그인")) setAdded({ message: result.error, tone: "error" });
+          return;
+        }
+        setAdded({ message: `${name}을(를) 담았어요`, tone: "notice" });
         router.refresh(); // 하단 「장바구니 보기」 바를 띄운다
       })
-      .catch(() => {});
+      .catch(() =>
+        setAdded({ message: `${name}을(를) 담지 못했어요. 다시 눌러 주세요.`, tone: "error" }),
+      );
   }, [products, router]);
 
   useEffect(() => {
     if (!added) return;
-    const id = setTimeout(() => setAdded(null), 3000);
+    // 오류는 읽고 판단할 시간을 더 준다 (QuickAdd 와 같다).
+    const id = setTimeout(() => setAdded(null), added.tone === "error" ? 6000 : 3000);
     return () => clearTimeout(id);
   }, [added]);
 
@@ -276,7 +283,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
         )}
       </section>
 
-      {added && <Toast message={added} tone="notice" />}
+      {added && <Toast message={added.message} tone={added.tone} />}
     </>
   );
 }

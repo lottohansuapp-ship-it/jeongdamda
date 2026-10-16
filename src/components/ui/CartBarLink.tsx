@@ -27,7 +27,7 @@ export function clearReturnToCheckout() {
   }
 }
 
-export function readReturn(): boolean {
+function readReturn(): boolean {
   try {
     return sessionStorage.getItem(RETURN_KEY) === "1";
   } catch {

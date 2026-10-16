@@ -286,8 +286,7 @@ export function CheckoutBoard({
             <p className="pt-0.5 text-[13px] text-ink-faint">{profile.phone}</p>
           </div>
           <Link
-            href="/account"
-            onClick={markReturnToCheckout}
+            href="/account?back=checkout"
             className="shrink-0 inline-flex h-12 items-center text-[13px] text-ink-faint underline underline-offset-4"
           >
             변경
