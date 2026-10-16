@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { clearReturnToCheckout, markReturnToCheckout } from "@/components/ui/CartBarLink";
 import { StoreNotice } from "@/components/shop/StoreNotice";
+import { AddressForm } from "@/components/account/AddressForm";
+import { saveAddress } from "@/lib/account";
 import { placeOrder } from "@/lib/order-actions";
 import { confirmMyPayment } from "@/lib/payment-actions";
 import { PAY_ERROR_KEY } from "@/components/orders/PaymentFailNotice";
@@ -89,6 +91,28 @@ export function CheckoutBoard({
   /** 고른 것이 바뀔 때마다 쿠키에 남긴다. "추가 주문"으로 나갔다 와도 그대로다. */
   function remember(changes: Partial<CheckoutDraft>) {
     saveDraft({ fulfillment, addressId, slot, memo, ...changes });
+  }
+
+  const [addingAddress, setAddingAddress] = useState(false);
+
+  async function addAddress(formData: FormData) {
+    setError(null);
+    const result = await saveAddress(formData).catch(() => ({
+      ok: false as const,
+      error: "배송지를 저장하지 못했어요. 인터넷 연결을 확인해 주세요.",
+    }));
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setAddingAddress(false);
+    remember({ addressId: result.data.id });
+    // 고르기와 새 목록을 한 번에 그린다. 따로 하면 새 배송지가 목록에 오기 전
+    // 잠깐 "배송지를 골라 주세요" 가 번쩍인다.
+    startTransition(() => {
+      setAddressId(result.data.id);
+      router.refresh();
+    });
   }
 
   const address = addresses.find((item) => item.id === addressId) ?? null;
@@ -263,7 +287,8 @@ export function CheckoutBoard({
           </div>
           <Link
             href="/account"
-            className="shrink-0 text-[13px] text-ink-faint underline underline-offset-4"
+            onClick={markReturnToCheckout}
+            className="shrink-0 inline-flex h-12 items-center text-[13px] text-ink-faint underline underline-offset-4"
           >
             변경
           </Link>
@@ -272,13 +297,23 @@ export function CheckoutBoard({
 
       {isDelivery ? (
         <Section title="배송지">
-          {addresses.length === 0 ? (
-            <Empty
-              text="등록된 배송지가 없어요"
-              href="/account"
-              action="배송지 등록하기"
+          {/* 주문서 안에서 바로 추가한다. 예전엔 내 정보로 나가 등록하고
+              장바구니 → 주문서를 다시 거쳐 와야 했다. */}
+          {addingAddress ? (
+            <AddressForm
+              address={null}
+              onSubmit={addAddress}
+              onCancel={() => setAddingAddress(false)}
+              onError={setError}
+              className="rounded-[12px] border border-line p-3"
             />
+          ) : addresses.length === 0 ? (
+            <div className="py-1">
+              <p className="text-[13.5px] text-ink-soft">등록된 배송지가 없어요</p>
+              <AddAddressButton onClick={() => setAddingAddress(true)} />
+            </div>
           ) : (
+            <>
             <ul className="space-y-2">
               {addresses.map((item) => (
                 <li key={item.id}>
@@ -311,6 +346,8 @@ export function CheckoutBoard({
                 </li>
               ))}
             </ul>
+            <AddAddressButton onClick={() => setAddingAddress(true)} />
+            </>
           )}
         </Section>
       ) : (
@@ -655,25 +692,15 @@ function Choice({
   );
 }
 
-function Empty({
-  text,
-  href,
-  action,
-}: {
-  text: string;
-  href: string;
-  action: string;
-}) {
+function AddAddressButton({ onClick }: { onClick: () => void }) {
   return (
-    <div className="py-2">
-      <p className="text-[13.5px] text-ink-soft">{text}</p>
-      <Link
-        href={href}
-        className="mt-2 inline-flex text-[13px] text-clay-deep underline underline-offset-4"
-      >
-        {action}
-      </Link>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-2 inline-flex h-12 items-center text-[13.5px] text-clay-deep underline underline-offset-4"
+    >
+      + 새 배송지 추가
+    </button>
   );
 }
 

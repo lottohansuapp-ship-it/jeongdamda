@@ -74,7 +74,9 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   return { ok: true, data: undefined };
 }
 
-export async function saveAddress(formData: FormData): Promise<ActionResult> {
+export async function saveAddress(
+  formData: FormData,
+): Promise<ActionResult<{ id: string }>> {
   const session = await authed();
   if (!session) return { ok: false, error: "로그인이 필요합니다." };
 
@@ -108,18 +110,21 @@ export async function saveAddress(formData: FormData): Promise<ActionResult> {
     is_default: isDefault,
   };
 
-  const { error } = id
+  // 번호를 돌려준다 — 주문서에서 새로 만든 배송지를 바로 골라 두려고.
+  const { data, error } = id
     ? await session.db
         .from("addresses")
         .update(row)
         .eq("id", id)
         .eq("user_id", session.userId)
-    : await session.db.from("addresses").insert(row);
+        .select("id")
+        .single()
+    : await session.db.from("addresses").insert(row).select("id").single();
 
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/account");
-  return { ok: true, data: undefined };
+  return { ok: true, data: { id: data.id } };
 }
 
 export async function setDefaultAddress(id: string): Promise<ActionResult> {
