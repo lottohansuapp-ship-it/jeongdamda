@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { LastOrderCard } from "@/components/shop/LastOrderCard";
 import { ShopBrowser } from "@/components/shop/ShopBrowser";
 import { StoreNotice } from "@/components/shop/StoreNotice";
 import { BottomNav } from "@/components/ui/BottomNav";
@@ -66,6 +68,11 @@ export default async function HomePage() {
           <StoreNotice notice={store.settings.notice} />
         </div>
       )}
+
+      {/* 로그인 손님만. 쿠키를 읽으므로 Suspense 안 — 나머지 홈은 그대로 미리 그려진다. */}
+      <Suspense fallback={null}>
+        <LastOrderCard />
+      </Suspense>
 
       {result.ok ? (
         <ShopBrowser

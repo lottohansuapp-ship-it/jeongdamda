@@ -376,6 +376,39 @@ export async function getLastFulfillment(): Promise<"pickup" | "delivery" | null
     : null;
 }
 
+export interface LastOrder {
+  id: string;
+  createdAt: string;
+  names: string[];
+}
+
+/**
+ * 홈의 「지난번 주문 다시 담기」 용. 결제까지 끝난 가장 최근 주문 하나.
+ * 홈을 깨뜨리면 안 되는 덤이라 못 읽으면 null — 카드가 안 뜰 뿐이다.
+ */
+export async function getLastOrder(): Promise<LastOrder | null> {
+  if (envError()) return null;
+  const userId = await currentUserId();
+  if (!userId) return null;
+
+  const db = await serverClient();
+  const { data, error } = await db
+    .from("orders")
+    .select("id, created_at, items:order_items(name)")
+    .eq("user_id", userId)
+    .not("paid_at", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; created_at: string; items: { name: string }[] }>();
+
+  if (error) {
+    console.error("[getLastOrder]", error.message);
+    return null;
+  }
+  if (!data || data.items.length === 0) return null;
+  return { id: data.id, createdAt: data.created_at, names: data.items.map((item) => item.name) };
+}
+
 export async function getOrders(before?: string): Promise<CustomerOrders> {
   if (envError()) return { orders: [], nextCursor: null };
 
