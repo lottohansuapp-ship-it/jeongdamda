@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { addToCart } from "@/lib/cart-actions";
+import { savePendingAdd } from "@/lib/pending-add";
+import { clearFromList } from "@/components/ui/BackToList";
 
 /**
  * 목록에서 바로 담기. 상세로 들어갔다 나오지 않아도 되게 한다.
@@ -55,7 +57,11 @@ export function QuickAdd({
 
     setState("idle");
     if (result.error.includes("로그인")) {
-      router.push(`/login?next=${encodeURIComponent(`/product/${productId}`)}`);
+      // 로그인 뒤 이 반찬을 자동으로 담고 목록의 이 자리로 돌아온다 (ShopBrowser).
+      // 예전엔 상세로 떨어지고 반찬은 안 담겨 있어서 한 번 더 눌러야 했다.
+      savePendingAdd({ productId, quantity: 1, scrollY: window.scrollY });
+      clearFromList();
+      router.push(`/login?next=${encodeURIComponent("/")}`);
       return;
     }
 

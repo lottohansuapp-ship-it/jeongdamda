@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { markFromList } from "@/components/ui/BackToList";
+import { Toast } from "@/components/ui/Toast";
+import { addToCart } from "@/lib/cart-actions";
+import { takePendingAdd } from "@/lib/pending-add";
 import { hasBadge, MAX_RECOMMENDED, RECOMMEND_KEY } from "@/lib/badges";
 import { EMPTY_FILTERS, filterProducts, isFiltering, soldOutLast, type ShopFilters } from "@/lib/filter";
 import { FilterChip, FilterTab } from "@/components/ui/Filters";
@@ -25,6 +29,34 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
 
   // 상세의 「뒤로」 가 진짜 뒤로가기를 해도 되는지 알려 준다 (BackToList).
   useEffect(() => markFromList(), []);
+
+  /*
+    로그인하러 갔다가 돌아왔다 — 그때 누른 반찬을 담고 목록의 그 자리로 간다.
+    예전엔 돌아와 보면 반찬이 안 담겨 있어서 한 번 더 눌러야 했다.
+    로그인을 안 하고 돌아왔으면 담기가 거절되고 아무 일도 없다.
+  */
+  const router = useRouter();
+  const [added, setAdded] = useState<string | null>(null);
+  useEffect(() => {
+    const pending = takePendingAdd();
+    if (!pending) return;
+    // 화면 전환이 맨 위로 올린 뒤에 내려가야 한다 — 한 프레임 미룬다.
+    if (pending.scrollY) requestAnimationFrame(() => window.scrollTo({ top: pending.scrollY }));
+    const name = products.find((product) => product.id === pending.productId)?.name ?? "반찬";
+    void addToCart(pending.productId, pending.quantity)
+      .then((result) => {
+        if (!result.ok) return;
+        setAdded(`${name}을(를) 담았어요`);
+        router.refresh(); // 하단 「장바구니 보기」 바를 띄운다
+      })
+      .catch(() => {});
+  }, [products, router]);
+
+  useEffect(() => {
+    if (!added) return;
+    const id = setTimeout(() => setAdded(null), 3000);
+    return () => clearTimeout(id);
+  }, [added]);
 
   /**
    * 카테고리를 고르면 목록 첫 줄로 옮겨 준다.
@@ -227,6 +259,8 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
           </div>
         )}
       </section>
+
+      {added && <Toast message={added} tone="notice" />}
     </>
   );
 }

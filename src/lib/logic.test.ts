@@ -25,6 +25,7 @@ import {
   type PaymentChannels,
 } from "./payments/methods.ts";
 import { bankLabel, vbankDueDate } from "./payments/vbank.ts";
+import { parsePendingAdd } from "./pending-add.ts";
 import {
   bestCoupon,
   clampQuantity,
@@ -1041,6 +1042,19 @@ test("bestCoupon: 할인은 상품 금액을 넘지 않는 만큼으로 비교�
 test("bestCoupon: 쓸 수 있는 게 없으면 null", () => {
   assert.equal(bestCoupon([{ id: "x", coupon: { discount: 3000, min_order: 15000 } }], 9000), null);
   assert.equal(bestCoupon([], 9000), null);
+});
+
+test("parsePendingAdd: 10분 안의 올바른 기록만 되살린다", () => {
+  const now = 1_000_000_000_000;
+  const fresh = JSON.stringify({ productId: "p1", quantity: 2, scrollY: 900, savedAt: now - 60_000 });
+  assert.deepEqual(parsePendingAdd(fresh, now), { productId: "p1", quantity: 2, scrollY: 900, savedAt: now - 60_000 });
+  // 로그인을 포기하고 한참 뒤 돌아온 손님에게 엉뚱한 반찬이 담기면 안 된다
+  const stale = JSON.stringify({ productId: "p1", quantity: 1, savedAt: now - 11 * 60_000 });
+  assert.equal(parsePendingAdd(stale, now), null);
+  assert.equal(parsePendingAdd("깨진 값", now), null);
+  assert.equal(parsePendingAdd(null, now), null);
+  assert.equal(parsePendingAdd(JSON.stringify({ productId: "", quantity: 1, savedAt: now }), now), null);
+  assert.equal(parsePendingAdd(JSON.stringify({ productId: "p", quantity: 0, savedAt: now }), now), null);
 });
 
 test("planTidy: 못 사는 줄은 빼고, 재고보다 많으면 재고만큼으로", () => {

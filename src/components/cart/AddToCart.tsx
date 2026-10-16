@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { savePendingAdd, takePendingAdd } from "@/lib/pending-add";
+import { clearFromList } from "@/components/ui/BackToList";
 import { addToCart } from "@/lib/cart-actions";
 import { clampQuantity } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
@@ -27,6 +29,20 @@ export function AddToCart({
   const [message, setMessage] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  // 로그인하러 갔다가 돌아왔다 — 그때 누른 반찬을 이어서 담는다.
+  // 예전엔 돌아와서 「담기」 를 한 번 더 눌러야 했다.
+  useEffect(() => {
+    const pending = takePendingAdd((item) => item.productId === productId);
+    if (!pending) return;
+    startTransition(async () => {
+      const result = await addToCart(productId, pending.quantity).catch(() => null);
+      if (result?.ok) {
+        setDone(true);
+        router.refresh();
+      }
+    });
+  }, [productId, router]);
 
   const soldOut = !available || stock <= 0;
   const ceiling = clampQuantity(Number.MAX_SAFE_INTEGER, stock);
@@ -58,6 +74,9 @@ export function AddToCart({
 
       // 로그인 안 한 손님은 담기를 누른 그 순간 로그인으로 보낸다
       if (result.error.includes("로그인")) {
+        // 로그인 뒤 이 화면으로 돌아와 고른 수량 그대로 자동으로 담는다 (아래 효과).
+        savePendingAdd({ productId, quantity });
+        clearFromList();
         router.push(
           `/login?next=${encodeURIComponent(`/product/${productId}`)}`,
         );

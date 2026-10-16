@@ -23,6 +23,18 @@ export function markFromList() {
   }
 }
 
+/**
+ * 로그인으로 넘어갈 때 지운다. 로그인 화면이 기록에 끼면 상세의 「뒤로」 가
+ * 진짜 뒤로가기를 했을 때 로그인 화면으로 돌아갔다. 지우면 홈으로 보낸다.
+ */
+export function clearFromList() {
+  try {
+    sessionStorage.removeItem(FROM_LIST_KEY);
+  } catch {
+    // 막힌 브라우저면 표시도 못 남겼다 — 할 일이 없다
+  }
+}
+
 function cameFromList(): boolean {
   try {
     return sessionStorage.getItem(FROM_LIST_KEY) === "1" && window.history.length > 1;
