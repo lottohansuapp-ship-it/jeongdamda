@@ -632,8 +632,17 @@ function OrderCard({
               </label>
             </div>
           )}
-          <p className="pb-2 text-[12.5px] text-ink-soft">
-            취소 사유를 골라 주세요. 손님 주문내역에 그대로 보입니다.
+          {/* 알림톡을 켜기 전에는 손님이 취소를 알 길이 없다 — 앱을 열기 전엔.
+              픽업하러 오거나 배달을 기다리게 되므로 전화가 유일한 연락이다. */}
+          <a
+            href={`tel:${order.receiver_phone}`}
+            className="mb-2.5 flex min-h-12 items-center justify-center rounded-[10px] bg-white text-[14px] text-olive-deep"
+          >
+            손님에게 전화하기 · {order.receiver_phone}
+          </a>
+          <p className="pb-2 text-[13.5px] leading-relaxed text-ink-soft">
+            취소 사유를 골라 주세요. 손님 주문내역에 그대로 보여요. 손님에게는 아직
+            자동 알림이 가지 않으니 꼭 전화로 알려 주세요.
           </p>
           <div className="flex flex-wrap gap-1.5">
             {CANCEL_REASONS.map((reason) => (

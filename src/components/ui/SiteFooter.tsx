@@ -30,7 +30,7 @@ export function SiteFooter() {
           <Link
             key={href}
             href={href}
-            className="flex min-h-[44px] items-center text-[12.5px] text-ink-soft underline underline-offset-4"
+            className="flex min-h-12 items-center text-[13px] text-ink-soft underline underline-offset-4"
           >
             {label}
           </Link>
@@ -40,8 +40,9 @@ export function SiteFooter() {
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 pt-4">
         {storeInfoRows().map(({ label, value }) => (
           <div key={label} className="contents">
-            <dt className="whitespace-nowrap">{label}</dt>
-            <dd className={value ? "" : "text-danger"}>{value || "미등록"}</dd>
+            <dt>{label}</dt>
+            {/* 글자를 크게 키운 손님 화면에서 주소·번호 줄이 화면 밖으로 나갔다 */}
+            <dd className={`min-w-0 break-words ${value ? "" : "text-danger"}`}>{value || "미등록"}</dd>
           </div>
         ))}
       </dl>

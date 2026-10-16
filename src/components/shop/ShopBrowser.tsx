@@ -112,9 +112,15 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
 
   // 품절은 뒤로(숨기지 않음). 많이 팔린 날 살 수 있는 반찬을 찾으려고
   // 품절을 몇 개씩 지나치지 않게.
+  // 검색어가 있으면 고른 카테고리를 넘어서 찾는다. 「나물」 을 고른 채 「멸치」 를 치면
+  // 「오늘은 없어요」 가 떠서, 있는 반찬도 없는 줄 알았다(카테고리는 기억까지 된다).
+  const searching = filters.query.trim().length > 0;
   const visible = useMemo(
-    () => soldOutLast(filterProducts(products, filters)),
-    [products, filters],
+    () =>
+      soldOutLast(
+        filterProducts(products, searching ? { ...filters, categorySlug: null } : filters),
+      ),
+    [products, filters, searching],
   );
 
   const recommended = useMemo(
@@ -255,9 +261,11 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
 
         <div className="flex items-baseline justify-between pb-4 pt-4">
           <h2 id="all-heading" className="text-[19px]">
-            {filters.categorySlug
-              ? categories.find((c) => c.slug === filters.categorySlug)?.name
-              : "전체 반찬"}
+            {searching
+              ? "검색 결과"
+              : filters.categorySlug
+                ? categories.find((c) => c.slug === filters.categorySlug)?.name
+                : "전체 반찬"}
           </h2>
           {/* 카테고리를 고르거나 검색어를 치면 목록이 바뀌는데 아무 안내가 없었다.
               결과가 몇 가지인지 읽히면 화면을 처음부터 다시 훑지 않아도 된다. */}
@@ -267,11 +275,21 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
         </div>
 
         {visible.length === 0 ? (
-          <p className="rounded-card bg-white px-6 py-16 text-center text-[14px] leading-relaxed text-ink-soft shadow-soft">
-            찾으시는 반찬이 오늘은 없어요.
-            <br />
-            다른 이름으로 검색해 보시겠어요?
-          </p>
+          <div className="rounded-card bg-white px-6 py-14 text-center text-[15px] leading-relaxed text-ink-soft shadow-soft">
+            <p>
+              찾으시는 반찬이 오늘은 없어요.
+              <br />
+              다른 이름으로 찾아보시겠어요?
+            </p>
+            {/* 막다른 화면에서 한 번에 처음으로 */}
+            <button
+              type="button"
+              onClick={() => patch(EMPTY_FILTERS)}
+              className="mt-4 h-12 rounded-pill border border-line px-5 text-[15px] text-ink transition-colors duration-200 hover:border-olive hover:text-olive-deep"
+            >
+              전체 반찬 보기
+            </button>
+          </div>
         ) : (
           // 세로 카드는 한 화면에 넷이 들어가는데 대부분이 사진이었다.
           // 가로줄이면 같은 높이에 두 배가 들어가고 이름·가격이 한눈에 정렬된다.

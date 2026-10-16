@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CartBoard } from "@/components/cart/CartBoard";
 import { getCart, getMyCoupons, getStore } from "@/lib/queries";
-import { deliveryOpenState, toSeoulClock } from "@/lib/store";
+import { closedNotice, deliveryOpenState, toSeoulClock } from "@/lib/store";
 import { connection } from "next/server";
 
 export const metadata: Metadata = {
@@ -55,15 +55,17 @@ async function CartBody() {
     시계는 서버 것을 쓴다. 기기 시계는 틀릴 수 있고, 실제로 주문을 받을지
     정하는 것도 서버다 (0023 의 delivery_open_now).
   */
-  const deliveryOpen = store.settings
-    ? deliveryOpenState(store.settings, toSeoulClock(new Date()))
-    : null;
+  const clock = toSeoulClock(new Date());
+  const deliveryOpen = store.settings ? deliveryOpenState(store.settings, clock) : null;
+  // 매장 자체가 닫혀 있으면 「픽업만 가능」 이 아니다 — 예전엔 그렇게 잘못 말했다.
+  const closed = store.settings ? closedNotice(store.settings, clock) : null;
 
   return (
     <CartBoard
       cart={cart}
       settings={store.settings}
       deliveryOpen={deliveryOpen?.open ?? false}
+      closed={closed}
       coupons={coupons}
     />
   );

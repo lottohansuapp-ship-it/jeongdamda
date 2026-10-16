@@ -40,7 +40,9 @@ export function AddToCart({
         ok: false as const,
         error: "담지 못했어요. 다시 눌러 주세요.",
       }));
-      if (result.ok) {
+      if (result.ok && pending.next) {
+        router.push(pending.next); // 「바로 주문」 이었다 — 주문서로 이어 간다
+      } else if (result.ok) {
         setDone(true);
         router.refresh();
       } else if (!result.error.includes("로그인")) {
@@ -80,7 +82,7 @@ export function AddToCart({
       // 로그인 안 한 손님은 담기를 누른 그 순간 로그인으로 보낸다
       if (result.error.includes("로그인")) {
         // 로그인 뒤 이 화면으로 돌아와 고른 수량 그대로 자동으로 담는다 (아래 효과).
-        savePendingAdd({ productId, quantity });
+        savePendingAdd({ productId, quantity, ...(next ? { next } : {}) });
         clearFromList();
         router.push(
           `/login?next=${encodeURIComponent(`/product/${productId}`)}`,

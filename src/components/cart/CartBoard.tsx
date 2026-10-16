@@ -32,6 +32,8 @@ interface CartBoardProps {
    * 담고 열고 고른 뒤에 헛걸음한 셈이 된다.
    */
   deliveryOpen: boolean;
+  /** 매장이 닫혀 있으면 그 이유와 다시 여는 때 (store.ts closedNotice). 열려 있으면 null. */
+  closed: { title: string; detail: string } | null;
   /**
    * 지금 쓸 수 있는 쿠폰. 여기서 한 줄 알려 준다.
    *
@@ -132,6 +134,7 @@ export function CartBoard({
   cart,
   settings,
   deliveryOpen,
+  closed,
   coupons,
 }: CartBoardProps) {
   const router = useRouter();
@@ -302,7 +305,7 @@ export function CartBoard({
                       >
                         {line.product.name}
                       </Link>
-                      <p className="pt-0.5 text-[12.5px] text-ink-faint">
+                      <p className="pt-0.5 text-[14px] text-ink-soft">
                         {formatPrice(line.product.price)}
                       </p>
                     </div>
@@ -324,7 +327,7 @@ export function CartBoard({
                   </div>
 
                   {blocked && line.issue && (
-                    <p className="flex flex-wrap items-center gap-x-2 pt-1.5 text-[12.5px] text-danger">
+                    <p className="flex flex-wrap items-center gap-x-2 pt-1.5 text-[13.5px] text-danger">
                       <span>
                         {ISSUE_TEXT[line.issue]}
                         {line.issue === "insufficient" &&
@@ -353,7 +356,7 @@ export function CartBoard({
                     <div className="flex items-center gap-1 rounded-pill border border-line px-1">
                       {/* 연타를 막지 않는다 — 숫자는 이미 바뀌어 있고 저장만 뒤따른다 */}
                       <Step
-                        label="수량 줄이기"
+                        label={`${line.product.name} 수량 줄이기`}
                         disabled={line.quantity <= 1}
                         onClick={() => changeQuantity(line.product.id, line.quantity - 1)}
                       >
@@ -368,7 +371,7 @@ export function CartBoard({
                         {line.quantity}
                       </output>
                       <Step
-                        label="수량 늘리기"
+                        label={`${line.product.name} 수량 늘리기`}
                         disabled={line.quantity >= ceiling}
                         onClick={() => changeQuantity(line.product.id, line.quantity + 1)}
                       >
@@ -441,7 +444,7 @@ export function CartBoard({
           )}
           {view.blockingIssues > 0 && (
             <div className="flex items-center justify-between gap-3 pb-2">
-              <p className="text-[12.5px] text-clay-deep">
+              <p className="text-[13.5px] text-clay-deep">
                 주문할 수 없는 상품 {view.blockingIssues}개를 먼저 정리해 주세요
               </p>
               {/* 품절이 섞이면 줄마다 삭제·−를 눌러야 했다. 한 번에 정리한다. */}
@@ -458,13 +461,17 @@ export function CartBoard({
 
           {coupons.length > 0 && (
             // 쿠폰은 어느 화면에서나 clay 다. 색이 곧 "쿠폰" 이라는 표시가 된다.
-            <p className="mb-2 rounded-[10px] border-l-[4px] border-clay bg-cream px-3 py-2 text-[12.5px] text-clay-deep">
+            <p className="mb-2 rounded-[10px] border-l-[4px] border-clay bg-cream px-3 py-2 text-[13.5px] text-clay-deep">
               쿠폰 {coupons.length}장 있어요 · 주문서에서 쓰실 수 있습니다
             </p>
           )}
 
-          {deliveryClosed && settings ? (
-            <p className="pb-2 text-[12.5px] leading-relaxed text-clay-deep">
+          {closed ? (
+            <p role="status" className="pb-2 text-[14px] leading-relaxed text-clay-deep">
+              {closed.title} · {closed.detail}
+            </p>
+          ) : deliveryClosed && settings ? (
+            <p className="pb-2 text-[13.5px] leading-relaxed text-clay-deep">
               지금은 <strong className="font-normal">픽업만</strong> 가능해요 ·
               배달은 {deliveryHours(settings).open.slice(0, 5)}~
               {deliveryHours(settings).close.slice(0, 5)}에 받아요
@@ -478,7 +485,7 @@ export function CartBoard({
                   </strong>{" "}
                   더 담아야 배달할 수 있어요
                 </span>
-                <span className="text-[11.5px] text-ink-faint">
+                <span className="text-[13px] text-ink-soft">
                   지금도 픽업은 가능해요
                 </span>
               </div>
@@ -505,7 +512,7 @@ export function CartBoard({
                   </strong>{" "}
                   더 담으면 배달비가 무료예요
                 </span>
-                <span className="text-[11.5px] text-ink-faint">
+                <span className="text-[13px] text-ink-soft">
                   지금 주문하면 배달비 {formatPrice(settings?.delivery_fee ?? 0)}
                 </span>
               </div>
@@ -526,7 +533,7 @@ export function CartBoard({
           ) : (
             settings?.delivery_enabled &&
             view.subtotal > 0 && (
-              <p className="pb-2 text-[12.5px] text-olive-deep">
+              <p className="pb-2 text-[13.5px] text-olive-deep">
                 배달 주문할 수 있어요 ·{" "}
                 {/* 실제 금액을 말한다. 예전에는 여기서 무조건 "무료" 라고 했는데,
                     무료 기준을 0 으로 두고 배달비만 받는 설정에서는 거짓말이 된다. */}

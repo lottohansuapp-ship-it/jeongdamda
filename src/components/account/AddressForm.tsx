@@ -140,11 +140,12 @@ export function AddressForm({
         <button
           type="button"
           onClick={search}
-          className={`flex h-12 w-full items-center justify-between rounded-card border bg-canvas px-4 text-left text-[14px] transition-colors duration-200 hover:border-olive ${
+          className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-card border bg-canvas px-4 py-2 text-left text-[15px] transition-colors duration-200 hover:border-olive ${
             address1 ? "border-line" : "border-clay/40"
           }`}
         >
-          <span className={address1 ? "text-ink" : "text-ink-faint"}>
+          {/* 긴 주소는 두 줄로. 높이를 h-12 로 묶어 두면 320px 화면에서 잘렸다. */}
+          <span className={`min-w-0 break-words ${address1 ? "text-ink" : "text-ink-soft"}`}>
             {address1 || "주소 검색하기"}
           </span>
           <span className="shrink-0 text-[13px] text-olive-deep">

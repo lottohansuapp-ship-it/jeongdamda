@@ -151,10 +151,8 @@ async function ProductBody({ params }: PageProps) {
           </dl>
         )}
 
-        <p className="pt-5 text-center text-[12.5px] leading-relaxed text-ink-faint">
-          재고는 매장에서 수정하는 즉시 반영됩니다.
-          <br />
-          방문 전 한 번 더 확인해 주세요.
+        <p className="pt-5 text-center text-[13.5px] leading-relaxed text-ink-soft">
+          남은 수량은 결제할 때 한 번 더 확인해요.
         </p>
 
         <div className="pt-5 text-center">

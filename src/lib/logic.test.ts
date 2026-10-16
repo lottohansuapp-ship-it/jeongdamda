@@ -65,6 +65,8 @@ import {
   pickupTimestamp,
   seoulDate,
   storeOpenState,
+  closedNotice,
+  koreanClock,
   toSeoulClock,
 } from "./store.ts";
 import type { DeliveryArea, StoreSettings } from "../types/database.ts";
@@ -1645,4 +1647,55 @@ test("휴대폰 가입 계정인지 이메일로 알아본다", () => {
   assert.equal(isPhoneAccountEmail("jeongdamtta@gmail.com"), false);
   assert.equal(isPhoneAccountEmail("someone+p01012345678@gmail.com"), false);
   assert.equal(isPhoneAccountEmail(null), false);
+});
+
+// --- 매장이 닫혀 있을 때 홈·장바구니에 먼저 보여 줄 말
+test("시각은 오전/오후로 읽기 쉽게", () => {
+  assert.equal(koreanClock("09:00:00"), "오전 9시");
+  assert.equal(koreanClock("13:30"), "오후 1시 30분");
+  assert.equal(koreanClock("12:00"), "낮 12시");
+  assert.equal(koreanClock("00:00"), "밤 12시");
+});
+
+test("열려 있으면 안내가 없다", () => {
+  assert.equal(closedNotice(store(), { weekday: 1, minutes: 600 }), null);
+});
+
+test("문 열기 전이면 오늘 몇 시부터", () => {
+  const notice = closedNotice(store(), { weekday: 1, minutes: 480 });
+  assert.match(notice?.detail ?? "", /오늘 오전 9시부터/);
+});
+
+test("마감 뒤면 내일 몇 시부터", () => {
+  const notice = closedNotice(store(), { weekday: 1, minutes: 1230 });
+  assert.match(notice?.title ?? "", /마감/);
+  assert.match(notice?.detail ?? "", /내일 오전 9시부터/);
+});
+
+test("내일이 정기 휴무면 그다음 여는 요일로", () => {
+  // 월요일(1) 마감 뒤, 화(2)·수(3) 휴무 → 목요일
+  const notice = closedNotice(store({ closed_weekdays: [2, 3] }), { weekday: 1, minutes: 1230 });
+  assert.match(notice?.detail ?? "", /목요일 오전 9시부터/);
+});
+
+test("오늘이 정기 휴무면 다음 여는 날", () => {
+  const notice = closedNotice(store({ closed_weekdays: [0] }), { weekday: 0, minutes: 600 });
+  assert.match(notice?.title ?? "", /휴무/);
+  assert.match(notice?.detail ?? "", /내일 오전 9시부터/);
+});
+
+test("임시휴무는 다시 여는 때를 모른다", () => {
+  const notice = closedNotice(store({ is_open: false }), { weekday: 1, minutes: 600 });
+  assert.match(notice?.title ?? "", /쉬어요/);
+  assert.doesNotMatch(notice?.detail ?? "", /부터/);
+});
+
+// --- 「바로 주문」 을 누르고 로그인하러 갔으면, 돌아와서 담고 주문서로
+test("담기 기억에 다음 화면을 함께 남긴다(앱 안 경로만)", () => {
+  const now = 1_000_000;
+  const base = { productId: "p1", quantity: 2, savedAt: now };
+  assert.equal(parsePendingAdd(JSON.stringify({ ...base, next: "/checkout" }), now)?.next, "/checkout");
+  assert.equal(parsePendingAdd(JSON.stringify({ ...base, next: "//evil.com" }), now)?.next, undefined);
+  assert.equal(parsePendingAdd(JSON.stringify({ ...base, next: "https://evil.com" }), now)?.next, undefined);
+  assert.equal(parsePendingAdd(JSON.stringify(base), now)?.next, undefined);
 });

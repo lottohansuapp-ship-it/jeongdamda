@@ -13,7 +13,13 @@ export interface PendingAdd {
   quantity: number;
   /** 목록에서 눌렀으면 그때의 스크롤 위치. 돌아와서 그 자리로 간다. */
   scrollY?: number;
+  /** 「바로 주문」 이었으면 담은 뒤 갈 곳(/checkout). 앱 안 경로만 받는다. */
+  next?: string;
   savedAt: number;
+}
+
+function isAppPath(value: unknown): value is string {
+  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") && !value.includes("\\");
 }
 
 const KEY = "jeongdamda-pending-add";
@@ -31,6 +37,7 @@ export function parsePendingAdd(raw: string | null, now: number): PendingAdd | n
       productId: value.productId,
       quantity: Math.floor(value.quantity),
       ...(typeof value.scrollY === "number" ? { scrollY: value.scrollY } : {}),
+      ...(isAppPath(value.next) ? { next: value.next } : {}),
       savedAt: value.savedAt,
     };
   } catch {

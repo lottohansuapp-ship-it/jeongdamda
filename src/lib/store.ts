@@ -337,3 +337,57 @@ export function pickupSlots(
 
   return slots;
 }
+
+/** "09:00:00" → "오전 9시", "13:30" → "오후 1시 30분". 어르신은 24시 표기를 셈해야 한다. */
+export function koreanClock(value: string): string {
+  const total = parseClockTime(value);
+  const hour = Math.floor(total / 60) % 24;
+  const minute = total % 60;
+  const period = hour === 0 ? "밤" : hour < 12 ? "오전" : hour === 12 ? "낮" : "오후";
+  const shown = hour % 12 === 0 ? 12 : hour % 12;
+  return `${period} ${shown}시${minute ? ` ${minute}분` : ""}`;
+}
+
+const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** 오늘 다음으로 여는 날까지 며칠. 정기 휴무를 건너뛴다. 매일 쉬면 null. */
+function daysUntilOpen(closed: number[], today: number): number | null {
+  for (let days = 1; days <= 7; days += 1) {
+    if (!closed.includes((today + days) % 7)) return days;
+  }
+  return null;
+}
+
+/**
+ * 매장이 닫혀 있을 때 홈·장바구니가 먼저 보여 줄 말. 열려 있으면 null.
+ *
+ * 예전엔 주문서에 가서야 「오늘 영업이 끝났어요」 를 봤다. 밤 10시 손님은 가입하고,
+ * 담고, 주문서까지 간 다음에 막혔고 언제 다시 되는지도 몰랐다.
+ */
+export function closedNotice(
+  settings: StoreSettings,
+  clock: SeoulClock,
+): { title: string; detail: string } | null {
+  const state = storeOpenState(settings, clock);
+  if (state.open) return null;
+
+  if (state.reason === "holiday") {
+    return {
+      title: "오늘은 매장이 쉬어요",
+      detail: "지금은 주문을 받지 않아요. 반찬 구경은 하실 수 있어요.",
+    };
+  }
+
+  const opens = koreanClock(settings.open_time);
+  if (state.reason === "before_open") {
+    return { title: "아직 문 열기 전이에요", detail: `오늘 ${opens}부터 주문할 수 있어요.` };
+  }
+
+  const days = daysUntilOpen(settings.closed_weekdays, clock.weekday);
+  const when =
+    days === null ? null : days === 1 ? "내일" : `${WEEKDAY_NAMES[(clock.weekday + days) % 7]}요일`;
+  return {
+    title: state.reason === "weekday_off" ? "오늘은 정기 휴무일이에요" : "오늘 주문은 마감됐어요",
+    detail: when ? `${when} ${opens}부터 주문할 수 있어요.` : "다시 여는 날은 매장에 물어봐 주세요.",
+  };
+}

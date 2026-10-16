@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { clearReturnToCheckout, markReturnToCheckout } from "@/components/ui/CartBarLink";
 import { StoreNotice } from "@/components/shop/StoreNotice";
+import { STORE_INFO } from "@/lib/store-info";
 import { AddressForm } from "@/components/account/AddressForm";
 import { saveAddress } from "@/lib/account";
 import { placeOrder } from "@/lib/order-actions";
@@ -249,7 +250,7 @@ export function CheckoutBoard({
           </p>
           <Link
             href="/cart"
-            className="mt-2 inline-flex text-[13px] text-clay-deep underline underline-offset-4"
+            className="mt-1 inline-flex min-h-12 items-center text-[14px] text-clay-deep underline underline-offset-4"
           >
             장바구니에서 정리하기
           </Link>
@@ -298,11 +299,11 @@ export function CheckoutBoard({
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-[15px]">{profile.name}</p>
-            <p className="pt-0.5 text-[13px] text-ink-faint">{profile.phone}</p>
+            <p className="pt-0.5 text-[14px] text-ink-soft">{profile.phone}</p>
           </div>
           <Link
             href="/account?back=checkout"
-            className="shrink-0 inline-flex h-12 items-center text-[13px] text-ink-faint underline underline-offset-4"
+            className="shrink-0 inline-flex h-12 items-center text-[14px] text-ink-soft underline underline-offset-4"
           >
             변경
           </Link>
@@ -363,6 +364,31 @@ export function CheckoutBoard({
             <AddAddressButton onClick={() => setAddingAddress(true)} />
             </>
           )}
+
+          {/* 배달이 안 되는 이유와 다음 할 일. 예전엔 「이 지역은 어려워요」 한 줄뿐이라
+              어디까지 되는지도, 픽업으로 바꿀 수 있는지도 몰랐다. */}
+          {!addingAddress && address && !quote.ok && (
+            <div className="mt-3 rounded-[12px] bg-cream p-3.5 text-[14px] leading-relaxed">
+              <p className="text-clay-deep">{quote.reason}</p>
+              {settings.restrict_delivery_area && areas.length > 0 && (
+                <p className="pt-1 text-ink-soft">
+                  배달되는 곳 · {areas.map((item) => item.name).join(", ")}
+                </p>
+              )}
+              {settings.pickup_enabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFulfillment("pickup");
+                    remember({ fulfillment: "pickup" });
+                  }}
+                  className="mt-2 h-12 w-full rounded-card border border-olive bg-white text-[15px] text-olive-deep transition-colors duration-200 hover:bg-olive-soft"
+                >
+                  픽업으로 바꾸기
+                </button>
+              )}
+            </div>
+          )}
         </Section>
       ) : (
         <Section title="픽업 시간">
@@ -405,6 +431,18 @@ export function CheckoutBoard({
               ))}
             </div>
           )}
+          {/* 찾으러 와야 하는데 가게 주소가 어디에도 없었다 */}
+          <p className="pt-3.5 text-[14px] leading-relaxed text-ink-soft">
+            찾으러 오실 곳 · {STORE_INFO.address}
+          </p>
+          <a
+            href={`https://map.naver.com/p/search/${encodeURIComponent(STORE_INFO.address)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-12 items-center text-[14px] text-olive-deep underline underline-offset-4"
+          >
+            지도에서 보기
+          </a>
         </Section>
       )}
 
@@ -453,7 +491,7 @@ export function CheckoutBoard({
                     <span className="block text-[14.5px]">
                       {item.coupon.name} {formatPrice(item.coupon.discount)} 할인
                     </span>
-                    <span className="block pt-0.5 text-[12px] text-ink-soft">
+                    <span className="block pt-0.5 text-[13.5px] text-ink-soft">
                       {short
                         ? `${formatPrice(item.coupon.min_order - cart.subtotal)} 더 담으면 쓸 수 있어요`
                         : `${formatOrderTime(item.expires_at)}까지`}
@@ -490,7 +528,7 @@ export function CheckoutBoard({
               >
                 <span className="py-2.5">
                   <span className="block text-[14.5px]">{option.label}</span>
-                  <span className="block pt-0.5 text-[12px] text-ink-soft">
+                  <span className="block pt-0.5 text-[13.5px] text-ink-soft">
                     {option.hint}
                   </span>
                 </span>
@@ -507,7 +545,7 @@ export function CheckoutBoard({
 
       <section className="mb-2.5 rounded-card bg-white p-4 shadow-soft">
         <div className="flex items-baseline justify-between gap-3 pb-3">
-          <h2 className="text-[13px] text-ink-faint">
+          <h2 className="text-[14px] text-ink-soft">
             주문 상품 {cart.lines.length}개
           </h2>
           {/* 주문서에서 메뉴를 더 담고 싶을 때. 여기서 나가도 담아둔 것은 그대로 남는다. */}
@@ -541,7 +579,7 @@ export function CheckoutBoard({
 
         <Link
           href="/cart"
-          className="mt-1 inline-flex min-h-12 items-center text-[13px] text-ink-faint underline underline-offset-4"
+          className="mt-1 inline-flex min-h-12 items-center text-[14px] text-ink-soft underline underline-offset-4"
         >
           수량 변경하기
         </Link>
@@ -616,7 +654,7 @@ export function CheckoutBoard({
           </button>
 
           {!paymentReady && (
-            <p className="pt-2 text-center text-[11.5px] text-ink-faint">
+            <p className="pt-2 text-center text-[13px] text-ink-soft">
               결제 연결 전이라 주문만 접수됩니다
             </p>
           )}
@@ -671,7 +709,7 @@ function Section({
 }) {
   return (
     <section className="mb-2.5 rounded-card bg-white p-4 shadow-soft">
-      <h2 className="pb-3 text-[13px] text-ink-faint">{title}</h2>
+      <h2 className="pb-3 text-[14px] text-ink-soft">{title}</h2>
       {children}
     </section>
   );
@@ -701,7 +739,7 @@ function Choice({
       }`}
     >
       <span className="block text-[15px]">{label}</span>
-      <span className="block pt-0.5 text-[12px] text-ink-faint">{hint}</span>
+      <span className="block pt-0.5 text-[13px] text-ink-soft">{hint}</span>
     </button>
   );
 }
