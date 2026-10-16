@@ -112,7 +112,8 @@ interface RefundFacts {
  */
 export function refundNotice(order: RefundFacts): string | null {
   if (order.status !== "canceled") return null;
-  if (!order.paid_at) return "결제 전에 취소돼서 빠져나간 돈은 없어요.";
+  // 환불 기록을 먼저 본다 — 결제가 늦게 들어와 자동 환불된 주문은 paid_at 이 비어 있을 수 있다.
+  if (!order.paid_at && !order.refunded_at) return "결제 전에 취소돼서 빠져나간 돈은 없어요.";
 
   const amount = formatPrice(order.refund_amount ?? order.total);
   if (order.vbank_account) {

@@ -1699,3 +1699,12 @@ test("담기 기억에 다음 화면을 함께 남긴다(앱 안 경로만)", ()
   assert.equal(parsePendingAdd(JSON.stringify({ ...base, next: "https://evil.com" }), now)?.next, undefined);
   assert.equal(parsePendingAdd(JSON.stringify(base), now)?.next, undefined);
 });
+
+test("늦게 들어와 자동 환불된 결제는 paid_at 이 없어도 환불 안내", () => {
+  const text = refundNotice({ ...canceled, refunded_at: "y", refund_amount: 12000 }) ?? "";
+  assert.match(text, /12,000원을 환불했어요/);
+});
+
+test("번호 계정 아이디는 대소문자·공백이 달라도 알아본다", () => {
+  assert.equal(isPhoneAccountEmail(" JeongDamTta+P01012345678@Gmail.com "), true);
+});

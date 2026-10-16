@@ -82,6 +82,10 @@ export async function signUp(
   }
   // 휴대폰으로 가입하면 이메일 칸이 없다. 번호가 곧 로그인 아이디다.
   const byPhone = formData.get("method") === "phone";
+  // 번호 손님의 로그인 아이디 모양을 이메일로 넣어 남의 번호 자리를 먼저 차지하지 못하게.
+  if (!byPhone && isPhoneAccountEmail(email)) {
+    return { error: "쓸 수 없는 이메일이에요. 다른 이메일을 넣어 주세요.", notice: null };
+  }
   const loginEmail = byPhone ? phoneLoginEmail(phone) : email;
   if (!loginEmail || !password) {
     return { error: "이메일과 비밀번호를 입력해 주세요.", notice: null };

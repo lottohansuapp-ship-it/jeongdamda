@@ -1,5 +1,4 @@
 import { normalizePhone } from "./format.ts";
-import { STORE_INFO } from "./store-info.ts";
 
 /**
  * 휴대폰 번호로 가입한 계정의 로그인 아이디.
@@ -14,8 +13,11 @@ import { STORE_INFO } from "./store-info.ts";
  * 주의: Supabase 에서 「Confirm email」 을 켜면 이 계정들은 확인 메일이 사장님께 가고
  * 로그인이 막힌다. 켜지 말 것 — 켜야 하면 그때 문자 인증으로 옮긴다.
  */
-const [MAIL_USER, MAIL_DOMAIN] = STORE_INFO.email.split("@");
-const PREFIX = `${MAIL_USER}+p`;
+// 절대 바꾸지 말 것. 이미 가입한 번호 손님의 로그인 아이디가 이 글자 그대로다 —
+// 바꾸면 그 손님들은 전부 로그인이 안 된다. 매장 메일(STORE_INFO.email)이 바뀌어도 그대로 둔다.
+const PREFIX = "jeongdamtta+p";
+const MAIL_DOMAIN = "gmail.com";
+const PHONE_ACCOUNT = /^jeongdamtta\+p01\d{8,9}@gmail\.com$/i;
 
 export function phoneLoginEmail(rawPhone: string): string | null {
   const phone = normalizePhone(rawPhone);
@@ -32,5 +34,5 @@ export function loginEmailFor(input: string): string | null {
 
 export function isPhoneAccountEmail(email: string | null | undefined): boolean {
   if (!email) return false;
-  return new RegExp(`^${PREFIX.replace("+", "\\+")}01\\d{8,9}@${MAIL_DOMAIN}$`).test(email);
+  return PHONE_ACCOUNT.test(email.trim());
 }
