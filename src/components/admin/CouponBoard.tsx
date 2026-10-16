@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AdminNav } from "./AdminNav";
 import {
   createCoupon,
+  deleteCoupon,
   grantCoupon,
   setCouponActive,
   updateCoupon,
@@ -49,6 +50,24 @@ export function CouponBoard({
     if (result.ok) {
       setNotice(coupon.is_active ? "껐어요" : "켰어요");
       // 서버 값을 다시 받아온다. 화면에서만 바뀌면 새로고침했을 때 되돌아간다.
+      router.refresh();
+    } else {
+      setError(result.error);
+    }
+  }
+
+  async function remove(coupon: AdminCoupon) {
+    const unused = coupon.issued - coupon.used;
+    const warning =
+      unused > 0
+        ? `손님이 아직 안 쓴 ${unused}장도 쿠폰함에서 사라져요.
+`
+        : "";
+    if (!confirm(`「${coupon.name}」 쿠폰을 지울까요?
+${warning}지난 주문의 할인 금액은 그대로 남아요.`)) return;
+    const result = await deleteCoupon(coupon.id);
+    if (result.ok) {
+      setNotice("지웠어요");
       router.refresh();
     } else {
       setError(result.error);
@@ -164,6 +183,17 @@ export function CouponBoard({
                 className="mt-3 h-11 w-full rounded-card border border-line text-[14px] text-ink-soft transition-colors duration-200 hover:border-olive hover:text-olive-deep disabled:opacity-40"
               >
                 {coupon.is_active ? "회원에게 보내기" : "켜야 보낼 수 있어요"}
+              </button>
+            )}
+
+            {/* 다 쓴 쿠폰이 목록에 쌓인다. 켜진 채로는 못 지우게 — 끄는 게 먼저다. */}
+            {!coupon.is_active && (
+              <button
+                type="button"
+                onClick={() => void remove(coupon)}
+                className="mt-2 h-11 w-full rounded-card text-[13.5px] text-danger transition-colors duration-200 hover:bg-danger/5"
+              >
+                쿠폰 지우기
               </button>
             )}
           </li>

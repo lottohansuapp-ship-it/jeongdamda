@@ -111,3 +111,30 @@ export async function grantCoupon(
   const result = data as { granted?: number } | null;
   return { ok: true, data: { granted: result?.granted ?? 0 } };
 }
+
+/**
+ * 쿠폰 지우기. **꺼진 쿠폰만** 지운다 — 켜진 가입 쿠폰을 실수로 지우면 그날
+ * 가입한 손님이 쿠폰을 못 받는다.
+ *
+ * 지우면 손님에게 나간 쿠폰(user_coupons)도 같이 사라진다(0025 의 on delete cascade).
+ * 지난 주문은 멀쩡하다 — 할인 금액을 orders.discount 에 따로 적어 두었고,
+ * 쿠폰을 가리키던 칸만 비워진다(on delete set null).
+ */
+export async function deleteCoupon(id: string): Promise<ActionResult> {
+  const db = await authed();
+  if (!db) return { ok: false, error: "로그인이 필요합니다." };
+
+  const { data, error } = await db
+    .from("coupons")
+    .delete()
+    .eq("id", id)
+    .eq("is_active", false)
+    .select("id");
+
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  // 0행 — 켜져 있었거나, 이미 지워졌거나, 관리자가 아니라 RLS 가 막았다.
+  if (!data || data.length === 0) {
+    return { ok: false, error: "지우지 못했어요. 쿠폰을 먼저 끄고 다시 시도해 주세요." };
+  }
+  return { ok: true, data: undefined };
+}
