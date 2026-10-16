@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { headers } from "next/headers";
 import { serverClient } from "./supabase/server";
 import { normalizePhone } from "./format";
@@ -45,7 +45,8 @@ export async function signIn(
     return { error: "이메일 또는 비밀번호가 올바르지 않습니다.", notice: null };
   }
 
-  redirect(next);
+  // replace — 로그인 화면이 기록에 남으면 뒤로가기가 로그인 화면으로 갔다가 다시 튕겨 나온다.
+  redirect(next, RedirectType.replace);
 }
 
 export async function signUp(
@@ -103,7 +104,8 @@ export async function signUp(
   // 이메일 확인이 꺼져 있으면 /auth/callback 을 지나지 않는다. 그 경로의
   // 손님도 쿠폰을 받게 여기서도 부른다 — 여러 번 불려도 안전하다.
   await db.rpc("claim_signup_coupon");
-  redirect(next);
+  // replace — 로그인 화면이 기록에 남으면 뒤로가기가 로그인 화면으로 갔다가 다시 튕겨 나온다.
+  redirect(next, RedirectType.replace);
 }
 
 /**
@@ -182,7 +184,8 @@ export async function savePhone(
   // 되돌리지 않는다 — 쿠폰은 덤이고, 못 받았다고 가입이 막히면 안 된다.
   await db.rpc("claim_signup_coupon");
 
-  redirect(next);
+  // replace — 로그인 화면이 기록에 남으면 뒤로가기가 로그인 화면으로 갔다가 다시 튕겨 나온다.
+  redirect(next, RedirectType.replace);
 }
 
 /** 재설정 메일 발송. 계정이 없어도 성공처럼 답한다 — 가입 여부를 알려주면 안 된다. */
