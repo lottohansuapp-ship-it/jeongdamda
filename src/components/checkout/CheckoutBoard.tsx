@@ -23,6 +23,7 @@ import { confirmMyPayment } from "@/lib/payment-actions";
 import { PAY_ERROR_KEY } from "@/components/orders/PaymentFailNotice";
 import { openPaymentWindow, orderNameFrom } from "@/lib/payments/open-window";
 import { PORTONE_CHANNELS } from "@/lib/payments/config";
+import { vbankPickupSlots } from "@/lib/payments/vbank";
 import {
   availableMethods,
   KCP_EXTRAS,
@@ -134,6 +135,20 @@ export function CheckoutBoard({
   );
 
   const isDelivery = fulfillment === "delivery";
+
+  /*
+    가상계좌는 입금을 확인한 뒤에야 사장님이 주문을 본다. 그보다 이른 픽업은 고르지 못하게
+    목록에서 뺀다(vbankPickupSlots). 고른 시간이 빠지면 고르지 않은 것으로 본다.
+  */
+  const byVbank = method?.key === "vbank";
+  const pickupChoices = byVbank ? vbankPickupSlots(slots) : slots;
+  const pickedSlot = pickupChoices.includes(slot) ? slot : "";
+  const vbankNotice =
+    byVbank && !isDelivery && slots.length > 0
+      ? pickupChoices.length > 0
+        ? `가상계좌는 입금을 확인한 뒤 준비를 시작해서, 픽업은 ${pickupChoices[0]}부터 고를 수 있어요.`
+        : "가상계좌로는 오늘 고를 수 있는 픽업 시간이 없어요. 다른 결제 수단을 골라 주세요."
+      : null;
   const fee = isDelivery ? quote.fee : 0;
 
   /*
@@ -157,8 +172,8 @@ export function CheckoutBoard({
     openState,
     isDelivery,
     quote,
-    slot,
-    hasSlots: slots.length > 0,
+    slot: pickedSlot,
+    hasSlots: pickupChoices.length > 0,
   });
 
   function submit() {
@@ -166,7 +181,7 @@ export function CheckoutBoard({
     const formData = new FormData();
     formData.set("fulfillment", fulfillment);
     formData.set("address_id", addressId);
-    formData.set("pickup_slot", slot);
+    formData.set("pickup_slot", pickedSlot);
     formData.set("memo", memo);
     // 번호만 보낸다. 할인액은 서버가 다시 계산한다.
     formData.set("user_coupon_id", usable && picked ? picked.id : "");
@@ -395,8 +410,9 @@ export function CheckoutBoard({
       ) : (
         <Section title="픽업 시간">
           <PickupSlots
-            slots={slots}
-            slot={slot}
+            slots={pickupChoices}
+            slot={pickedSlot}
+            notice={vbankNotice}
             onPick={(value) => {
               setSlot(value);
               remember({ slot: value });

@@ -212,7 +212,8 @@ export function PickupSlots({
       {notice && (
         <p className="pb-3 text-[14px] leading-relaxed text-clay-deep">{notice}</p>
       )}
-      {slots.length === 0 ? (
+      {/* 안내가 이미 이유를 말했으면(가상계좌) 「오늘 픽업은 마감」 같은 틀린 말을 덧붙이지 않는다 */}
+      {slots.length === 0 && notice ? null : slots.length === 0 ? (
         <p className="text-[13.5px] leading-relaxed text-ink-soft">
           지금은 고를 수 있는 픽업 시간이 없어요.
           {/*

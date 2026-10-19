@@ -1,3 +1,5 @@
+import { formatClockTime, parseClockTime } from "../store.ts";
+
 /**
  * 가상계좌 입금 (2026-10-15 사용자 결정: 실시간 계좌이체 대신, 입금 기한 30분,
  * 입금된 주문의 환불은 사장님이 손님 계좌로 직접 이체).
@@ -7,6 +9,23 @@
 
 /** 입금 기한. 오늘 만든 반찬이라 오래 묶어 두면 다른 손님이 못 산다. */
 export const VBANK_MINUTES = 30;
+
+/**
+ * 가상계좌로 고를 수 있는 픽업 시간.
+ *
+ * 사장님은 입금이 확인돼야 주문을 본다. 그런데 예전엔 15분 뒤 픽업을 고르고 30분 기한의
+ * 계좌를 받을 수 있었다 — 입금이 늦으면 손님은 왔는데 반찬은 준비 전이다.
+ * 그래서 평소 가장 이른 시간(지금 + 준비 시간)에서 입금 기한만큼 미룬다.
+ *
+ * ponytail: 지금 시각 대신 첫 슬롯을 기준으로 잰다(브라우저 시계를 믿지 않으려고).
+ * 슬롯 간격(30분)이 기한과 같아서 정확하다. 개점 전 주문은 한 칸 더 보수적이다.
+ */
+export function vbankPickupSlots(slots: readonly string[]): string[] {
+  if (slots.length === 0) return [];
+  const cutoff = formatClockTime(parseClockTime(slots[0]) + VBANK_MINUTES);
+  // "HH:MM" 은 두 자리라 글자 비교가 곧 시각 비교다
+  return slots.filter((value) => value >= cutoff);
+}
 
 /**
  * 결제창에 넘길 입금 기한 — 지금부터 30분 뒤, 시간대가 붙은 ISO8601(한국 시간).

@@ -24,7 +24,7 @@ import {
   pickMethod,
   type PaymentChannels,
 } from "./payments/methods.ts";
-import { bankLabel, vbankDueDate } from "./payments/vbank.ts";
+import { bankLabel, vbankDueDate, vbankPickupSlots } from "./payments/vbank.ts";
 import { parsePendingAdd } from "./pending-add.ts";
 import { isPhoneAccountEmail, loginEmailFor, phoneLoginEmail } from "./phone-login.ts";
 import { cancelDeadline, canCustomerCancel, displayStatus, refundNotice } from "./orders.ts";
@@ -1707,4 +1707,14 @@ test("늦게 들어와 자동 환불된 결제는 paid_at 이 없어도 환불 �
 
 test("번호 계정 아이디는 대소문자·공백이 달라도 알아본다", () => {
   assert.equal(isPhoneAccountEmail(" JeongDamTta+P01012345678@Gmail.com "), true);
+});
+
+// --- 가상계좌는 입금을 확인한 뒤 준비를 시작한다 — 입금 기한(30분)만큼 픽업이 밀린다
+test("가상계좌 픽업은 가장 이른 시간에서 30분 뒤부터", () => {
+  assert.deepEqual(vbankPickupSlots(["14:00", "14:30", "15:00", "15:30"]), ["14:30", "15:00", "15:30"]);
+});
+
+test("가상계좌로 고를 픽업 시간이 없으면 빈 목록", () => {
+  assert.deepEqual(vbankPickupSlots(["19:30"]), []);
+  assert.deepEqual(vbankPickupSlots([]), []);
 });
