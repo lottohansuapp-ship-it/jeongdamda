@@ -5,8 +5,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { clearReturnToCheckout, markReturnToCheckout } from "@/components/ui/CartBarLink";
 import { StoreNotice } from "@/components/shop/StoreNotice";
-import { STORE_INFO } from "@/lib/store-info";
 import { AddressForm } from "@/components/account/AddressForm";
+import {
+  AddAddressButton,
+  Choice,
+  CLOSED_TEXT,
+  CouponList,
+  fullAddress,
+  MethodList,
+  PickupSlots,
+  Row,
+  Section,
+} from "./CheckoutParts";
 import { saveAddress } from "@/lib/account";
 import { placeOrder } from "@/lib/order-actions";
 import { confirmMyPayment } from "@/lib/payment-actions";
@@ -26,16 +36,8 @@ import {
 } from "@/lib/checkout-draft-client";
 import { checkDelivery, type DeliveryQuote, type OpenState } from "@/lib/store";
 import { formatPrice } from "@/lib/format";
-import { formatOrderTime } from "@/lib/orders";
 import { bestCoupon, type CartSummary } from "@/lib/cart";
 import type { Address, DeliveryArea, Profile, StoreSettings, UserCoupon } from "@/types/database";
-
-const CLOSED_TEXT: Record<string, string> = {
-  holiday: "오늘은 쉬는 날이에요",
-  weekday_off: "오늘은 정기 휴무일이에요",
-  before_open: "아직 영업 시작 전이에요",
-  after_close: "오늘 영업이 끝났어요",
-};
 
 interface CheckoutBoardProps {
   cart: CartSummary;
@@ -392,57 +394,16 @@ export function CheckoutBoard({
         </Section>
       ) : (
         <Section title="픽업 시간">
-          {slots.length === 0 ? (
-            <p className="text-[13.5px] leading-relaxed text-ink-soft">
-              지금은 고를 수 있는 픽업 시간이 없어요.
-              {/*
-                이유를 반드시 붙인다. 영업 중인데도 슬롯이 빌 때가 있다 —
-                마감까지 준비 시간이 안 남은 경우다 (마감 20시, 준비 30분이면
-                19시 반부터 그렇다). 그때 "없어요" 만 뜨면 손님은 앱이 고장난
-                줄 알고 나간다.
-              */}
-              {openState.reason
-                ? ` ${CLOSED_TEXT[openState.reason]}.`
-                : ` 오늘 픽업은 마감됐어요.${
-                    settings.delivery_enabled
-                      ? " 배달로는 주문하실 수 있어요."
-                      : " 내일 다시 찾아 주세요."
-                  }`}
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {slots.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => {
-                    setSlot(value);
-                    remember({ slot: value });
-                  }}
-                  aria-pressed={value === slot}
-                  className={`h-12 rounded-pill px-4 text-[14px] tabular-nums transition-colors duration-200 ${
-                    value === slot
-                      ? "bg-olive text-white"
-                      : "border border-line text-ink-soft hover:bg-olive-soft"
-                  }`}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-          )}
-          {/* 찾으러 와야 하는데 가게 주소가 어디에도 없었다 */}
-          <p className="pt-3.5 text-[14px] leading-relaxed text-ink-soft">
-            찾으러 오실 곳 · {STORE_INFO.address}
-          </p>
-          <a
-            href={`https://map.naver.com/p/search/${encodeURIComponent(STORE_INFO.address)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-12 items-center text-[14px] text-olive-deep underline underline-offset-4"
-          >
-            지도에서 보기
-          </a>
+          <PickupSlots
+            slots={slots}
+            slot={slot}
+            onPick={(value) => {
+              setSlot(value);
+              remember({ slot: value });
+            }}
+            closedReason={openState.reason}
+            deliveryEnabled={settings.delivery_enabled}
+          />
         </Section>
       )}
 
@@ -469,43 +430,12 @@ export function CheckoutBoard({
 
       {coupons.length > 0 && (
         <Section title="쿠폰">
-          <div className="space-y-2">
-            {coupons.map((item) => {
-              const short = cart.subtotal < item.coupon.min_order;
-              const on = couponId === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setCouponId(on ? null : item.id)}
-                  aria-pressed={on}
-                  // 최소주문에 못 미쳐도 누를 수는 있게 둔다. 눌러 보고
-                  // "얼마 더 담으면 된다" 를 읽는 편이 감춰 두는 것보다 낫다.
-                  className={`tap-target flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 text-left transition-colors duration-200 ${
-                    on && !short
-                      ? "border-olive bg-olive-soft"
-                      : "border-line bg-canvas hover:border-ink-faint"
-                  }`}
-                >
-                  <span className="py-2.5">
-                    <span className="block text-[14.5px]">
-                      {item.coupon.name} {formatPrice(item.coupon.discount)} 할인
-                    </span>
-                    <span className="block pt-0.5 text-[13.5px] text-ink-soft">
-                      {short
-                        ? `${formatPrice(item.coupon.min_order - cart.subtotal)} 더 담으면 쓸 수 있어요`
-                        : `${formatOrderTime(item.expires_at)}까지`}
-                    </span>
-                  </span>
-                  {on && !short && (
-                    <span aria-hidden className="text-[15px] text-olive-deep">
-                      &#10003;
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <CouponList
+            coupons={coupons}
+            subtotal={cart.subtotal}
+            pickedId={couponId}
+            onPick={setCouponId}
+          />
         </Section>
       )}
 
@@ -513,33 +443,7 @@ export function CheckoutBoard({
           것이고, 선택지가 하나인 선택지는 선택이 아니다. */}
       {paymentReady && methods.length > 1 && (
         <Section title="결제 수단">
-          <div className="space-y-2">
-            {methods.map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => setMethodKey(option.key)}
-                aria-pressed={method?.key === option.key}
-                className={`tap-target flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 text-left transition-colors duration-200 ${
-                  method?.key === option.key
-                    ? "border-olive bg-olive-soft"
-                    : "border-line bg-canvas hover:border-ink-faint"
-                }`}
-              >
-                <span className="py-2.5">
-                  <span className="block text-[14.5px]">{option.label}</span>
-                  <span className="block pt-0.5 text-[13.5px] text-ink-soft">
-                    {option.hint}
-                  </span>
-                </span>
-                {method?.key === option.key && (
-                  <span aria-hidden className="text-[15px] text-olive-deep">
-                    &#10003;
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          <MethodList methods={methods} pickedKey={method?.key} onPick={setMethodKey} />
         </Section>
       )}
 
@@ -691,86 +595,7 @@ function resolveBlock({
   return null;
 }
 
-export function fullAddress(address: Address): string {
-  return [address.address1, address.address2].filter(Boolean).join(" ");
-}
-
 /** 결제창과 카드 명세서에 찍히는 주문명. "김치찌개 외 2건" */
 function orderNameOf(cart: CartSummary): string {
   return orderNameFrom(cart.lines.map((line) => line.product.name));
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="mb-2.5 rounded-card bg-white p-4 shadow-soft">
-      <h2 className="pb-3 text-[14px] text-ink-soft">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function Choice({
-  on,
-  disabled,
-  onClick,
-  label,
-  hint,
-}: {
-  on: boolean;
-  disabled: boolean;
-  onClick: () => void;
-  label: string;
-  hint: string;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      aria-pressed={on}
-      className={`rounded-[12px] border px-3 py-3 text-left transition-colors duration-200 disabled:opacity-40 ${
-        on ? "border-olive bg-olive-soft" : "border-line"
-      }`}
-    >
-      <span className="block text-[15px]">{label}</span>
-      <span className="block pt-0.5 text-[13px] text-ink-soft">{hint}</span>
-    </button>
-  );
-}
-
-function AddAddressButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="mt-2 inline-flex h-12 items-center text-[13.5px] text-clay-deep underline underline-offset-4"
-    >
-      + 새 배송지 추가
-    </button>
-  );
-}
-
-function Row({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "discount";
-}) {
-  // 깎이는 금액은 색으로 구분한다. 숫자만 보면 더해지는지 빼지는지 헷갈린다.
-  const color = tone === "discount" ? "text-clay-deep" : "";
-  return (
-    <div className="flex items-baseline justify-between">
-      <dt className={`text-ink-soft ${color}`}>{label}</dt>
-      <dd className={`tabular-nums ${color}`}>{value}</dd>
-    </div>
-  );
 }
