@@ -79,9 +79,9 @@ export const NO_KCP_EXTRAS: KcpExtras = {
 */
 export const KCP_EXTRAS: KcpExtras = {
   kakaopay: true,
-  // 2026-10-23 사용자 요청으로 숨김: 결제창이 안 열림. 네이버페이는 KCP 안에서도 네이버가
-  // 따로 심사하는 경우가 많다 — KCP 에서 네이버페이 승인이 확인되면 true 로 되돌린다.
-  naverpay: false,
+  // 2026-10-23 결제창이 안 열려 잠시 숨겼다가, 같은 날 "네이버도 신청은 했다" 며 다시 켬(사용자 요청).
+  // 네이버 승인 전에는 고르면 결제창이 안 열린다 — 그러면 false 로.
+  naverpay: true,
   transfer: false,
   virtualAccount: true,
   samsungpay: true,
