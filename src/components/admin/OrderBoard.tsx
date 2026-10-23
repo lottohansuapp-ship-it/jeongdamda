@@ -112,7 +112,10 @@ export function OrderBoard({
     if (loadError) return;
     // 취소된 주문은 새 주문이 아니다. 늦은 결제를 자동 환불한 주문은 그때 결제 시각이
     // 새로 찍혀서(0028 record_refund) 걸러 내지 않으면 "새 주문" 으로 울린다.
-    const live = orders.filter((order) => order.status !== "canceled");
+    // 입금 대기 가상계좌도 아직 새 주문이 아니다 — 입금되면(paid_at) 그때 한 번 울린다.
+    const live = orders.filter(
+      (order) => order.status !== "canceled" && order.status !== "pending_payment",
+    );
     const result = checkNewOrders(live.map(alarmTime), watermark.current);
     watermark.current = result.watermark;
 
@@ -215,10 +218,13 @@ export function OrderBoard({
     setNewCount(0);
   }
 
-  const liveCount = rows.filter((order) => isLive(order.status)).length;
+  // 입금 대기 가상계좌는 「진행 중」 에 둔다 — 끝난 주문 사이에 섞이면 놓친다.
+  const inProgress = (order: OrderWithItems) =>
+    isLive(order.status) || order.status === "pending_payment";
+  const liveCount = rows.filter(inProgress).length;
   const visible = rows.filter((order) => {
     if (tab === "all") return true;
-    return tab === "live" ? isLive(order.status) : !isLive(order.status);
+    return tab === "live" ? inProgress(order) : !inProgress(order);
   });
 
   function patch(id: string, status: string) {
@@ -519,7 +525,7 @@ function OrderCard({
             {order.receiver_phone}
           </a>
         </div>
-        <StatusPill status={order.status} />
+        <StatusPill status={order.status} vbank={isVbank} />
       </div>
 
       <p className="pt-2.5 text-[13.5px] leading-relaxed text-ink-soft">

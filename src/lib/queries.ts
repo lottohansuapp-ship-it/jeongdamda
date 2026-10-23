@@ -495,8 +495,9 @@ export async function getAdminOrders(days: number): Promise<AdminOrders> {
     .select(ORDER_SELECT)
     .gte("created_at", from)
     // 결제 전 주문은 뺀다. 재고만 잡아둔 상태라 매장이 할 일이 없고
-    // 10분 뒤 알아서 사라진다.
-    .neq("status", "pending_payment")
+    // 10분 뒤 알아서 사라진다. 단 **입금을 기다리는 가상계좌 주문은 보인다** — 손님은 입금했다는데
+    // 안 넘어올 때 사장님이 「입금됐는지 확인하기」 를 누를 자리가 여기다(VbankDepositCheck).
+    .or("status.neq.pending_payment,vbank_account.not.is.null")
     // 결제된 적 없이 취소된 주문(결제 포기·새 주문으로 대체)도 뺀다. 매장이 할 일이
     // 없고, 1분마다 도는 만료 정리 때문에 수가 많다. 새 주문 알림도 잘못 울린다.
     .or("status.neq.canceled,paid_at.not.is.null")
