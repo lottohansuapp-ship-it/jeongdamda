@@ -232,9 +232,9 @@ export function OrderDetail({
       <div className="pt-2.5">
         {paidByVbank && order.status === "paid" ? (
           <p className="text-center text-[14px] leading-relaxed text-ink-soft">
-            가상계좌로 입금한 주문은 매장에 전화로 취소해 주세요.
+            가상계좌로 입금하신 주문은 앱에서 취소할 수 없어요.
             <br />
-            환불은 매장에서 손님 계좌로 보내 드려요.
+            취소·환불은 매장으로 전화 주세요.
           </p>
         ) : canCancel ? (
           <>

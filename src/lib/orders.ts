@@ -118,8 +118,8 @@ export function refundNotice(order: RefundFacts): string | null {
   const amount = formatPrice(order.refund_amount ?? order.total);
   if (order.vbank_account) {
     return order.refunded_at
-      ? `입금하신 ${amount}을 손님 계좌로 돌려드렸어요.`
-      : "입금하신 금액은 매장에서 손님 계좌로 돌려드려요. 계좌를 여쭤보려고 매장에서 연락드릴게요.";
+      ? `입금하신 ${amount} 환불을 마쳤어요.`
+      : "입금하신 금액의 환불은 매장으로 전화 주시면 확인해서 처리해 드려요.";
   }
   return order.refunded_at
     ? `${amount}을 환불했어요. 카드는 3~7영업일 안에 결제 취소로 돌아가요(간편결제는 보통 더 빨라요).`

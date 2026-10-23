@@ -1605,11 +1605,14 @@ test("환불 금액이 비어 있으면 결제 금액으로 안내", () => {
   assert.match(refundNotice({ ...canceled, paid_at: "x", refunded_at: "y" }) ?? "", /12,000원/);
 });
 
-test("가상계좌 입금 주문은 계좌로 돌려준다고 안내", () => {
+test("가상계좌 입금 주문의 환불은 매장으로 전화하라고 안내", () => {
   const before = refundNotice({ ...canceled, paid_at: "x", vbank_account: "123" }) ?? "";
-  assert.match(before, /연락/);
+  assert.match(before, /매장/);
+  assert.match(before, /전화/);
+  assert.doesNotMatch(before, /계좌로/, "어느 계좌로 돌려준다고 약속하지 않는다");
   const after = refundNotice({ ...canceled, paid_at: "x", refunded_at: "y", refund_amount: 12000, vbank_account: "123" }) ?? "";
-  assert.match(after, /계좌로/);
+  assert.match(after, /12,000원/);
+  assert.match(after, /환불/);
 });
 
 test("결제됐는데 환불 기록이 아직 없으면 진행 중", () => {
