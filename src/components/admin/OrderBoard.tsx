@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AdminNav } from "./AdminNav";
 import { useEffect, useRef, useState } from "react";
 import { StatusPill } from "@/components/orders/StatusPill";
+import { VbankDepositCheck } from "./VbankDepositCheck";
 import { advanceOrder, cancelOrder } from "@/lib/order-actions";
 import {
   canAdminCancel,
@@ -576,6 +577,11 @@ function OrderCard({
           <span className="pl-1.5 text-[12.5px] text-ink-faint">· 가상계좌</span>
         )}
       </p>
+
+      {/* 손님은 입금했다는데 「입금 대기」 그대로일 때 — 포트원에 직접 다시 묻는다 */}
+      {isVbank && order.status === "pending_payment" && order.payment_id && (
+        <VbankDepositCheck paymentId={order.payment_id} />
+      )}
 
       {/*
         취소를 접수 버튼 옆에 두지 않는다.

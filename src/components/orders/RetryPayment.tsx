@@ -163,7 +163,7 @@ export function RetryPayment({ order }: { order: OrderWithItems }) {
         disabled={busy}
         className="tap-target mt-3 w-full rounded-card bg-olive text-[15px] text-white transition-colors duration-200 hover:bg-olive-deep disabled:opacity-50"
       >
-        {busy ? "결제창 여는 중…" : `${method.label}로 결제하기`}
+        {busy ? "결제창 여는 중…" : method.key === "card" ? "카드로 결제하기" : method.action}
       </button>
     </section>
   );

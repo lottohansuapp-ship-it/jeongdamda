@@ -570,7 +570,8 @@ export function CheckoutBoard({
           >
             {pending
               ? "주문 확인 중…"
-              : `${formatPrice(total)} ${paymentReady ? "결제하기" : "주문하기"}`}
+              : // 「12,000원 삼성페이로 결제하기」 — 누르면 무엇이 열리는지 버튼에서 보인다
+                `${formatPrice(total)} ${paymentReady ? (method?.action ?? "결제하기") : "주문하기"}`}
           </button>
 
           {!paymentReady && (

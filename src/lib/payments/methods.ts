@@ -13,19 +13,23 @@
  */
 export type PaymentMethodKey =
   | "card"
+  | "samsungpay"
+  | "tosspay"
   | "kakaopay"
   | "naverpay"
   | "transfer"
   | "vbank"
   | "mobile";
 
-export type EasyPayProvider = "KAKAOPAY" | "NAVERPAY";
+export type EasyPayProvider = "KAKAOPAY" | "NAVERPAY" | "SAMSUNGPAY" | "TOSSPAY";
 
 export interface PaymentMethod {
   key: PaymentMethodKey;
   label: string;
   /** 어르신도 무엇인지 알 수 있게. 아이콘만으로는 부족하다. */
   hint: string;
+  /** 결제 버튼에 붙는 말. 「12,000원 삼성페이로 결제하기」 — 누르면 무엇이 열리는지 미리 보인다. */
+  action: string;
   /** 포트원 requestPayment 의 payMethod */
   payMethod: "CARD" | "EASY_PAY" | "TRANSFER" | "VIRTUAL_ACCOUNT" | "MOBILE";
   /** 간편결제일 때 어느 앱을 바로 열지. 없으면 PG 가 고르는 화면을 먼저 띄운다. */
@@ -47,6 +51,9 @@ export interface KcpExtras {
   transfer: boolean;
   /** 가상계좌 입금. 입금 기한 30분, 환불은 사장님이 직접 이체 (vbank.ts) */
   virtualAccount: boolean;
+  /** 삼성페이·토스페이 — KCP 간편결제로 그 앱을 바로 연다(easyPayProvider). 없으면 꺼짐 */
+  samsungpay?: boolean;
+  tosspay?: boolean;
 }
 
 export const NO_KCP_EXTRAS: KcpExtras = {
@@ -66,11 +73,17 @@ export const NO_KCP_EXTRAS: KcpExtras = {
   승인 전에는 이 수단을 고르면 KCP 결제창이 실패한다(돈은 빠지지 않는다).
   영업을 켜기 전에 승인됐는지 확인하고, 안 된 수단은 false 로 돌려 배포한다.
 */
+/*
+  2026-10-23 사용자: "카드사와 간편결제까지 심사는 모두 완료" → 삼성페이·토스페이를 따로 켠다.
+  KCP 간편결제는 easyPayProvider 로 그 앱 결제창을 바로 부른다(포트원 SDK: KCP 가 SAMSUNGPAY·TOSSPAY 지원).
+*/
 export const KCP_EXTRAS: KcpExtras = {
   kakaopay: true,
   naverpay: true,
   transfer: false,
   virtualAccount: true,
+  samsungpay: true,
+  tosspay: true,
 };
 
 /** 보이는 순서 = 손님이 많이 쓰는 순 */
@@ -88,7 +101,33 @@ export function availableMethods(
       key: "card",
       label: "신용·체크카드",
       hint: "카드번호를 직접 입력해요",
+      action: "결제하기",
       payMethod: "CARD",
+      channelKey: card,
+    });
+  }
+
+  // 「○○로 결제하기」 버튼 하나로 그 앱이 바로 열린다 — 결제창에서 다시 고르지 않는다.
+  if (card && extras.samsungpay) {
+    methods.push({
+      key: "samsungpay",
+      label: "삼성페이",
+      hint: "갤럭시 휴대폰의 삼성페이로 바로 결제해요",
+      action: "삼성페이로 결제하기",
+      payMethod: "EASY_PAY",
+      easyPayProvider: "SAMSUNGPAY",
+      channelKey: card,
+    });
+  }
+
+  if (card && extras.tosspay) {
+    methods.push({
+      key: "tosspay",
+      label: "토스페이",
+      hint: "토스 앱으로 바로 결제해요",
+      action: "토스페이로 결제하기",
+      payMethod: "EASY_PAY",
+      easyPayProvider: "TOSSPAY",
       channelKey: card,
     });
   }
@@ -100,6 +139,7 @@ export function availableMethods(
       key: "kakaopay",
       label: "카카오페이",
       hint: "카카오톡으로 결제해요",
+      action: "카카오페이로 결제하기",
       payMethod: "EASY_PAY",
       easyPayProvider: "KAKAOPAY",
       channelKey: kakaoChannel,
@@ -111,6 +151,7 @@ export function availableMethods(
       key: "naverpay",
       label: "네이버페이",
       hint: "네이버 앱으로 결제해요",
+      action: "네이버페이로 결제하기",
       payMethod: "EASY_PAY",
       easyPayProvider: "NAVERPAY",
       channelKey: card,
@@ -122,6 +163,7 @@ export function availableMethods(
       key: "transfer",
       label: "실시간 계좌이체",
       hint: "내 은행 계좌에서 바로 결제돼요",
+      action: "계좌이체로 결제하기",
       payMethod: "TRANSFER",
       channelKey: card,
     });
@@ -134,6 +176,7 @@ export function availableMethods(
       // 명령하는 말투가 아니라 알려 주는 말투로(사용자 요청). 어르신이 다음 날 같은
       // 계좌로 보내지 않도록 "1회용" 과 "30분" 을 둘 다 적는다.
       hint: "1회용 계좌가 발급되고, 30분 동안만 입금할 수 있어요",
+      action: "입금할 계좌 받기",
       payMethod: "VIRTUAL_ACCOUNT",
       channelKey: card,
     });
@@ -144,6 +187,7 @@ export function availableMethods(
       key: "mobile",
       label: "휴대폰 결제",
       hint: "통신요금에 함께 청구돼요",
+      action: "휴대폰으로 결제하기",
       payMethod: "MOBILE",
       channelKey: mobile,
     });

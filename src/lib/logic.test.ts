@@ -1718,3 +1718,28 @@ test("가상계좌로 고를 픽업 시간이 없으면 빈 목록", () => {
   assert.deepEqual(vbankPickupSlots(["19:30"]), []);
   assert.deepEqual(vbankPickupSlots([]), []);
 });
+
+// --- 삼성페이·토스페이: KCP 카드 채널로 그 앱을 바로 연다, 결제 버튼도 「○○로 결제하기」
+test("availableMethods: 삼성페이·토스페이는 켜면 그 앱을 바로 연다", () => {
+  const all = availableMethods(
+    { ...NO_CHANNELS, card: "ch-kcp" },
+    { kakaopay: true, naverpay: true, transfer: false, virtualAccount: true, samsungpay: true, tosspay: true },
+  );
+  assert.deepEqual(all.map((m) => m.key), ["card", "samsungpay", "tosspay", "kakaopay", "naverpay", "vbank"]);
+  const samsung = all.find((m) => m.key === "samsungpay");
+  const toss = all.find((m) => m.key === "tosspay");
+  assert.equal(samsung?.easyPayProvider, "SAMSUNGPAY");
+  assert.equal(toss?.easyPayProvider, "TOSSPAY");
+  assert.equal(samsung?.channelKey, "ch-kcp");
+  assert.equal(samsung?.action, "삼성페이로 결제하기");
+  assert.equal(toss?.action, "토스페이로 결제하기");
+});
+
+test("availableMethods: 삼성페이·토스페이 스위치를 안 켜면 안 나온다", () => {
+  const methods = availableMethods(
+    { ...NO_CHANNELS, card: "ch-kcp" },
+    { kakaopay: false, naverpay: false, transfer: false, virtualAccount: false },
+  );
+  assert.deepEqual(methods.map((m) => m.key), ["card"]);
+  assert.equal(methods[0].action, "결제하기");
+});
