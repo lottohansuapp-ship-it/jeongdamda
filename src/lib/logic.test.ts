@@ -38,6 +38,7 @@ import {
 } from "./cart.ts";
 import {
   decodeDraft,
+  deliveryMemo,
   encodeDraft,
   reconcileDraft,
 } from "./checkout-draft.ts";
@@ -1745,4 +1746,25 @@ test("availableMethods: 삼성페이·토스페이 스위치를 안 켜면 안 �
   );
   assert.deepEqual(methods.map((m) => m.key), ["card"]);
   assert.equal(methods[0].action, "결제하기");
+});
+
+// --- 배달 받는 방법(문 앞 / 직접) — 요청사항 맨 앞에 붙여 사장님께 간다
+test("deliveryMemo: 받는 방법을 요청사항 앞에 붙인다", () => {
+  assert.equal(deliveryMemo("door", "#1234 / 경비실 호출"), "문 앞에 놓아주세요 · #1234 / 경비실 호출");
+  assert.equal(deliveryMemo("hand", ""), "직접 받을게요");
+  assert.equal(deliveryMemo("door", "   "), "문 앞에 놓아주세요");
+});
+
+test("encodeDraft/decodeDraft: 받는 방법도 기억한다", () => {
+  const draft = { fulfillment: "delivery" as const, addressId: "a1", slot: "", memo: "", handoff: "hand" as const };
+  assert.equal(decodeDraft(encodeDraft(draft)).handoff, "hand");
+  assert.equal(decodeDraft(encodeURIComponent(JSON.stringify({ f: "delivery", h: "엉뚱함" }))).handoff, undefined);
+});
+
+test("reconcileDraft: 받는 방법은 그대로 되살린다", () => {
+  const restored = reconcileDraft(
+    { fulfillment: "delivery", handoff: "hand" },
+    { pickupEnabled: true, deliveryEnabled: true, addressIds: ["a1"], defaultAddressId: "a1", slots: [] },
+  );
+  assert.equal(restored.handoff, "hand");
 });

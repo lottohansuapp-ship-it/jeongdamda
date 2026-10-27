@@ -35,6 +35,7 @@ import {
   saveDraft,
   type CheckoutDraft,
 } from "@/lib/checkout-draft-client";
+import { deliveryMemo, HANDOFF_LABEL, type Handoff } from "@/lib/checkout-draft";
 import { checkDelivery, type DeliveryQuote, type OpenState } from "@/lib/store";
 import { formatPrice } from "@/lib/format";
 import { bestCoupon, type CartSummary } from "@/lib/cart";
@@ -88,13 +89,15 @@ export function CheckoutBoard({
   const [addressId, setAddressId] = useState(draft.addressId);
   const [slot, setSlot] = useState(draft.slot);
   const [memo, setMemo] = useState(draft.memo);
+  // 배달 받는 방법. 처음이면 「문 앞에」 — 반찬 배달은 대부분 비대면이다.
+  const [handoff, setHandoff] = useState<Handoff>(draft.handoff ?? "door");
 
   // 주문서에 돌아왔다. 목록 하단 바를 다시 「장바구니 보기」 로 되돌린다.
   useEffect(() => clearReturnToCheckout(), []);
 
   /** 고른 것이 바뀔 때마다 쿠키에 남긴다. "추가 주문"으로 나갔다 와도 그대로다. */
   function remember(changes: Partial<CheckoutDraft>) {
-    saveDraft({ fulfillment, addressId, slot, memo, ...changes });
+    saveDraft({ fulfillment, addressId, slot, memo, handoff, ...changes });
   }
 
   const [addingAddress, setAddingAddress] = useState(false);
@@ -182,7 +185,8 @@ export function CheckoutBoard({
     formData.set("fulfillment", fulfillment);
     formData.set("address_id", addressId);
     formData.set("pickup_slot", pickedSlot);
-    formData.set("memo", memo);
+    // 배달이면 받는 방법을 요청사항 맨 앞에 붙여 사장님께 보낸다 (deliveryMemo)
+    formData.set("memo", fulfillment === "delivery" ? deliveryMemo(handoff, memo) : memo);
     // 번호만 보낸다. 할인액은 서버가 다시 계산한다.
     formData.set("user_coupon_id", usable && picked ? picked.id : "");
 
@@ -423,6 +427,42 @@ export function CheckoutBoard({
         </Section>
       )}
 
+      {/* 위 「수령 방법」(배달/픽업)과 이름이 겹치지 않게 「배달 받는 방법」 */}
+      {isDelivery && (
+        <Section title="배달 받는 방법">
+          <div role="radiogroup" aria-label="배달 받는 방법" className="space-y-2">
+            {(
+              [
+                ["door", "비대면 배송 · 문 앞에 두고 가요"],
+                ["hand", "초인종을 누르고 직접 전해 드려요"],
+              ] as const
+            ).map(([key, hint]) => (
+              <label
+                key={key}
+                className={`flex cursor-pointer items-center gap-3 rounded-[12px] border p-3.5 transition-colors duration-200 ${
+                  handoff === key ? "border-olive bg-olive-soft" : "border-line"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="handoff"
+                  className="h-5 w-5 shrink-0 accent-olive"
+                  checked={handoff === key}
+                  onChange={() => {
+                    setHandoff(key);
+                    remember({ handoff: key });
+                  }}
+                />
+                <span className="min-w-0">
+                  <span className="block text-[15px]">{HANDOFF_LABEL[key]}</span>
+                  <span className="block pt-0.5 text-[13.5px] text-ink-soft">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Section title="요청사항">
         <textarea
           value={memo}
@@ -430,7 +470,8 @@ export function CheckoutBoard({
             setMemo(event.target.value);
             remember({ memo: event.target.value });
           }}
-          maxLength={200}
+          // 배달은 받는 방법(최대 12자)이 앞에 붙어도 200자를 넘지 않게
+          maxLength={isDelivery ? 180 : 200}
           rows={2}
           // 이름이 자리표시 글자뿐이라 스크린리더가 "문 앞에 놓아주세요" 로 읽었다.
           aria-label="요청사항"
@@ -438,7 +479,9 @@ export function CheckoutBoard({
           // 일이 있어서다. 픽업은 매장에서 직접 받아가므로 그런 부탁이 없고,
           // 없는 예시를 띄우면 오히려 뭘 써야 하나 헷갈린다.
           placeholder={
-            isDelivery ? "문 앞에 놓아주세요" : "매장에 전할 말을 적어주세요"
+            isDelivery
+              ? "공동현관 비밀번호 또는 출입방법을 입력해 주세요.\n예) #1234 / 경비실 호출"
+              : "매장에 전할 말을 적어주세요"
           }
           className="w-full resize-none rounded-[12px] border border-line bg-canvas p-3 text-[14px] leading-relaxed outline-none transition-colors duration-200 placeholder:text-ink-faint focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
         />

@@ -23,6 +23,25 @@ export interface CheckoutDraft {
   addressId: string;
   slot: string;
   memo: string;
+  /** 배달 받는 방법. 없으면 화면이 「문 앞에」 로 시작한다. */
+  handoff?: Handoff;
+}
+
+/** 배달을 어떻게 받을지 (2026-10-27 사용자 요청). 픽업에는 쓰지 않는다. */
+export type Handoff = "door" | "hand";
+
+export const HANDOFF_LABEL: Record<Handoff, string> = {
+  door: "문 앞에 놓아주세요",
+  hand: "직접 받을게요",
+};
+
+/**
+ * 주문에 실을 요청사항. 받는 방법을 맨 앞에 붙인다 — 사장님 주문 화면·알림에 그대로 보이고,
+ * 칸을 따로 만들지 않아도 된다(DB 를 바꾸지 않는다). 예: "문 앞에 놓아주세요 · #1234 / 경비실 호출"
+ */
+export function deliveryMemo(handoff: Handoff, memo: string): string {
+  const note = memo.trim();
+  return note ? `${HANDOFF_LABEL[handoff]} · ${note}` : HANDOFF_LABEL[handoff];
 }
 
 /** 쿠키에 넣는 짧은 키. 이름을 길게 쓰면 쿠키만 커진다. */
@@ -31,6 +50,7 @@ interface Packed {
   a?: unknown;
   s?: unknown;
   m?: unknown;
+  h?: unknown;
 }
 
 export function encodeDraft(draft: CheckoutDraft): string {
@@ -39,6 +59,7 @@ export function encodeDraft(draft: CheckoutDraft): string {
     a: draft.addressId || undefined,
     s: draft.slot || undefined,
     m: draft.memo.slice(0, MAX_MEMO) || undefined,
+    h: draft.handoff,
   };
   return encodeURIComponent(JSON.stringify(packed)).slice(0, MAX_COOKIE);
 }
@@ -57,6 +78,7 @@ export function decodeDraft(raw: string | undefined): Partial<CheckoutDraft> {
       addressId: text(packed.a),
       slot: text(packed.s),
       memo: text(packed.m)?.slice(0, MAX_MEMO),
+      ...(packed.h === "door" || packed.h === "hand" ? { handoff: packed.h } : {}),
     };
   } catch {
     return {};
@@ -101,6 +123,7 @@ export function reconcileDraft(
         ? draft.slot
         : (context.slots[0] ?? ""),
     memo: draft.memo ?? "",
+    ...(draft.handoff ? { handoff: draft.handoff } : {}),
   };
 }
 
