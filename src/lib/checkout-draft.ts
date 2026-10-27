@@ -40,8 +40,10 @@ export const HANDOFF_LABEL: Record<Handoff, string> = {
  * 칸을 따로 만들지 않아도 된다(DB 를 바꾸지 않는다). 예: "문 앞에 놓아주세요 · #1234 / 경비실 호출"
  */
 export function deliveryMemo(handoff: Handoff, memo: string): string {
+  // 사장님 화면에서 한눈에 보이게 문 앞이면 「비대면」 을 앞에 붙인다(2026-10-27 사용자 요청).
+  const how = handoff === "door" ? `비대면 · ${HANDOFF_LABEL.door}` : HANDOFF_LABEL.hand;
   const note = memo.trim();
-  return note ? `${HANDOFF_LABEL[handoff]} · ${note}` : HANDOFF_LABEL[handoff];
+  return note ? `${how} · ${note}` : how;
 }
 
 /** 쿠키에 넣는 짧은 키. 이름을 길게 쓰면 쿠키만 커진다. */

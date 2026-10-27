@@ -1750,9 +1750,10 @@ test("availableMethods: 삼성페이·토스페이 스위치를 안 켜면 안 �
 
 // --- 배달 받는 방법(문 앞 / 직접) — 요청사항 맨 앞에 붙여 사장님께 간다
 test("deliveryMemo: 받는 방법을 요청사항 앞에 붙인다", () => {
-  assert.equal(deliveryMemo("door", "#1234 / 경비실 호출"), "문 앞에 놓아주세요 · #1234 / 경비실 호출");
+  // 사장님 화면에서 한눈에 — 문 앞이면 「비대면」 을 앞에 붙인다(사용자 요청)
+  assert.equal(deliveryMemo("door", "#1234 / 경비실 호출"), "비대면 · 문 앞에 놓아주세요 · #1234 / 경비실 호출");
   assert.equal(deliveryMemo("hand", ""), "직접 받을게요");
-  assert.equal(deliveryMemo("door", "   "), "문 앞에 놓아주세요");
+  assert.equal(deliveryMemo("door", "   "), "비대면 · 문 앞에 놓아주세요");
 });
 
 test("encodeDraft/decodeDraft: 받는 방법도 기억한다", () => {
