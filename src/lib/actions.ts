@@ -30,6 +30,8 @@ async function authed() {
   return (await currentUserId()) ? await serverClient() : null;
 }
 
+const MAX_PRODUCT_NAME = 40;
+
 export async function updateProduct(
   id: string,
   patch: ProductPatch,
@@ -43,10 +45,20 @@ export async function updateProduct(
   if (patch.price !== undefined && patch.price < 0) {
     return { ok: false, error: "가격은 0보다 작을 수 없습니다." };
   }
+  // 이름 바꾸기. 지난 주문은 그때 이름을 따로 적어 둬서(order_items 스냅샷) 바뀌지 않는다.
+  let fields = patch;
+  if (patch.name !== undefined) {
+    const name = patch.name.trim().replace(/\s+/g, " ");
+    if (!name) return { ok: false, error: "반찬 이름을 입력하세요." };
+    if (name.length > MAX_PRODUCT_NAME) {
+      return { ok: false, error: `반찬 이름은 ${MAX_PRODUCT_NAME}자까지예요.` };
+    }
+    fields = { ...patch, name };
+  }
 
   const { data, error } = await db
     .from("products")
-    .update(patch)
+    .update(fields)
     .eq("id", id)
     .select("id");
   if (error) return { ok: false, error: friendlyDbError(error) };

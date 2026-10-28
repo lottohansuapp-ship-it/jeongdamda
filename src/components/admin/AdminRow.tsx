@@ -405,6 +405,34 @@ export function AdminRow({
 
       {!open ? null : (
       <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3.5 sm:grid-cols-4">
+        {/* 이름. 지난 주문은 그때 이름을 따로 적어 둬서 바뀌지 않는다(order_items 스냅샷).
+            비우면 저장하지 않고 원래 이름으로 되돌린다 — 이름 없는 반찬이 손님 화면에 뜨면 안 된다. */}
+        <div className="col-span-2 sm:col-span-4">
+          <Field label="반찬 이름">
+            <input
+              type="text"
+              // 저장되면 새 이름으로 칸을 다시 그린다
+              key={product.name}
+              defaultValue={product.name}
+              maxLength={40}
+              onBlur={(event) => {
+                const value = event.target.value.trim();
+                if (value === product.name) return;
+                if (!value) {
+                  event.target.value = product.name;
+                  onError("반찬 이름은 비워 둘 수 없어요");
+                  return;
+                }
+                patch({ name: value }, "이름");
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+              className="h-11 w-full rounded-[12px] border border-line bg-canvas px-3 text-[15px] focus:border-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+            />
+          </Field>
+        </div>
+
         {/* 손님 상세에 그대로 나가는 글을 맨 위에 둔다. 펼치자마자 보이게.
             칸 밖을 누르면 저장된다(가격과 같다). 지울 때는 null — 빈 문자열이면
             손님 상세에 제목만 덩그러니 남는다. */}
