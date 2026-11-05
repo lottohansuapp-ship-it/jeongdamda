@@ -40,12 +40,16 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      // 이미 열린 앱 창이 있으면 그 창을 앞으로 가져와 주문 화면으로 보낸다
+      // 이미 열린 앱 창이 있으면 그 창을 앞으로 가져와 주문 화면으로 보낸다.
+      // navigate 는 이 파일이 아직 맡지 않은 창이나 일부 아이폰에서 실패한다 — 그때는 새로 연다.
       for (const client of windows) {
-        if (new URL(client.url).origin === self.location.origin) {
+        if (new URL(client.url).origin !== self.location.origin) continue;
+        try {
           await client.focus();
           if ("navigate" in client) await client.navigate(target);
           return;
+        } catch {
+          break;
         }
       }
       await self.clients.openWindow(target);
