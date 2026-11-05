@@ -3,6 +3,7 @@ import { publicClient } from "../supabase/public";
 import { STORE_INFO } from "../store-info";
 import {
   customerMessage,
+  pushMessage,
   shouldNotifyCustomer,
   storeMessage,
   type NotifyKind,
@@ -146,7 +147,34 @@ export async function notifyNewOrder(orderId: string): Promise<void> {
     return;
   }
 
-  await deliver(orderId, "new_order", STORE_INFO.phone, storeMessage(order));
+  // 알림톡(계약 전이면 기록만)과 휴대폰 푸시를 함께 보낸다. 서로 기다리지 않는다.
+  await Promise.all([
+    deliver(orderId, "new_order", STORE_INFO.phone, storeMessage(order)),
+    pushNewOrder(orderId, order),
+  ]);
+}
+
+/**
+ * 사장님 휴대폰 푸시 (0032). 키가 없거나 알림을 켠 기기가 없으면 조용히 끝난다 — 그건 실패가 아니다.
+ * 켠 기기가 있는데 한 대도 못 받았으면 관리자 화면 빨간 알림으로 남긴다.
+ */
+async function pushNewOrder(orderId: string, order: NotifyOrder): Promise<void> {
+  try {
+    const { isPushReady, sendStorePush } = await import("./push");
+    if (!isPushReady()) return;
+
+    const result = await sendStorePush(pushMessage(order));
+    if (result.sent === 0 && result.failed === 0 && !result.error) return;
+
+    const failedAll = result.sent === 0;
+    await record(orderId, "new_order", "push", `${result.sent}대`, failedAll ? "failed" : "sent", result.error);
+    if (failedAll && result.error) {
+      const { reportError } = await import("../report");
+      await reportError("notify", `휴대폰 알림을 못 보냈어요: ${result.error}`, orderId);
+    }
+  } catch (error) {
+    console.error("[notify] 푸시 실패:", error);
+  }
 }
 
 /** 사장님이 상태를 바꾸면 손님에게 보낸다. */

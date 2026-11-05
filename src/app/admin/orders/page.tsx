@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { OrderBoard } from "@/components/admin/OrderBoard";
 import { PaymentKeyAlert } from "@/components/admin/PaymentKeyAlert";
+import { PushToggle } from "@/components/admin/PushToggle";
 import { getAdminOrders } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -31,6 +32,8 @@ export default function AdminOrdersPage({ searchParams }: PageProps) {
       <Suspense fallback={null}>
         <PaymentKeyAlert />
       </Suspense>
+      {/* 앱을 닫아도 새 주문 알림 (0032). 기기마다 따로 켠다 */}
+      <PushToggle />
       <Suspense fallback={<Skeleton />}>
         <OrdersBody searchParams={searchParams} />
       </Suspense>

@@ -38,5 +38,9 @@ export async function GET() {
       // 포트원이 API 시크릿을 받아주는지. ok / rejected(만료·오류) / unknown
       apiKey: await portOneKeyHealth(),
     },
+    // 휴대폰 푸시 알림 키(VAPID)가 서버에 들어 있는지만 (0032). 값은 내보내지 않는다.
+    push: {
+      ready: Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
+    },
   });
 }

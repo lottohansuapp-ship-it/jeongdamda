@@ -49,6 +49,7 @@ import {
 } from "./payments/signature.ts";
 import {
   customerMessage,
+  pushMessage,
   shouldNotifyCustomer,
   storeMessage,
   summarizeItems,
@@ -1768,4 +1769,24 @@ test("reconcileDraft: 받는 방법은 그대로 되살린다", () => {
     { pickupEnabled: true, deliveryEnabled: true, addressIds: ["a1"], defaultAddressId: "a1", slots: [] },
   );
   assert.equal(restored.handoff, "hand");
+});
+
+// --- 사장님 휴대폰 푸시 알림 문구 (0032)
+test("pushMessage: 배달은 금액과 비대면 여부가 제목·본문에", () => {
+  const m = pushMessage({ ...NOTIFY_ORDER, memo: "비대면 · 문 앞에 놓아주세요 · #1234" });
+  assert.equal(m.title, "새 배달 주문 · 32,000원");
+  assert.equal(m.body, "비대면 · 김치찌개 2개, 시금치나물 1개");
+  assert.equal(m.url, "/admin/orders");
+  assert.equal(m.tag, "order-20260804-0001", "같은 주문 알림이 두 번 와도 하나로 겹친다");
+});
+
+test("pushMessage: 직접 받기는 「직접 전달」, 요청사항 없으면 반찬만", () => {
+  assert.match(pushMessage({ ...NOTIFY_ORDER, memo: "직접 받을게요" }).body, /^직접 전달 · /);
+  assert.equal(pushMessage({ ...NOTIFY_ORDER, memo: null }).body, "김치찌개 2개, 시금치나물 1개");
+});
+
+test("pushMessage: 픽업은 찾으러 오는 시각이 제목에", () => {
+  const m = pushMessage({ ...NOTIFY_ORDER, fulfillment: "pickup", pickup_at: "2026-08-04T05:30:00+00:00" });
+  assert.match(m.title, /^새 픽업 주문 · 32,000원 · /);
+  assert.match(m.title, /14:30/);
 });

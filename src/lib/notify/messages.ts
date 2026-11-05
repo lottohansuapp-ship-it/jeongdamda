@@ -29,7 +29,52 @@ export interface NotifyOrder {
   address_snapshot: string | null;
   pickup_at: string | null;
   created_at: string;
+  /** 요청사항. 배달이면 맨 앞에 받는 방법이 붙어 있다(「비대면 · …」, checkout-draft deliveryMemo). */
+  memo?: string | null;
   items: { name: string; quantity: number }[];
+}
+
+/** 픽업 시각 "14:30" — 알림은 짧아야 해서 오전/오후 대신 24시로. */
+const seoulHHMM = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/**
+ * 사장님 휴대폰 푸시 알림 (0032). 잠금화면에 뜨니 주소·연락처는 넣지 않는다 —
+ * 누르면 관리자 주문 화면이 열리고 거기서 본다.
+ * tag 가 같으면 휴대폰이 알림을 하나로 겹친다. 웹훅·화면 확인이 겹쳐 두 번 나가도 한 번만 보인다.
+ */
+export function pushMessage(order: NotifyOrder): {
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+} {
+  const amount = formatPrice(order.total);
+  const pickupAt = order.pickup_at ? ` · ${seoulHHMM.format(new Date(order.pickup_at))} 픽업` : "";
+  const title =
+    order.fulfillment === "pickup" ? `새 픽업 주문 · ${amount}${pickupAt}` : `새 배달 주문 · ${amount}`;
+
+  const memo = order.memo ?? "";
+  const handoff =
+    order.fulfillment !== "delivery"
+      ? ""
+      : memo.startsWith("비대면")
+        ? "비대면"
+        : memo.startsWith("직접 받을게요")
+          ? "직접 전달"
+          : "";
+  const items = summarizeItems(order.items, 2);
+
+  return {
+    title,
+    body: handoff ? `${handoff} · ${items}` : items,
+    url: "/admin/orders",
+    tag: `order-${order.order_no}`,
+  };
 }
 
 /** "김치찌개 2개, 시금치나물 1개 외 2가지" */
