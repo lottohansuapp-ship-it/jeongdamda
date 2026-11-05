@@ -20,8 +20,17 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "6mb",
     },
   },
+  /*
+    이미지 최적화 한도를 아껴 쓴다 (2026-11-06 무료 한도가 차서 사진이 깨졌다 → ProductPhoto 가 원본으로 대신 보임).
+      · webp 하나만 — 원본이 이미 webp 라 avif 를 더하면 같은 사진을 두 번 줄이게 된다
+      · 31일 보관 — 사진을 바꾸면 주소가 바뀌므로(업로드 시각이 파일명) 오래 둬도 옛 사진이 안 남는다
+      · 크기 종류를 줄인다 — 화면에서 쓰는 것만(목록 76·84px, 카드 200px, 상세 720px 의 1~2배)
+  */
   images: {
-    formats: ["image/avif", "image/webp"],
+    formats: ["image/webp"],
+    minimumCacheTTL: 2678400,
+    imageSizes: [96, 128, 256, 384],
+    deviceSizes: [640, 828, 1080, 1440],
     remotePatterns: [
       {
         protocol: "https",
