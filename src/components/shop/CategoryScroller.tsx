@@ -47,6 +47,31 @@ export function CategoryScroller({
     };
   }, [itemCount]);
 
+  /*
+    처음 들어왔을 때 줄을 한 번 살짝 밀었다 돌려놓는다. 화살표만으로는 "누르는 것" 으로만 읽히고
+    "밀 수 있다" 는 안 읽힌다(손님 대부분이 어르신). 앱을 열 때 한 번만, 움직임 줄이기를 켠 분은 안 한다.
+    scrollLeft 가 아니라 transform 으로 움직인다 — 고른 카테고리로 옮기는 스크롤과 부딪히지 않는다.
+  */
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || el.scrollWidth - el.clientWidth < 8 || motion() === "auto") return;
+    try {
+      if (sessionStorage.getItem(NUDGE_KEY)) return;
+    } catch {
+      return;
+    }
+    const nudge = el.animate(
+      [{ transform: "translateX(0)" }, { transform: "translateX(-36px)" }, { transform: "translateX(0)" }],
+      { duration: 1000, delay: 700, easing: "ease-in-out" },
+    );
+    nudge.onfinish = () => {
+      try {
+        sessionStorage.setItem(NUDGE_KEY, "1");
+      } catch {}
+    };
+    return () => nudge.cancel();
+  }, []);
+
   useEffect(() => {
     const el = ref.current;
     const chip = el?.querySelector<HTMLElement>('[aria-pressed="true"]');
@@ -106,14 +131,16 @@ function EdgeArrow({
           : "left-0 justify-start bg-linear-to-r pl-2"
       } from-canvas from-45% to-transparent ${shown ? "opacity-100" : "pointer-events-none opacity-0"}`}
     >
-      <span className="grid h-7 w-7 place-items-center rounded-full border border-line bg-white text-ink-soft shadow-soft">
-        <svg viewBox="0 0 16 16" className={`h-3.5 w-3.5 ${right ? "" : "rotate-180"}`} fill="none">
-          <path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <span className="grid h-8 w-8 place-items-center rounded-full border border-line bg-white text-ink shadow-soft">
+        <svg viewBox="0 0 16 16" className={`h-4 w-4 ${right ? "" : "rotate-180"}`} fill="none">
+          <path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
     </button>
   );
 }
+
+const NUDGE_KEY = "jeongdamda-category-nudge";
 
 function motion(): ScrollBehavior {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
