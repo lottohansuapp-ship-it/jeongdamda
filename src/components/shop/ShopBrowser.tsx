@@ -11,6 +11,7 @@ import { EMPTY_FILTERS, filterProducts, isFiltering, soldOutLast, type ShopFilte
 import { FilterChip, FilterTab } from "@/components/ui/Filters";
 import type { Category, ProductWithCategory } from "@/types/database";
 import { Carousel } from "./Carousel";
+import { CategoryScroller } from "./CategoryScroller";
 import { ProductCard } from "./ProductCard";
 import { ProductRow } from "./ProductRow";
 
@@ -176,47 +177,8 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
             />
           </label>
 
-          {/*
-            메인 카테고리 — 무엇을 보고 있는지 정하는 자리라 가장 진하게.
-            고르지 않은 것은 배경 없이 글자만 남긴다.
-
-            가로로 밀지 않고 접는다. 카테고리가 9개인데 예전 여백(px-3.5)으로는
-            줄 폭이 527px 이라 화면(390px)을 넘어, 뒤쪽 셋은 손가락으로 밀어야만
-            보였다. 좌우 여백을 6px 로 좁히니 360px 이상에서는 아홉 개가 한 줄에
-            들어간다. 글자 크기는 14px 그대로 뒀다 — 어르신이 읽을 수 있게
-            키워 둔 것을 여백 때문에 되돌릴 수는 없다.
-
-            320px 기기에서는 두 줄로 접힌다. 밀어서 찾는 것보다 접혀 보이는 편이
-            낫고, 이 폭에서 아홉 개를 한 줄에 넣으려면 글자를 줄이는 수밖에 없다.
-            좁아진 뒤에도 누르는 자리는 24×44px 로 기준을 지킨다.
-          */}
-          <div
-            aria-label="카테고리"
-            /*
-              접지 않는다. 한 줄로 고정하고, 넘치면 밀어서 본다.
-
-              flex-wrap 이었을 때 이런 일이 있었다. 첫 화면은 대체 폰트로
-              그려지는데 한글 폭이 넓어 카테고리가 두 줄(88px)이 된다.
-              Pretendard 가 도착하면 한 줄(44px)로 접히고, 그 순간 아래 목록이
-              통째로 44px 위로 밀린다. CLS 가 0.002 에서 0.195 로 뛰었다 —
-              손님이 누르려던 반찬이 손가락 아래에서 사라지는 크기다.
-
-              min-h 로 막아 보려 했지만 소용없었다. 최소 높이는 두 줄로
-              커지는 것을 막지 못한다. 폰트 목록에 한글 대체 폰트를 넣어도
-              첫 페인트는 여전히 두 줄이었다.
-
-              nowrap 이면 폰트가 무엇이든 높이가 한 줄로 고정된다.
-              아홉 개가 360px 이상에서 한 줄에 들어가는 것은 이미 확인했고,
-              320px 처럼 좁은 화면에서만 살짝 밀어서 보게 된다.
-              화면이 튀는 것보다 그편이 낫다.
-            */
-            /*
-              양 끝 20px(=좌우 여백) 만 흐리게. 360px 갤럭시에서 마지막 카테고리가
-              칼로 자른 듯 잘려 고장처럼 보였다. 흐려지면 "더 있다" 로 읽힌다.
-              한 줄에 다 들어가는 화면에서는 그 자리가 원래 빈 여백이라 아무것도 안 흐려진다.
-            */
-            className="no-scrollbar -mx-5 mt-2.5 flex flex-nowrap gap-x-0.5 overflow-x-auto px-5 [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]"
-          >
+          {/* 메인 카테고리 — 무엇을 보고 있는지 정하는 자리라 가장 진하게. 넘치면 밀어서 본다. */}
+          <CategoryScroller activeKey={filters.categorySlug} itemCount={categories.length}>
             <FilterTab
               active={filters.categorySlug === null}
               onClick={() => chooseCategory(null)}
@@ -232,7 +194,7 @@ export function ShopBrowser({ categories, products }: ShopBrowserProps) {
                 {category.name}
               </FilterTab>
             ))}
-          </div>
+          </CategoryScroller>
         </div>
 
         {/* 보조 필터 — 카테고리 위에 덧씌우는 조건이라 한 단계 약하게.
